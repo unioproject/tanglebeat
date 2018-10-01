@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	//log "github.com/sirupsen/logrus"
 	"github.com/lunfardo314/giota"
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
