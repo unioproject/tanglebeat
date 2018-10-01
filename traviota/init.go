@@ -111,9 +111,6 @@ var logFormat = logging.MustStringFormatter(
 )
 
 func ConfigLogging() {
-
-	// Output to stdout instead of the default stderr
-	// Can be any io.Writer, see below for File example
 	logFname := path.Join(Config.SiteDataDir, Config.Sender.LogDir, Config.Sender.Prefix+".log")
 	fout, err := os.OpenFile(logFname, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if err != nil {
@@ -165,7 +162,6 @@ func GetSeqParams(name string) (SenderParams, error) {
 	if _, err := giota.ToTrytes(ret.Seed); err != nil || len(ret.Seed) != 81 {
 		return ret, errors.New(fmt.Sprintf("Wrong seed in sequence '%v'. Must be exactly 81 long trytes string\n", name))
 	}
-
 	// other remaining are not inherited or doesn't make sense on sequence level
 	return ret, nil
 }
