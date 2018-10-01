@@ -170,18 +170,6 @@ func GetSeqParams(name string) (SenderParams, error) {
 	return ret, nil
 }
 
-func GetEnabledSeqParams() (map[string]SenderParams, error) {
-	ret := make(map[string]SenderParams)
-	var err error
-	for _, name := range GetEnabledSeqNames() {
-		ret[name], err = GetSeqParams(name)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return ret, nil
-}
-
 func GetEnabledSeqNames() []string {
 	ret := make([]string, 0)
 	for name, params := range Config.Sender.Sequences {
