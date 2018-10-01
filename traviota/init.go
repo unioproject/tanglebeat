@@ -23,10 +23,14 @@ type ConfigStructYAML struct {
 }
 
 type SenderYAML struct {
-	Prefix    string                  `yaml:"prefix"`
-	LogDir    string                  `yaml:"logDir"`
-	Globals   SenderParams            `yaml:"globals"`
-	Sequences map[string]SenderParams `yaml:"sequences"`
+	Prefix         string                  `yaml:"prefix"`
+	LogDir         string                  `yaml:"logDir"`
+	LogConsoleOnly bool                    `yaml:"logConsoleOnly"`
+	LogFormat      string                  `yaml:"logFormat"`
+	Pprof          bool                    `yaml:"pprof"`
+	MemStats       bool                    `yaml:"memStats"`
+	Globals        SenderParams            `yaml:"globals"`
+	Sequences      map[string]SenderParams `yaml:"sequences"`
 }
 
 type SenderParams struct {
@@ -34,11 +38,14 @@ type SenderParams struct {
 	IOTANode     []string `yaml:"iotaNode"`
 	IOTANodeGTTA []string `yaml:"iotaNodeGTTA"`
 	IOTANodeATT  []string `yaml:"iotaNodeATT"`
+	TimeoutAPI   int      `yaml:"apiTimeout"`
+	TimeoutGTTA  int      `yaml:"gttaTimeout"`
+	TimeoutATT   int      `yaml:"attTimeout"`
 	Nodebug      bool     `yaml:"nodebug"`
-	Pprof        bool     `yaml:"pprof"`
-	MemStats     bool     `yaml:"memStats"`
 	Seed         string   `yaml:"seed"`
 	Index0       int      `yaml:"index0"`
+	TxTag        string   `yaml:"txTag"`
+	TxTagPromote string   `yaml:"txTagPromote"`
 }
 
 //  create config structure with default values
@@ -53,7 +60,7 @@ var Config = ConfigStructYAML{
 	},
 }
 
-var msgBeforeLog = []string{"TangleBeat project. Starting Traviota module"}
+var msgBeforeLog = []string{"----- TangleBeat project. Starting Traviota module"}
 
 func beforeLog() {
 	for _, msg := range msgBeforeLog {
@@ -105,26 +112,45 @@ func ReadConfig(configFilename string) {
 //	`%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
 //)
 
-var logFormat = logging.MustStringFormatter(
+var logFormatDefault = logging.MustStringFormatter(
 	`%{time:2006-01-02 15:04:05.000} [%{shortfunc}] %{level:.4s} %{message}`,
 )
 
 func ConfigLogging() {
-	logFname := path.Join(Config.SiteDataDir, Config.Sender.LogDir, Config.Sender.Prefix+".log")
-	fout, err := os.OpenFile(logFname, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to open logfile %v: %v", logFname, err))
-	}
-	logBackend := logging.NewLogBackend(io.MultiWriter(os.Stderr, fout), "", 0)
-	logBackendFormatter := logging.NewBackendFormatter(logBackend, logFormat)
-	logBackendLeveled := logging.AddModuleLevel(logBackendFormatter)
+	var logWriter io.Writer
+	var level logging.Level
+	var levelName string
+
 	if Config.Sender.Globals.Nodebug {
-		logBackendLeveled.SetLevel(logging.INFO, "")
-		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Will be logging at INFO level to stderr and %v\n", logFname))
+		level = logging.INFO
+		levelName = "INFO"
 	} else {
-		logBackendLeveled.SetLevel(logging.DEBUG, "")
-		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Will be logging at DEBUG level to stderr and %v\n", logFname))
+		level = logging.DEBUG
+		levelName = "DEBUG"
 	}
+	if Config.Sender.LogConsoleOnly {
+		logWriter = os.Stderr
+		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Will be logging at %v level to stderr only", levelName))
+	} else {
+		logFname := path.Join(Config.SiteDataDir, Config.Sender.LogDir, Config.Sender.Prefix+".log")
+		fout, err := os.OpenFile(logFname, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+		if err != nil {
+			panic(fmt.Sprintf("Failed to open logfile %v: %v", logFname, err))
+		}
+		logWriter = io.MultiWriter(os.Stderr, fout)
+		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Will be logging at %v level to stderr and %v\n", levelName, logFname))
+	}
+
+	logBackend := logging.NewLogBackend(logWriter, "", 0)
+	var formatter logging.Formatter
+	if len(Config.Sender.LogFormat) == 0 {
+		formatter = logFormatDefault
+	} else {
+		formatter = logging.MustStringFormatter(Config.Sender.LogFormat)
+	}
+	logBackendFormatter := logging.NewBackendFormatter(logBackend, formatter)
+	logBackendLeveled := logging.AddModuleLevel(logBackendFormatter)
+	logBackendLeveled.SetLevel(level, "")
 	logging.SetBackend(logBackendLeveled)
 	logInitialized = true
 }
@@ -158,9 +184,22 @@ func GetSeqParams(name string) (SenderParams, error) {
 	if Config.Sender.Globals.Nodebug {
 		ret.Nodebug = true
 	}
+	if len(ret.TxTag) == 0 {
+		ret.TxTag = Config.Sender.Globals.TxTag
+	}
+	if len(ret.TxTagPromote) == 0 {
+		ret.TxTagPromote = Config.Sender.Globals.TxTagPromote
+	}
 	if _, err := giota.ToTrytes(ret.Seed); err != nil || len(ret.Seed) != 81 {
 		return ret, errors.New(fmt.Sprintf("Wrong seed in sequence '%v'. Must be exactly 81 long trytes string\n", name))
 	}
+	if _, err := giota.ToTrytes(ret.TxTag); err != nil || len(ret.TxTag) > 27 {
+		return ret, errors.New(fmt.Sprintf("Wrong tx tag in sequence '%v'. Must be no more than 27 long trytes string\n", name))
+	}
+	if _, err := giota.ToTrytes(ret.TxTagPromote); err != nil || len(ret.TxTagPromote) > 27 {
+		return ret, errors.New(fmt.Sprintf("Wrong tx tag promote in sequence '%v'. Must be no more than 27 long trytes string\n", name))
+	}
+
 	// other remaining are not inherited or doesn't make sense on sequence level
 	return ret, nil
 }
