@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/lunfardo314/giota"
 	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/op/go-logging"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -23,6 +25,7 @@ type Sequence struct {
 	TxTag         giota.Trytes
 	TxTagPromote  giota.Trytes
 	SecurityLevel int
+	log           *logging.Logger
 }
 
 func NewSequence(name string) (*Sequence, error) {
@@ -30,7 +33,16 @@ func NewSequence(name string) (*Sequence, error) {
 	if err != nil {
 		return nil, err
 	}
-	var ret = Sequence{Name: name, Params: params, SecurityLevel: 2}
+	logger, err := createSeqLogger(name)
+	if err != nil {
+		return nil, err
+	}
+	var ret = Sequence{
+		Name:          name,
+		Params:        params,
+		SecurityLevel: 2,
+		log:           logger,
+	}
 	ret.IotaAPI = giota.NewAPI(
 		ret.Params.IOTANode[0],
 		&http.Client{
@@ -57,22 +69,57 @@ func NewSequence(name string) (*Sequence, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Infof("Created sequence instance: '%v'. UID = %v", name, uid)
+	ret.log.Infof("Created sequence instance. UID = %v", uid)
 	return &ret, nil
 }
 
-func (seq *Sequence) Run() {
-	log.Infof("Start running sequence '%v'", seq.Name)
-	if addr, err1 := seq.GetAddress(0); err1 == nil {
-		log.Infof("%v Address %v", seq.Name, addr)
-		log.Infof("%v skaiciuojame balansa", seq.Name)
-		if bal, err2 := seq.GetBalanceAddr([]giota.Address{addr}); err2 == nil {
-			log.Infof("%v Balance: %v", seq.Name, bal[0])
+func createSeqLogger(name string) (*logging.Logger, error) {
+	var logger *logging.Logger
+	if Config.Sender.LogConsoleOnly {
+		logger = log
+		log.Infof("Separate logger for sequence '%v' won't be created", name)
+	} else {
+		logFname := path.Join(Config.SiteDataDir, Config.Sender.LogDir, PREFIX_MODULE+"."+name+".log")
+		fout, err := os.OpenFile(logFname, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+		if err != nil {
+			return nil, err
 		} else {
-			log.Errorf("%v: ", seq.Name, err2)
+			logWriter := io.Writer(fout)
+			log.Infof("Created separate logger for sequence '%v' --> %v", name, logFname)
+
+			logBackend := logging.NewLogBackend(logWriter, "", 0)
+			var formatter logging.Formatter
+			if len(Config.Sender.LogFormat) == 0 {
+				formatter = logFormatDefault
+			} else {
+				formatter = logging.MustStringFormatter(Config.Sender.LogFormat)
+			}
+			logBackendFormatter := logging.NewBackendFormatter(logBackend, formatter)
+			seqLoggingBackend := logging.AddModuleLevel(logBackendFormatter)
+			if Config.Sender.Globals.Nodebug {
+				masterLoggingBackend.SetLevel(logging.INFO, name)
+			} else {
+				masterLoggingBackend.SetLevel(logging.DEBUG, name)
+			}
+			logger = logging.MustGetLogger(name)
+			logger.SetBackend(logging.MultiLogger(masterLoggingBackend, seqLoggingBackend))
+		}
+	}
+	return logger, nil
+}
+
+func (seq *Sequence) Run() {
+	seq.log.Infof("Start running sequence")
+	if addr, err1 := seq.GetAddress(0); err1 == nil {
+		seq.log.Infof("Address %v", addr)
+		seq.log.Infof("skaiciuojame balansa")
+		if bal, err2 := seq.GetBalanceAddr([]giota.Address{addr}); err2 == nil {
+			seq.log.Infof("Balance: %v", bal[0])
+		} else {
+			seq.log.Error(err2)
 		}
 	} else {
-		log.Error(err1)
+		seq.log.Error(err1)
 	}
 }
 
@@ -96,7 +143,7 @@ func (seq *Sequence) GetUID() (string, error) {
 
 func (seq *Sequence) getLastIndexFname() (string, error) {
 	uid, err := seq.GetUID()
-	return path.Join(Config.SiteDataDir, uid+".last"), err
+	return path.Join(Config.SiteDataDir, uid), err
 }
 
 // TODO
@@ -110,23 +157,29 @@ func (seq *Sequence) SaveIndex(index int) error {
 		return err
 	}
 	defer fout.Close()
-	_, err = fout.WriteString(string(index))
+	if _, err = fout.WriteString(fmt.Sprintf("%v", index)); err == nil {
+		seq.log.Debugf("Last idx %v saved to %v", index, fname)
+	}
+
 	return err
 }
 
-func (seq *Sequence) ReadLastIndex() int {
+func (seq *Sequence) GetLastIndex() int {
 	fname, err := seq.getLastIndexFname()
 	if err != nil {
-		return 0
+		return seq.Params.Index0
 	}
 	b, err := ioutil.ReadFile(fname)
 	if err != nil {
-		return 0
+		return seq.Params.Index0
 	}
 	ret, err := strconv.Atoi(string(b))
 	if err != nil {
-		return 0
+		return seq.Params.Index0
 	}
+
+	ret = lib.Max(ret, seq.Params.Index0)
+	seq.log.Debugf("Last idx %v read from %v", ret, fname)
 	return ret
 }
 

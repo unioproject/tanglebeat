@@ -13,8 +13,13 @@ import (
 	"path/filepath"
 )
 
-var log = logging.MustGetLogger(Config.Sender.Prefix)
-var logInitialized = false
+const PREFIX_MODULE = "traviota"
+
+var (
+	log                  *logging.Logger
+	masterLoggingBackend logging.LeveledBackend
+	logInitialized       = false
+)
 
 type ConfigStructYAML struct {
 	SiteDataDir string
@@ -23,7 +28,6 @@ type ConfigStructYAML struct {
 }
 
 type SenderYAML struct {
-	Prefix         string                  `yaml:"prefix"`
 	LogDir         string                  `yaml:"logDir"`
 	LogConsoleOnly bool                    `yaml:"logConsoleOnly"`
 	LogFormat      string                  `yaml:"logFormat"`
@@ -53,7 +57,6 @@ type SenderParams struct {
 var Config = ConfigStructYAML{
 	SiteDataDir: ".\\",
 	Sender: SenderYAML{
-		Prefix: "traviota",
 		Globals: SenderParams{
 			IOTANode: []string{"https://field.deviota.com:443"},
 		},
@@ -128,11 +131,13 @@ func ConfigLogging() {
 		level = logging.DEBUG
 		levelName = "DEBUG"
 	}
+
+	// opening log file if necessary
 	if Config.Sender.LogConsoleOnly {
 		logWriter = os.Stderr
 		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Will be logging at %v level to stderr only", levelName))
 	} else {
-		logFname := path.Join(Config.SiteDataDir, Config.Sender.LogDir, Config.Sender.Prefix+".log")
+		logFname := path.Join(Config.SiteDataDir, Config.Sender.LogDir, PREFIX_MODULE+".log")
 		fout, err := os.OpenFile(logFname, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 		if err != nil {
 			panic(fmt.Sprintf("Failed to open logfile %v: %v", logFname, err))
@@ -140,6 +145,9 @@ func ConfigLogging() {
 		logWriter = io.MultiWriter(os.Stderr, fout)
 		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Will be logging at %v level to stderr and %v\n", levelName, logFname))
 	}
+	// creating master logger 'log'
+	loggerName := "main"
+	log = logging.MustGetLogger(loggerName)
 
 	logBackend := logging.NewLogBackend(logWriter, "", 0)
 	var formatter logging.Formatter
@@ -149,9 +157,10 @@ func ConfigLogging() {
 		formatter = logging.MustStringFormatter(Config.Sender.LogFormat)
 	}
 	logBackendFormatter := logging.NewBackendFormatter(logBackend, formatter)
-	logBackendLeveled := logging.AddModuleLevel(logBackendFormatter)
-	logBackendLeveled.SetLevel(level, "")
-	logging.SetBackend(logBackendLeveled)
+	masterLoggingBackend = logging.AddModuleLevel(logBackendFormatter)
+	masterLoggingBackend.SetLevel(level, loggerName)
+
+	log.SetBackend(masterLoggingBackend)
 	logInitialized = true
 }
 

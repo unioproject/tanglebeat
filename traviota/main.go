@@ -19,8 +19,7 @@ func main() {
 			sequences = append(sequences, seq)
 			seq.SaveIndex(c)
 			c += 5
-			idx := seq.ReadLastIndex()
-			log.Infof("%v last idx = %v", seq.Name, idx)
+			seq.GetLastIndex()
 		}
 
 	}

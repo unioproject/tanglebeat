@@ -25,3 +25,17 @@ func KerlTrytes(s giota.Trytes) (giota.Trytes, error) {
 	}
 	return ts.Trytes(), nil
 }
+
+func Min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func Max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
