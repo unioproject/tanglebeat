@@ -115,18 +115,43 @@ func createSeqLogger(name string) (*logging.Logger, error) {
 }
 
 func (seq *Sequence) Run() {
-	seq.log.Infof("Start running sequence")
-	if addr, err1 := seq.GetAddress(0); err1 == nil {
-		seq.log.Infof("Address %v", addr)
-		seq.log.Infof("skaiciuojame balansa")
-		if bal, err2 := seq.GetBalanceAddr([]giota.Address{addr}); err2 == nil {
-			seq.log.Infof("Balance: %v", bal[0])
-		} else {
-			seq.log.Error(err2)
-		}
-	} else {
-		seq.log.Error(err1)
+	index0 := seq.GetLastIndex()
+	seq.log.Infof("Start running sequence with the index0 = %v", index0)
+
+	for index := index0; ; index++ {
+		seq.processAddrWithIndex(index)
+		seq.SaveIndex(index)
 	}
+}
+
+func (seq *Sequence) processAddrWithIndex(index int) {
+	seq.log.Debugf("Start processing idx=%v time=%v", index, time.Now().Unix())
+	addr, err := seq.GetAddress(index)
+	if err != nil {
+		seq.log.Panicf("Can't get address for idx=%v", index)
+	}
+	inCh, _ := seq.NewAddrBalanceChan(index)
+
+	// processAddrWithIndex only finishes if balance is 0 and address is spent
+	// if balance = 0 and address is not spent, loop is waiting for the iotas
+	count := 0
+	for s := <-inCh; !(s.balance == 0 && s.isSpent); s = <-inCh {
+		if s.err != nil {
+			seq.log.Debugf("Error while reading balance: %v", err)
+		} else {
+			if count%12 == 0 {
+				if s.balance == 0 {
+					seq.log.Debugf("Address with idx=%v addr=%v.. has zero balance. Waiting for balance to become non zero",
+						index, addr[:9])
+				} else {
+					seq.log.Debugf("CURRENT address with idx=%v addr=%v.. has balance %v iotas", index, addr[:9], s.balance)
+				}
+			}
+		}
+		time.Sleep(5 * time.Second)
+		count++
+	}
+	seq.log.Debugf("Finish processing idx=%v time=%v", index, time.Now().Unix())
 }
 
 func (seq *Sequence) GetAddress(index int) (giota.Address, error) {

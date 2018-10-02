@@ -208,7 +208,15 @@ func GetSeqParams(name string) (SenderParams, error) {
 	if _, err := giota.ToTrytes(ret.TxTagPromote); err != nil || len(ret.TxTagPromote) > 27 {
 		return ret, errors.New(fmt.Sprintf("Wrong tx tag promote in sequence '%v'. Must be no more than 27 long trytes string\n", name))
 	}
-
+	if ret.TimeoutAPI == 0 {
+		ret.TimeoutAPI = Config.Sender.Globals.TimeoutAPI
+	}
+	if ret.TimeoutGTTA == 0 {
+		ret.TimeoutGTTA = Config.Sender.Globals.TimeoutGTTA
+	}
+	if ret.TimeoutATT == 0 {
+		ret.TimeoutATT = Config.Sender.Globals.TimeoutATT
+	}
 	// other remaining are not inherited or doesn't make sense on sequence level
 	return ret, nil
 }
