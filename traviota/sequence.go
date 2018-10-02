@@ -1,8 +1,15 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"github.com/lunfardo314/giota"
+	"github.com/lunfardo314/tanglebeat/lib"
+	"io/ioutil"
 	"net/http"
+	"os"
+	"path"
+	"strconv"
 	"time"
 )
 
@@ -46,7 +53,11 @@ func NewSequence(name string) (*Sequence, error) {
 	ret.TxTag, _ = giota.ToTrytes(ret.Params.TxTag)
 	ret.TxTagPromote, _ = giota.ToTrytes(ret.Params.TxTagPromote)
 
-	log.Infof("Created sequence object '%v'", name)
+	uid, err := ret.GetUID()
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("Created sequence instance: '%v'. UID = %v", name, uid)
 	return &ret, nil
 }
 
@@ -71,6 +82,52 @@ func (seq *Sequence) GetAddress(index int) (giota.Address, error) {
 		return "", err
 	}
 	return ret, nil
+}
+
+// returns last 12 trytes of the hash of the seed
+func (seq *Sequence) GetUID() (string, error) {
+	hash, err := lib.KerlTrytes(seq.Seed)
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("%v: %v", seq.Name, err))
+	}
+	ret := string(hash)
+	return ret[len(ret)-12:], nil
+}
+
+func (seq *Sequence) getLastIndexFname() (string, error) {
+	uid, err := seq.GetUID()
+	return path.Join(Config.SiteDataDir, uid+".last"), err
+}
+
+// TODO
+func (seq *Sequence) SaveIndex(index int) error {
+	fname, err := seq.getLastIndexFname()
+	if err != nil {
+		return err
+	}
+	fout, err := os.OpenFile(fname, os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		return err
+	}
+	defer fout.Close()
+	_, err = fout.WriteString(string(index))
+	return err
+}
+
+func (seq *Sequence) ReadLastIndex() int {
+	fname, err := seq.getLastIndexFname()
+	if err != nil {
+		return 0
+	}
+	b, err := ioutil.ReadFile(fname)
+	if err != nil {
+		return 0
+	}
+	ret, err := strconv.Atoi(string(b))
+	if err != nil {
+		return 0
+	}
+	return ret
 }
 
 func (seq *Sequence) IsSpentAddr(address giota.Address) (bool, error) {
