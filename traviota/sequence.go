@@ -49,18 +49,24 @@ func NewSequence(name string) (*Sequence, error) {
 			Timeout: time.Duration(ret.Params.TimeoutAPI) * time.Second,
 		},
 	)
+	ret.log.Infof("IOTA node: %v, Timeout: %v sec", ret.Params.IOTANode[0], ret.Params.TimeoutAPI)
+
 	ret.IotaAPIgTTA = giota.NewAPI(
 		ret.Params.IOTANodeGTTA[0],
 		&http.Client{
 			Timeout: time.Duration(ret.Params.TimeoutGTTA) * time.Second,
 		},
 	)
+	ret.log.Infof("IOTA node for gTTA: %v, Timeout: %v sec", ret.Params.IOTANodeGTTA[0], ret.Params.TimeoutGTTA)
+
 	ret.IotaAPIaTT = giota.NewAPI(
 		ret.Params.IOTANodeATT[0],
 		&http.Client{
 			Timeout: time.Duration(ret.Params.TimeoutATT) * time.Second,
 		},
 	)
+	ret.log.Infof("IOTA node for ATT: %v, Timeout: %v sec", ret.Params.IOTANodeATT[0], ret.Params.TimeoutATT)
+
 	ret.Seed, _ = giota.ToTrytes(ret.Params.Seed)
 	ret.TxTag, _ = giota.ToTrytes(ret.Params.TxTag)
 	ret.TxTagPromote, _ = giota.ToTrytes(ret.Params.TxTagPromote)
@@ -77,7 +83,7 @@ func createSeqLogger(name string) (*logging.Logger, error) {
 	var logger *logging.Logger
 	if Config.Sender.LogConsoleOnly {
 		logger = log
-		log.Infof("Separate logger for sequence '%v' won't be created", name)
+		log.Infof("Separate logger for the sequence won't be created")
 	} else {
 		logFname := path.Join(Config.SiteDataDir, Config.Sender.LogDir, PREFIX_MODULE+"."+name+".log")
 		fout, err := os.OpenFile(logFname, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
@@ -85,7 +91,7 @@ func createSeqLogger(name string) (*logging.Logger, error) {
 			return nil, err
 		} else {
 			logWriter := io.Writer(fout)
-			log.Infof("Created separate logger for sequence '%v' --> %v", name, logFname)
+			log.Infof("Created separate logger for the sequence %v", logFname)
 
 			logBackend := logging.NewLogBackend(logWriter, "", 0)
 			var formatter logging.Formatter
