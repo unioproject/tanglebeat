@@ -10,7 +10,6 @@ type AddressBalance struct {
 	balance   int64
 	isSpent   bool
 	refreshed time.Time
-	err       error
 }
 
 func (seq *Sequence) NewAddrBalanceChan(index int) (chan *AddressBalance, func()) {
@@ -39,16 +38,21 @@ func (seq *Sequence) NewAddrBalanceChan(index int) (chan *AddressBalance, func()
 					isSpent, err = seq.IsSpentAddr(addr)
 				}
 			}
-			select {
-			case <-chCancel:
-				return
-			case chOut <- &AddressBalance{balance: balance, isSpent: isSpent, refreshed: time.Now(), err: err}:
-			case <-time.After(5 * time.Second):
+			if err != nil {
+				seq.log.Errorf("Error: %v. Sleep 30 sec", err)
+				time.Sleep(30 * time.Second)
+			} else {
+				select {
+				case <-chCancel:
+					return
+				case chOut <- &AddressBalance{balance: balance, isSpent: isSpent, refreshed: time.Now()}:
+				case <-time.After(5 * time.Second):
+				}
 			}
 		}
 	}()
 	return chOut, func() {
 		close(chCancel)
 		wg.Wait()
-	} // return cancel closure
+	} // returns the channel and cancel closure
 }

@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -25,7 +26,11 @@ type Sequence struct {
 	TxTag         giota.Trytes
 	TxTagPromote  giota.Trytes
 	SecurityLevel int
-	log           *logging.Logger
+	// addr cache
+	addrIdxCache   int
+	addrCache      giota.Address
+	addrCacheMutex sync.Mutex
+	log            *logging.Logger
 }
 
 func NewSequence(name string) (*Sequence, error) {
@@ -42,6 +47,7 @@ func NewSequence(name string) (*Sequence, error) {
 		Params:        params,
 		SecurityLevel: 2,
 		log:           logger,
+		addrIdxCache:  -1,
 	}
 	ret.IotaAPI = giota.NewAPI(
 		ret.Params.IOTANode[0],
@@ -115,12 +121,12 @@ func createSeqLogger(name string) (*logging.Logger, error) {
 }
 
 func (seq *Sequence) Run() {
-	index0 := seq.GetLastIndex()
+	index0 := seq.getLastIndex()
 	seq.log.Infof("Start running sequence with the index0 = %v", index0)
 
 	for index := index0; ; index++ {
 		seq.processAddrWithIndex(index)
-		seq.SaveIndex(index)
+		seq.saveIndex(index)
 	}
 }
 
@@ -130,22 +136,26 @@ func (seq *Sequence) processAddrWithIndex(index int) {
 	if err != nil {
 		seq.log.Panicf("Can't get address for idx=%v", index)
 	}
-	inCh, _ := seq.NewAddrBalanceChan(index)
+	inCh, cancelBalanceChan := seq.NewAddrBalanceChan(index)
+	defer cancelBalanceChan()
+
+	count := 0
+	s := <-inCh
+	if s.balance != 0 {
+		// start sending routine if balance no zero
+		cancelSending := seq.StartSending(index)
+		defer cancelSending()
+	}
 
 	// processAddrWithIndex only finishes if balance is 0 and address is spent
 	// if balance = 0 and address is not spent, loop is waiting for the iotas
-	count := 0
-	for s := <-inCh; !(s.balance == 0 && s.isSpent); s = <-inCh {
-		if s.err != nil {
-			seq.log.Debugf("Error while reading balance: %v", err)
-		} else {
-			if count%12 == 0 {
-				if s.balance == 0 {
-					seq.log.Debugf("Address with idx=%v addr=%v.. has zero balance. Waiting for balance to become non zero",
-						index, addr[:9])
-				} else {
-					seq.log.Debugf("CURRENT address with idx=%v addr=%v.. has balance %v iotas", index, addr[:9], s.balance)
-				}
+	for ; !(s.balance == 0 && s.isSpent); s = <-inCh {
+		if count%12 == 0 {
+			if s.balance == 0 {
+				seq.log.Debugf("Address with idx=%v addr=%v.. has zero balance. Waiting for balance to become non zero",
+					index, addr[:9])
+			} else {
+				seq.log.Debugf("CURRENT address with idx=%v addr=%v.. has balance %v iotas", index, addr[:9], s.balance)
 			}
 		}
 		time.Sleep(5 * time.Second)
@@ -155,11 +165,20 @@ func (seq *Sequence) processAddrWithIndex(index int) {
 }
 
 func (seq *Sequence) GetAddress(index int) (giota.Address, error) {
-	ret, err := giota.NewAddress(seq.Seed, index, seq.SecurityLevel)
-	if err != nil {
-		return "", err
+	seq.addrCacheMutex.Lock()
+	defer seq.addrCacheMutex.Unlock()
+
+	if seq.addrIdxCache == index {
+		return seq.addrCache, nil
 	}
-	return ret, nil
+	var err error
+	seq.addrCache, err = giota.NewAddress(seq.Seed, index, seq.SecurityLevel)
+	if err == nil {
+		seq.addrIdxCache = index
+	} else {
+		seq.addrIdxCache = -1
+	}
+	return seq.addrCache, nil
 }
 
 // returns last 12 trytes of the hash of the seed
@@ -177,8 +196,7 @@ func (seq *Sequence) getLastIndexFname() (string, error) {
 	return path.Join(Config.SiteDataDir, uid), err
 }
 
-// TODO
-func (seq *Sequence) SaveIndex(index int) error {
+func (seq *Sequence) saveIndex(index int) error {
 	fname, err := seq.getLastIndexFname()
 	if err != nil {
 		return err
@@ -195,7 +213,7 @@ func (seq *Sequence) SaveIndex(index int) error {
 	return err
 }
 
-func (seq *Sequence) GetLastIndex() int {
+func (seq *Sequence) getLastIndex() int {
 	fname, err := seq.getLastIndexFname()
 	if err != nil {
 		return seq.Params.Index0

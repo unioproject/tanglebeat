@@ -39,3 +39,12 @@ func Max(a, b int) int {
 	}
 	return b
 }
+
+func TrytesInSet(a giota.Trytes, list []giota.Trytes) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}
