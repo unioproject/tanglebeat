@@ -16,6 +16,7 @@ const (
 
 type TransactionsNew struct {
 	Transactions []giota.Transaction
+	TotalNumTx   int
 	Refreshed    time.Time
 	Duration     time.Duration
 }
@@ -25,42 +26,54 @@ type TransactionsNew struct {
 func (seq *Sequence) NewListenTxChan(index int, filterFlags int) (chan *TransactionsNew, func()) {
 	chOut := make(chan *TransactionsNew)
 	chCancel := make(chan struct{})
+	seq.log.Debugf("Created ListenTx channel for idx=%v filter = %X", index, filterFlags)
 
 	addr, err := seq.GetAddress(index)
 	if err != nil {
 		seq.log.Error(err)
 	}
-	seq.log.Debugf("Starting listening tx channel for idx=%v", index)
 
 	var wg sync.WaitGroup
 	var txHashes []giota.Trytes
 
 	go func() {
-		defer seq.log.Debugf("Closed listening tx state channel for %v", index)
-		defer close(chOut)
+		seq.log.Debugf("Starting processing ListenTx channel for idx=%v filter = %X", index, filterFlags)
+		defer seq.log.Debugf("ListenTx: closed channel for %v", index)
 		wg.Add(1)
 		defer wg.Done()
-
+		firstRun := true
 		for {
 			start := time.Now()
 			allTxHashes, newTx := seq.readNewTx(addr, txHashes, filterFlags)
-			if len(newTx) > 0 {
+			if len(newTx) > 0 || firstRun {
 				select {
 				case <-chCancel:
 					return
 				case chOut <- &TransactionsNew{
 					Transactions: newTx,
+					TotalNumTx:   len(allTxHashes),
 					Refreshed:    time.Now(),
 					Duration:     time.Since(start),
 				}:
 					txHashes = allTxHashes
+					seq.log.Debugf("ListenTx: sending out %v new transactions out of total %vfor address filter= %X idx = %v",
+						len(newTx), len(txHashes), filterFlags, index)
+				case <-time.After(5 * time.Second):
+				}
+			} else {
+				seq.log.Debugf("ListenTx: no new tx to send for idx = %v : %v ", index, addr)
+				select {
+				case <-chCancel:
+					return
 				case <-time.After(5 * time.Second):
 				}
 			}
+			firstRun = false
 		}
 	}()
 
 	return chOut, func() {
+		close(chOut)
 		close(chCancel)
 		wg.Wait()
 	} // return the channel and cancel closure
@@ -88,6 +101,7 @@ func (seq *Sequence) readNewTx(addr giota.Address, currentTxHashes []giota.Tryte
 	}
 	gtResp, err := seq.IotaAPI.GetTrytes(newTxh)
 	if err != nil {
+		seq.log.Error(err)
 		return currentTxHashes, nil
 	}
 	var ret []giota.Transaction
@@ -108,4 +122,95 @@ func (seq *Sequence) readNewTx(addr giota.Address, currentTxHashes []giota.Tryte
 		}
 	}
 	return ftResp.Hashes, ret
+}
+
+// detect new tails in bundles according to the filter
+// receives new transactions (filtered), finds if there new bundle hashes,
+// then finds all transactions of those bundle hashes, returns to channel new tails
+func (seq *Sequence) NewListenTailsChan(index int, filterFlags int) (chan *TransactionsNew, func()) {
+	chOut := make(chan *TransactionsNew)
+	seq.log.Debugf("Created ListenTails channel for idx=%v filter = %X", index, filterFlags)
+
+	chTx, cancelChanTx := seq.NewListenTxChan(index, filterFlags)
+
+	var wg sync.WaitGroup
+
+	go func() {
+		seq.log.Debugf("Start processing ListenTails channel for idx=%v filter = %X", index, filterFlags)
+		defer seq.log.Debugf("ListenTails: closed channel for %v", index)
+		wg.Add(1)
+		defer wg.Done()
+
+		var tails []giota.Transaction
+		for newTx := range chTx {
+			start := time.Now()
+			newTails := seq.readNewTails(newTx.Transactions, tails)
+			tailsTmp := make([]giota.Transaction, len(tails))
+			for _, tx := range newTails {
+				tailsTmp = append(tailsTmp, tx)
+			}
+			select {
+			case chOut <- &TransactionsNew{
+				Transactions: newTails,
+				TotalNumTx:   len(tailsTmp),
+				Refreshed:    time.Now(),
+				Duration:     time.Since(start),
+			}:
+				tails = tailsTmp
+				seq.log.Debugf("ListenTails: sending out %v new tails out of total %v for address filter=%X idx = %v",
+					len(newTails), len(tails), filterFlags, index)
+			case <-time.After(5 * time.Second):
+			}
+		}
+	}()
+	return chOut, func() {
+		close(chOut)
+		cancelChanTx()
+		wg.Wait()
+	} // return the channel and cancel closure
+
+}
+
+func (seq *Sequence) readNewTails(newTx, currentTails []giota.Transaction) []giota.Transaction {
+	if len(newTx) == 0 {
+		return nil
+	}
+	var bundleHashes []giota.Trytes
+
+	// bundle hashes of new transactions
+	for _, tx := range newTx {
+		if !lib.TrytesInSet(tx.Bundle, bundleHashes) {
+			bundleHashes = append(bundleHashes, tx.Bundle)
+		}
+	}
+	// find ALL tx with those bundle hashes
+	ftResp, err := seq.IotaAPI.FindTransactions(
+		&giota.FindTransactionsRequest{
+			Bundles: bundleHashes,
+		},
+	)
+	if err != nil {
+		seq.log.Error(err)
+		return nil
+	}
+	// load tx objects of all transactions
+	// TODO caching GetTrytes, optimize
+	gtResp, err := seq.IotaAPI.GetTrytes(ftResp.Hashes)
+	if err != nil {
+		seq.log.Error(err)
+		return nil
+	}
+	// hashes of current tails
+	var currentTailHashes []giota.Trytes
+	for _, tx := range currentTails {
+		currentTailHashes = append(currentTailHashes, tx.Hash())
+	}
+	// collect new tails of bundles
+	var newTails []giota.Transaction
+	for _, tx := range gtResp.Trytes {
+		if tx.CurrentIndex == 0 && !lib.TrytesInSet(tx.Hash(), currentTailHashes) {
+			newTails = append(newTails, tx)
+		}
+	}
+	return newTails
 }

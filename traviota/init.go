@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/lunfardo314/giota"
+	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -11,6 +12,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
+	"time"
 )
 
 const PREFIX_MODULE = "traviota"
@@ -28,13 +31,14 @@ type ConfigStructYAML struct {
 }
 
 type SenderYAML struct {
-	LogDir         string                  `yaml:"logDir"`
-	LogConsoleOnly bool                    `yaml:"logConsoleOnly"`
-	LogFormat      string                  `yaml:"logFormat"`
-	Pprof          bool                    `yaml:"pprof"`
-	MemStats       bool                    `yaml:"memStats"`
-	Globals        SenderParams            `yaml:"globals"`
-	Sequences      map[string]SenderParams `yaml:"sequences"`
+	LogDir           string                  `yaml:"logDir"`
+	LogConsoleOnly   bool                    `yaml:"logConsoleOnly"`
+	LogFormat        string                  `yaml:"logFormat"`
+	Pprof            bool                    `yaml:"pprof"`
+	MemStats         bool                    `yaml:"memStats"`
+	MemStatsInterval int                     `yaml:"memStatsInterval"`
+	Globals          SenderParams            `yaml:"globals"`
+	Sequences        map[string]SenderParams `yaml:"sequences"`
 }
 
 type SenderParams struct {
@@ -108,6 +112,18 @@ func ReadConfig(configFilename string) {
 		panic(fmt.Sprintf("Failed to unmarshal config file. Error: %v\n", err))
 	}
 	ConfigLogging()
+
+	if Config.Sender.MemStats {
+		sl := lib.Max(5, Config.Sender.MemStatsInterval)
+		go func() {
+			for {
+				LogMemStats()
+				time.Sleep(time.Duration(sl) * time.Second)
+			}
+		}()
+		log.Infof("Will be logging MemStats every %v sec", sl)
+	}
+
 	msgBeforeLog = append(msgBeforeLog, "Traviota initialized successfully")
 }
 
@@ -255,4 +271,20 @@ func GetEnabledSeqNames() []string {
 		}
 	}
 	return ret
+}
+
+func LogMemStats() {
+	var mem runtime.MemStats
+
+	runtime.ReadMemStats(&mem)
+	log.Debugf("--- DEBUG:MemStats: Alloc = %v MB  TotalAlloc = %v MB Sys = %v MB  NumGC = %v\n",
+		bToMb(mem.Alloc),
+		bToMb(mem.TotalAlloc),
+		bToMb(mem.Sys),
+		mem.NumGC,
+	)
+}
+
+func bToMb(b uint64) uint64 {
+	return b / 1024 / 1024
 }
