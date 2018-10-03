@@ -21,7 +21,7 @@ type TransactionsNew struct {
 	Duration     time.Duration
 }
 
-// channel provides new transactions, appeared for the address since the last message
+// producer channel for new transactions, appeared for the address since the last message
 // can be filtered based on value sign
 func (seq *Sequence) NewListenTxChan(index int, filterFlags int) (chan *TransactionsNew, func()) {
 	chOut := make(chan *TransactionsNew)
@@ -37,10 +37,13 @@ func (seq *Sequence) NewListenTxChan(index int, filterFlags int) (chan *Transact
 	var txHashes []giota.Trytes
 
 	go func() {
-		seq.log.Debugf("Starting processing ListenTx channel for idx=%v filter = %X", index, filterFlags)
+		seq.log.Debugf("Starting processing ListenTx channel for idx = %v filter = %X", index, filterFlags)
+		defer close(chOut)
 		defer seq.log.Debugf("ListenTx: closed channel for %v", index)
+
 		wg.Add(1)
 		defer wg.Done()
+
 		firstRun := true
 		for {
 			start := time.Now()
@@ -49,6 +52,7 @@ func (seq *Sequence) NewListenTxChan(index int, filterFlags int) (chan *Transact
 				select {
 				case <-chCancel:
 					return
+				case <-time.After(5 * time.Second):
 				case chOut <- &TransactionsNew{
 					Transactions: newTx,
 					TotalNumTx:   len(allTxHashes),
@@ -56,9 +60,8 @@ func (seq *Sequence) NewListenTxChan(index int, filterFlags int) (chan *Transact
 					Duration:     time.Since(start),
 				}:
 					txHashes = allTxHashes
-					seq.log.Debugf("ListenTx: sending out %v new transactions out of total %vfor address filter= %X idx = %v",
+					seq.log.Debugf("ListenTx: sending out %v new transactions out of total %v for address filter = %X idx = %v",
 						len(newTx), len(txHashes), filterFlags, index)
-				case <-time.After(5 * time.Second):
 				}
 			} else {
 				seq.log.Debugf("ListenTx: no new tx to send for idx = %v : %v ", index, addr)
@@ -73,7 +76,6 @@ func (seq *Sequence) NewListenTxChan(index int, filterFlags int) (chan *Transact
 	}()
 
 	return chOut, func() {
-		close(chOut)
 		close(chCancel)
 		wg.Wait()
 	} // return the channel and cancel closure
@@ -124,11 +126,15 @@ func (seq *Sequence) readNewTx(addr giota.Address, currentTxHashes []giota.Tryte
 	return ftResp.Hashes, ret
 }
 
+// pipeline channel
 // detect new tails in bundles according to the filter
 // receives new transactions (filtered), finds if there new bundle hashes,
 // then finds all transactions of those bundle hashes, returns to channel new tails
+
 func (seq *Sequence) NewListenTailsChan(index int, filterFlags int) (chan *TransactionsNew, func()) {
 	chOut := make(chan *TransactionsNew)
+	chCancel := make(chan struct{})
+
 	seq.log.Debugf("Created ListenTails channel for idx=%v filter = %X", index, filterFlags)
 
 	chTx, cancelChanTx := seq.NewListenTxChan(index, filterFlags)
@@ -137,7 +143,9 @@ func (seq *Sequence) NewListenTailsChan(index int, filterFlags int) (chan *Trans
 
 	go func() {
 		seq.log.Debugf("Start processing ListenTails channel for idx=%v filter = %X", index, filterFlags)
+		defer close(chOut)
 		defer seq.log.Debugf("ListenTails: closed channel for %v", index)
+
 		wg.Add(1)
 		defer wg.Done()
 
@@ -150,6 +158,9 @@ func (seq *Sequence) NewListenTailsChan(index int, filterFlags int) (chan *Trans
 				tailsTmp = append(tailsTmp, tx)
 			}
 			select {
+			case <-chCancel:
+				return
+			case <-time.After(5 * time.Second):
 			case chOut <- &TransactionsNew{
 				Transactions: newTails,
 				TotalNumTx:   len(tailsTmp),
@@ -159,13 +170,12 @@ func (seq *Sequence) NewListenTailsChan(index int, filterFlags int) (chan *Trans
 				tails = tailsTmp
 				seq.log.Debugf("ListenTails: sending out %v new tails out of total %v for address filter=%X idx = %v",
 					len(newTails), len(tails), filterFlags, index)
-			case <-time.After(5 * time.Second):
 			}
 		}
 	}()
 	return chOut, func() {
-		close(chOut)
 		cancelChanTx()
+		close(chCancel)
 		wg.Wait()
 	} // return the channel and cancel closure
 

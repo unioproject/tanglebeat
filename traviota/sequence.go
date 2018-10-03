@@ -115,7 +115,7 @@ func (seq *Sequence) processAddrWithIndex(index int) {
 	if s.balance != 0 {
 		// start sending routine if balance is non zero
 		seq.log.Debugf("Balance of addr idx=%v != 0", index)
-		cancelSending := seq.StartSending(index)
+		cancelSending := seq.DoSending(index)
 		defer cancelSending()
 	}
 

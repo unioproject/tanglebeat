@@ -39,14 +39,18 @@ func (seq *Sequence) NewAddrBalanceChan(index int) (chan *AddressBalance, func()
 				}
 			}
 			if err != nil {
-				seq.log.Errorf("Error: %v. Sleep 30 sec", err)
-				time.Sleep(30 * time.Second)
+				seq.log.Errorf("AddrBalanceChan error: %v. Sleep 5 sec", err)
+				time.Sleep(5 * time.Second)
 			} else {
 				select {
 				case <-chCancel:
 					return
-				case chOut <- &AddressBalance{balance: balance, isSpent: isSpent, refreshed: time.Now()}:
 				case <-time.After(5 * time.Second):
+				case chOut <- &AddressBalance{
+					balance:   balance,
+					isSpent:   isSpent,
+					refreshed: time.Now(),
+				}:
 				}
 			}
 		}
