@@ -6,7 +6,6 @@ import (
 	"github.com/lunfardo314/giota"
 	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/op/go-logging"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -38,9 +37,16 @@ func NewSequence(name string) (*Sequence, error) {
 	if err != nil {
 		return nil, err
 	}
-	logger, err := createSeqLogger(name)
-	if err != nil {
-		return nil, err
+	var logger *logging.Logger
+	if Config.Sender.LogConsoleOnly {
+		logger = log
+		log.Infof("Separate logger for the sequence won't be created")
+	} else {
+		formatter := getFormatter()
+		logger, err = createChildLogger(name, &masterLoggingBackend, &formatter)
+		if err != nil {
+			return nil, err
+		}
 	}
 	var ret = Sequence{
 		Name:          name,
@@ -85,41 +91,6 @@ func NewSequence(name string) (*Sequence, error) {
 	return &ret, nil
 }
 
-func createSeqLogger(name string) (*logging.Logger, error) {
-	var logger *logging.Logger
-	if Config.Sender.LogConsoleOnly {
-		logger = log
-		log.Infof("Separate logger for the sequence won't be created")
-	} else {
-		logFname := path.Join(Config.SiteDataDir, Config.Sender.LogDir, PREFIX_MODULE+"."+name+".log")
-		fout, err := os.OpenFile(logFname, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
-		if err != nil {
-			return nil, err
-		} else {
-			logWriter := io.Writer(fout)
-			log.Infof("Created separate logger for the sequence %v", logFname)
-
-			logBackend := logging.NewLogBackend(logWriter, "", 0)
-			var formatter logging.Formatter
-			if len(Config.Sender.LogFormat) == 0 {
-				formatter = logFormatDefault
-			} else {
-				formatter = logging.MustStringFormatter(Config.Sender.LogFormat)
-			}
-			logBackendFormatter := logging.NewBackendFormatter(logBackend, formatter)
-			seqLoggingBackend := logging.AddModuleLevel(logBackendFormatter)
-			if Config.Sender.Globals.Nodebug {
-				masterLoggingBackend.SetLevel(logging.INFO, name)
-			} else {
-				masterLoggingBackend.SetLevel(logging.DEBUG, name)
-			}
-			logger = logging.MustGetLogger(name)
-			logger.SetBackend(logging.MultiLogger(masterLoggingBackend, seqLoggingBackend))
-		}
-	}
-	return logger, nil
-}
-
 func (seq *Sequence) Run() {
 	index0 := seq.getLastIndex()
 	seq.log.Infof("Start running sequence with the index0 = %v", index0)
@@ -142,7 +113,7 @@ func (seq *Sequence) processAddrWithIndex(index int) {
 	count := 0
 	s := <-inCh
 	if s.balance != 0 {
-		// start sending routine if balance no zero
+		// start sending routine if balance is non zero
 		cancelSending := seq.StartSending(index)
 		defer cancelSending()
 	}

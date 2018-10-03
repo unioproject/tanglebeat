@@ -111,13 +111,17 @@ func ReadConfig(configFilename string) {
 	msgBeforeLog = append(msgBeforeLog, "Traviota initialized successfully")
 }
 
-//var logFormat = logging.MustStringFormatter(
 //	`%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
-//)
 
-var logFormatDefault = logging.MustStringFormatter(
-	`%{time:2006-01-02 15:04:05.000} [%{shortfunc}] %{level:.4s} %{message}`,
-)
+func getFormatter() logging.Formatter {
+	if len(Config.Sender.LogFormat) == 0 {
+		return logging.MustStringFormatter(
+			`%{time:2006-01-02 15:04:05.000} [%{shortfunc}] %{level:.4s} %{message}`,
+		)
+	} else {
+		return logging.MustStringFormatter(Config.Sender.LogFormat)
+	}
+}
 
 func ConfigLogging() {
 	var logWriter io.Writer
@@ -150,18 +154,40 @@ func ConfigLogging() {
 	log = logging.MustGetLogger(loggerName)
 
 	logBackend := logging.NewLogBackend(logWriter, "", 0)
-	var formatter logging.Formatter
-	if len(Config.Sender.LogFormat) == 0 {
-		formatter = logFormatDefault
-	} else {
-		formatter = logging.MustStringFormatter(Config.Sender.LogFormat)
-	}
+	formatter := getFormatter()
 	logBackendFormatter := logging.NewBackendFormatter(logBackend, formatter)
 	masterLoggingBackend = logging.AddModuleLevel(logBackendFormatter)
 	masterLoggingBackend.SetLevel(level, loggerName)
 
 	log.SetBackend(masterLoggingBackend)
 	logInitialized = true
+}
+
+// creates child logger with the given name. It always writes to the file
+// everything with is logged to this logger, will go to the master logger as well
+func createChildLogger(name string, masterBackend *logging.LeveledBackend, formatter *logging.Formatter) (*logging.Logger, error) {
+	var logger *logging.Logger
+
+	logFname := path.Join(Config.SiteDataDir, Config.Sender.LogDir, PREFIX_MODULE+"."+name+".log")
+	fout, err := os.OpenFile(logFname, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	if err != nil {
+		return nil, err
+	} else {
+		logWriter := io.Writer(fout)
+
+		logBackend := logging.NewLogBackend(logWriter, "", 0)
+		logBackendFormatter := logging.NewBackendFormatter(logBackend, *formatter)
+		seqLoggingBackend := logging.AddModuleLevel(logBackendFormatter)
+		if Config.Sender.Globals.Nodebug {
+			masterLoggingBackend.SetLevel(logging.INFO, name)
+		} else {
+			masterLoggingBackend.SetLevel(logging.DEBUG, name)
+		}
+		logger = logging.MustGetLogger(name)
+		logger.SetBackend(logging.MultiLogger(*masterBackend, seqLoggingBackend))
+	}
+	logger.Infof("Created child logger '%v' -> %v", name, logFname)
+	return logger, nil
 }
 
 func GetSeqParams(name string) (SenderParams, error) {
