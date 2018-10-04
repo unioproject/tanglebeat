@@ -115,7 +115,7 @@ func (seq *Sequence) processAddrWithIndex(index int) {
 	s := <-inCh
 	if s.balance != 0 {
 		// start sending routine if balance is non zero
-		seq.log.Infof("Non zero balance of idx=%v, %v..", index, addr[:12])
+		seq.log.Infof("Non zero balance, do sending. idx=%v %v..", index, addr[:12])
 		cancelSending := seq.DoSending(index)
 		defer cancelSending()
 	}
@@ -124,7 +124,7 @@ func (seq *Sequence) processAddrWithIndex(index int) {
 	// if balance = 0 and address is not spent, loop is waiting for the iotas
 	for ; !(s.balance == 0 && s.isSpent); s = <-inCh {
 		if count%12 == 0 {
-			seq.log.Debugf("CURRENT address idx=%v, %v. Balance = %v",
+			seq.log.Infof("CURRENT address idx=%v, %v. Balance = %v",
 				index, addr, s.balance)
 		}
 		time.Sleep(5 * time.Second)

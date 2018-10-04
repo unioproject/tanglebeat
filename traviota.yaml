@@ -1,0 +1,104 @@
+# Tanglebeat project
+# config file for Sender, Publisher (Traviota executable) and Heartbeat modules
+
+sender:
+
+    # logging section. 
+    # Where log file(s) are located, respectively to SITE_DATA_DIR
+    logDir: "/log"
+    logConsoleOnly: false
+    # as defined in go-logging package. https://github.com/op/go-logging
+    # log format for debugging
+    # logFormat: "%{time:2006-01-02 15:04:05.000} %{level:.4s} [%{module:.6s}|%{shortfunc:.12s}] %{message}"
+    logFormat: "%{time:06-01-02 15:04:05.000} %{level:.4s} [%{module:.6s}] %{message}"
+    # trace section. 
+    # pprof is used?
+    pprof: false
+    # mem stats
+    memStats: true
+    # mems stats interval seconds
+    memStatsInterval: 10
+    
+    # Global parameters, inherited (used as defaults) by individual sequences
+    globals:
+        # list of default IOTA nodes. Used for all calls, except can be overriden by specifiing nodes for gTTA and ATT
+        # if node is down, next in the list taken
+        iotaNode: 
+            - &DEFNODE https://field.deviota.com:443    
+        # list of IOTA nodes for getTransactionsToApprove
+        iotaNodeGTTA: 
+            - *DEFNODE              
+        # IOTA node for attachToTangle
+        iotaNodeATT:                   
+            - https://api.powsrv.io:443
+            - *DEFNODE
+        # api timeouts in seconds
+        apiTimeout: 15
+        gttaTimeout: 30
+        attTimeout: 120
+        # tx tags. Must be tryte strings no longer than 27 trytes
+        txTag: TRAVIOTA
+        txTagPromote: TRAVIOTA9PROMO
+        # (re)attach/ promote section
+        forceReattachAfterMin: 15
+        promoteEverySec: 30
+        # loging info (nodebug) or debugging verbosity?
+        nodebug: true
+        
+    # Sequences
+    # each sequence is confirured with maping 'sequences name' -> (mappings parameters -> values)
+    # Each sequence inherits global parameteres 
+    # If a parameter is provided in a sequences section, it overrides scalar global parameter. 
+    # For lists it can override or append, depending on 'overrideLists' value
+    # Note, that a sequence can have it's owne value of 'overrideLists'
+    
+    sequences:
+        Seq A:
+            disabled: true
+            # seed must be 81 trytes
+            seed: THIS9MUST9BE9SEED99999999999999999999999999999999999999999999999999999999999999ZZ
+            index0: 0
+            iotaNode:
+                - *DEFNODE
+            # blowball promotion. Default is false = chain promotion
+            promoteNoChain: true
+        Seq B:
+            # default disabled=false
+            # seed must be 81 trytes
+            disabled: true
+            seed: THIS9MUST9BE9SEED99999999999999999999999999999999999999999999999999999999999999BB
+            index0: 0
+        Seq C:
+            # default disabled=false
+            # seed must be 81 trytes
+            disabled: true
+            seed: THIS9MUST9BE9SEED99999999999999999999999999999999999999999999999999999999999999XX
+            index0: 0
+        Seq T:
+            # default disabled=false
+            # seed must be 81 trytes
+            iotaNode: 
+                - http://node.iotalt.com:14600
+            seed: EPQMSMPUQHX9CMGUPUUNNHKVUZCAZTJT9GZWORZRZVIOLTAWNEUBXDHKQQDWKSMHVBNCDABXZEAJNRNOX
+            index0: 0
+# Transaction publisher section. It publishes transactions to ZeroMQ stream as specified
+# Publisher can publish transactions produced by the local sender only
+# It can also listen to other publishes and make compound stream out of incoming messages and publishs them as output stream
+publisher: dummy
+    
+    # globals:
+        # is publisher enabled?
+    #    enabled: true
+        # output port for ZeroMQ
+    #    port: 3000
+        
+    #sources:
+    #    local:
+    #        enabled: true
+        
+    #    provider1:
+    #        enabled: true
+    #        host: node.iotalt.com
+    #        port: 31415
+            
+            

@@ -26,7 +26,7 @@ func (seq *Sequence) sendToNext(index int, state *sendingState) (*sendingState, 
 	if err != nil {
 		return nil, err
 	}
-	seq.log.Debugf("Sending from index = %v: %v to next %v", index, addr, nextAddr)
+	seq.log.Infof("Send. idx=%v. %v --> %v", state.index, addr, nextAddr)
 
 	gbResp, err := seq.IotaAPI.GetBalances([]giota.Address{addr}, 100)
 	if err != nil {
@@ -92,6 +92,7 @@ func (seq *Sequence) sendToNext(index int, state *sendingState) (*sendingState, 
 }
 
 func (seq *Sequence) promote(tx *giota.Transaction, state *sendingState) (*sendingState, error) {
+	seq.log.Infof("Promote. idx=%v", state.index)
 	transfers := []giota.Transfer{
 		{Address: giota.Address(strings.Repeat("9", 81)),
 			Value: 0,
@@ -138,6 +139,7 @@ func (seq *Sequence) promote(tx *giota.Transaction, state *sendingState) (*sendi
 }
 
 func (seq *Sequence) reattach(state *sendingState) (*sendingState, error) {
+	seq.log.Infof("Reattach. idx=%v", state.index)
 	gttaResp, err := seq.IotaAPIgTTA.GetTransactionsToApprove(3, 100, giota.Trytes(""))
 	if err != nil {
 		return nil, err

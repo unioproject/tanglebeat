@@ -2,7 +2,7 @@ package main
 
 import (
 	"os"
-	"time"
+	"sync"
 )
 
 func main() {
@@ -19,10 +19,17 @@ func main() {
 		}
 
 	}
+	var wg sync.WaitGroup
 	for _, seq := range sequences {
-		go seq.Run()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			seq.Run()
+		}()
 	}
-	for {
-		time.Sleep(60 * time.Second)
-	}
+	wg.Wait()
+
+	//for {
+	//	time.Sleep(60 * time.Second)
+	//}
 }
