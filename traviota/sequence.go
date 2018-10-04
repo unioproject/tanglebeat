@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -221,6 +222,15 @@ func (seq *Sequence) GetBalanceAddr(addresses []giota.Address) ([]int64, error) 
 
 func (seq *Sequence) checkConsistency(tailHash giota.Trytes) (bool, error) {
 	ccResp, err := seq.IotaAPI.CheckConsistency([]giota.Trytes{tailHash})
-	// TODO analyze Info to distinguish between reasons of inconsistency
-	return ccResp.State, err
+	if err != nil {
+		return false, err
+	}
+	consistent := ccResp.State
+	if !consistent && strings.Contains(ccResp.Info, "not solid") {
+		consistent = true
+	}
+	if !consistent {
+		log.Debugf("Tail %v is inconsistent. Reason: %v", tailHash, ccResp.Info)
+	}
+	return consistent, nil
 }

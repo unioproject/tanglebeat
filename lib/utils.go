@@ -77,8 +77,8 @@ func CheckAndSortBundle(txSet []giota.Transaction) ([]giota.Transaction, error) 
 					tx.CurrentIndex))
 			}
 		}
-		if tx.CurrentIndex < 0 || tx.CurrentIndex >= lastIndex {
-			return txSet, errors.New(fmt.Sprintf("Inconsistent CurrentIndex %v in the bundle", tx.CurrentIndex))
+		if tx.CurrentIndex < 0 || tx.CurrentIndex > lastIndex {
+			return txSet, errors.New(fmt.Sprintf("Wrong CurrentIndex %v in the bundle", tx.CurrentIndex))
 		}
 		if filled[tx.CurrentIndex] {
 			return txSet, errors.New(fmt.Sprintf("Duplicated CurrentIndex %v in the bundle", tx.CurrentIndex))

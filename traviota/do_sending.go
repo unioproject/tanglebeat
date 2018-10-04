@@ -20,11 +20,11 @@ type sendingState struct {
 
 func (seq *Sequence) DoSending(index int) func() {
 	chCancel := make(chan struct{})
-
+	addr, _ := seq.GetAddress(index)
 	var wg sync.WaitGroup
 	go func() {
-		seq.log.Debugf("Started DoSending routine for idx = %v", index)
-		defer seq.log.Debugf("Finished DoSending routine for idx = %v", index)
+		seq.log.Debugf("Started DoSending routine for idx = %v, %v", index, addr)
+		defer seq.log.Debugf("Finished DoSending routine for idx = %v, %v", index, addr)
 
 		wg.Add(1)
 		defer wg.Done()
@@ -42,6 +42,7 @@ func (seq *Sequence) DoSending(index int) func() {
 				time.Sleep(10 * time.Second)
 			} else {
 				if len(state.lastBundle) > 0 {
+					// TODO use AttachmentTimestamp
 					state.lastAttachmentTime = state.lastBundle[0].Timestamp
 					state.nextForceReattachTime =
 						state.lastAttachmentTime.Add(time.Duration(seq.Params.ForceReattachAfterMin) * time.Minute)
@@ -55,7 +56,9 @@ func (seq *Sequence) DoSending(index int) func() {
 			if err != nil {
 				seq.log.Errorf("DoSending: %v", err)
 			} else {
-				state = *nextState
+				if nextState != nil {
+					state = *nextState
+				}
 			}
 			select {
 			case <-chCancel:
@@ -77,6 +80,7 @@ func (seq *Sequence) doSendingAction(index int, state *sendingState) (*sendingSt
 
 	if len(state.lastBundle) == 0 {
 		// can be in the beginning of sending or after snapshot
+		seq.log.Debugf("lastBundle is empty index = %v. Sending to the next", index)
 		ret, err := seq.sendToNext(index, state)
 		if err != nil {
 			return nil, err
@@ -86,20 +90,30 @@ func (seq *Sequence) doSendingAction(index int, state *sendingState) (*sendingSt
 	if len(state.lastPromoBundle) != 0 {
 		// promo already started.
 		if time.Now().After(state.nextPromoTime) {
-			if seq.Params.PromoteChain {
-				if ret, err := seq.promoteOrReattach(&state.lastPromoBundle[0], state); err != nil {
-					return nil, err
-				} else {
-					return ret, nil
-				}
-			} else {
+			if seq.Params.PromoteNoChain {
 				// promote blowball
+				seq.log.Debugf("Promote 'blowball' index = %v, txh = %v", index, state.lastBundle[0].Hash())
 				if ret, err := seq.promoteOrReattach(&state.lastBundle[0], state); err != nil {
 					return nil, err
 				} else {
 					return ret, nil
 				}
+			} else {
+				// promote chain
+				seq.log.Debugf("Promote 'chain' index = %v, txh = %v", index, state.lastPromoBundle[0].Hash())
+				if ret, err := seq.promoteOrReattach(&state.lastPromoBundle[0], state); err != nil {
+					return nil, err
+				} else {
+					return ret, nil
+				}
 			}
+		}
+	} else {
+		seq.log.Debugf("No last promotion bundle stored, starting new promo chain. index = %v", index)
+		if ret, err := seq.promoteOrReattach(&state.lastBundle[0], state); err != nil {
+			return nil, err
+		} else {
+			return ret, nil
 		}
 	}
 	// promoteOrReattach conditions wasn't met. Check if reattachment is needed
@@ -108,18 +122,20 @@ func (seq *Sequence) doSendingAction(index int, state *sendingState) (*sendingSt
 		return nil, err
 	}
 	if !consistent {
-		seq.log.Debugf("Last bundle is inconsistent. index %v", index)
+		seq.log.Debugf("Last bundle is inconsistent. index = %v", index)
 	}
 	if time.Now().After(state.nextForceReattachTime) {
 		seq.log.Debugf("Time for forced reattachment after %v min. index=%v", seq.Params.ForceReattachAfterMin, index)
 	}
 	if !consistent || time.Now().After(state.nextForceReattachTime) {
+		seq.log.Debugf("Reattach index %v, %v", index, state.lastBundle[0].Hash())
 		ret, err := seq.reattach(&state.lastBundle[0], state)
 		if err != nil {
 			return nil, err
 		}
 		return ret, nil
 	}
+	seq.log.Debugf("No action, index %v", index)
 	return nil, nil
 }
 
@@ -130,6 +146,7 @@ func (seq *Sequence) promoteOrReattach(tx *giota.Transaction, state *sendingStat
 		return nil, err
 	}
 	if consistent {
+		seq.log.Debugf("Promote %v", tx.Hash())
 		ret, err := seq.promote(tx, state)
 		if err != nil {
 			return nil, err
@@ -137,6 +154,7 @@ func (seq *Sequence) promoteOrReattach(tx *giota.Transaction, state *sendingStat
 		return ret, nil
 	}
 	// can't promote --> reattach
+	seq.log.Debugf("Reattach %v", tx.Hash())
 	ret, err := seq.reattach(tx, state)
 	if err != nil {
 		return nil, err

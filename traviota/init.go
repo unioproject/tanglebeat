@@ -55,7 +55,7 @@ type SenderParams struct {
 	TxTag                 string   `yaml:"txTag"`
 	TxTagPromote          string   `yaml:"txTagPromote"`
 	ForceReattachAfterMin int      `yaml:"forceReattachAfterMin"`
-	PromoteChain          bool     `yaml:"promoteChain"`
+	PromoteNoChain        bool     `yaml:"promoteNoChain"`
 	PromoteEverySec       int      `yaml:"promoteEverySec"`
 }
 
@@ -261,6 +261,13 @@ func GetSeqParams(name string) (SenderParams, error) {
 	}
 	if ret.TimeoutATT == 0 {
 		ret.TimeoutATT = Config.Sender.Globals.TimeoutATT
+	}
+	if ret.ForceReattachAfterMin == 0 {
+		ret.ForceReattachAfterMin = Config.Sender.Globals.ForceReattachAfterMin
+	}
+	// not inherited
+	if ret.PromoteEverySec == 0 {
+		ret.PromoteEverySec = Config.Sender.Globals.PromoteEverySec
 	}
 	// other remaining are not inherited or doesn't make sense on sequence level
 	return ret, nil
