@@ -16,7 +16,7 @@ func (seq *Sequence) attachToTangle(trunkHash, branchHash giota.Trytes, trytes [
 	})
 }
 
-func (seq *Sequence) sendToNext(index int) (giota.Bundle, error) {
+func (seq *Sequence) sendToNext(index int, state *sendingState) (*sendingState, error) {
 	addr, err := seq.GetAddress(index)
 	if err != nil {
 		return nil, err
@@ -53,20 +53,20 @@ func (seq *Sequence) sendToNext(index int) (giota.Bundle, error) {
 	if err != nil {
 		return nil, err
 	}
-	var ret []giota.Transaction
-	if gttaResp, err := seq.IotaAPIgTTA.GetTransactionsToApprove(3, 100, giota.Trytes("")); err == nil {
-		if attResp, err := seq.attachToTangle(gttaResp.TrunkTransaction, gttaResp.BranchTransaction, bundle); err == nil {
-			if err = seq.IotaAPI.BroadcastTransactions(attResp.Trytes); err == nil {
-				if err = seq.IotaAPI.StoreTransactions(attResp.Trytes); err != nil {
-					return nil, err
-				} else {
-					ret = attResp.Trytes
-				}
-			}
-		} else {
-			return nil, err
-		}
-	} else {
+	gttaResp, err := seq.IotaAPIgTTA.GetTransactionsToApprove(3, 100, giota.Trytes(""))
+	if err != nil {
+		return nil, err
+	}
+	attResp, err := seq.attachToTangle(gttaResp.TrunkTransaction, gttaResp.BranchTransaction, bundle)
+	if err != nil {
+		return nil, err
+	}
+	err = seq.IotaAPI.BroadcastTransactions(attResp.Trytes)
+	if err != nil {
+		return nil, err
+	}
+	err = seq.IotaAPI.StoreTransactions(attResp.Trytes)
+	if err != nil {
 		return nil, err
 	}
 	// wait until address will acquire isSpent status
@@ -74,10 +74,31 @@ func (seq *Sequence) sendToNext(index int) (giota.Bundle, error) {
 	timeout := 10
 	for count := 0; !spent && err == nil; count++ {
 		if count > timeout {
-			return nil, errors.New("Didn't get 'spent' state in 10 seconds")
+			return nil, errors.New("!!!!!!!! Didn't get 'spent' state in 10 seconds")
 		}
 		time.Sleep(1 * time.Second)
 		spent, err = seq.IsSpentAddr(addr)
 	}
-	return ret, err
+	ret := *state
+	nowis := time.Now()
+	ret.lastBundle = attResp.Trytes
+	ret.lastAttachmentTime = nowis
+	ret.nextForceReattachTime = nowis.Add(time.Duration(seq.Params.ForceReattachAfterMin) * time.Minute)
+	ret.lastPromoBundle = nil
+	return &ret, err
+}
+
+func (seq *Sequence) promote(tx *giota.Transaction, state *sendingState) (*sendingState, error) {
+	//nowis := time.Now()
+	//ret.lastPromoTime = nowis
+	//ret.nextPromoTime = nowis.Add(time.Duration(seq.Params.PromoteEverySec) * time.Second)
+	return nil, nil
+}
+
+func (seq *Sequence) reattach(tx *giota.Transaction, state *sendingState) (*sendingState, error) {
+	//nowis := time.Now()
+	//ret.lastAttachmentTime = nowis
+	//ret.nextForceReattachTime = nowis.Add(time.Duration(seq.Params.ForceReattachAfterMin) * time.Minute)
+	//ret.lastPromoBundle = nil
+	return nil, nil
 }

@@ -181,7 +181,6 @@ func (seq *Sequence) saveIndex(index int) error {
 	if _, err = fout.WriteString(fmt.Sprintf("%v", index)); err == nil {
 		seq.log.Debugf("Last idx %v saved to %v", index, fname)
 	}
-
 	return err
 }
 
@@ -218,4 +217,10 @@ func (seq *Sequence) GetBalanceAddr(addresses []giota.Address) ([]int64, error) 
 	} else {
 		return gbResp.Balances, nil
 	}
+}
+
+func (seq *Sequence) checkConsistency(tailHash giota.Trytes) (bool, error) {
+	ccResp, err := seq.IotaAPI.CheckConsistency([]giota.Trytes{tailHash})
+	// TODO analyze Info to distinguish between reasons of inconsistency
+	return ccResp.State, err
 }

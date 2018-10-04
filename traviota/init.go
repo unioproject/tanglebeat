@@ -42,18 +42,21 @@ type SenderYAML struct {
 }
 
 type SenderParams struct {
-	Disabled     bool     `yaml:"disabled"`
-	IOTANode     []string `yaml:"iotaNode"`
-	IOTANodeGTTA []string `yaml:"iotaNodeGTTA"`
-	IOTANodeATT  []string `yaml:"iotaNodeATT"`
-	TimeoutAPI   int      `yaml:"apiTimeout"`
-	TimeoutGTTA  int      `yaml:"gttaTimeout"`
-	TimeoutATT   int      `yaml:"attTimeout"`
-	Nodebug      bool     `yaml:"nodebug"`
-	Seed         string   `yaml:"seed"`
-	Index0       int      `yaml:"index0"`
-	TxTag        string   `yaml:"txTag"`
-	TxTagPromote string   `yaml:"txTagPromote"`
+	Disabled              bool     `yaml:"disabled"`
+	IOTANode              []string `yaml:"iotaNode"`
+	IOTANodeGTTA          []string `yaml:"iotaNodeGTTA"`
+	IOTANodeATT           []string `yaml:"iotaNodeATT"`
+	TimeoutAPI            int      `yaml:"apiTimeout"`
+	TimeoutGTTA           int      `yaml:"gttaTimeout"`
+	TimeoutATT            int      `yaml:"attTimeout"`
+	Nodebug               bool     `yaml:"nodebug"`
+	Seed                  string   `yaml:"seed"`
+	Index0                int      `yaml:"index0"`
+	TxTag                 string   `yaml:"txTag"`
+	TxTagPromote          string   `yaml:"txTagPromote"`
+	ForceReattachAfterMin int      `yaml:"forceReattachAfterMin"`
+	PromoteChain          bool     `yaml:"promoteChain"`
+	PromoteEverySec       int      `yaml:"promoteEverySec"`
 }
 
 //  create config structure with default values
