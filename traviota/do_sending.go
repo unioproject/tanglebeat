@@ -50,7 +50,7 @@ func (seq *Sequence) DoSending(index int) func() {
 				}
 			}
 		}
-		// main sending loop. Only programmatically can be interrupted by cancel function
+		// main sending loop. Programmatically can be interrupted only with cancel function
 		var nextState *sendingState
 		for {
 			nextState, err = seq.doSendingAction(&state)

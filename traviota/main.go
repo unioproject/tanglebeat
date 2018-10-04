@@ -28,8 +28,4 @@ func main() {
 		}()
 	}
 	wg.Wait()
-
-	//for {
-	//	time.Sleep(60 * time.Second)
-	//}
 }
