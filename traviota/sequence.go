@@ -94,7 +94,7 @@ func NewSequence(name string) (*Sequence, error) {
 
 func (seq *Sequence) Run() {
 	index0 := seq.getLastIndex()
-	seq.log.Infof("Start running sequence with the index0 = %v", index0)
+	seq.log.Infof("Start running sequence from index0 = %v", index0)
 
 	for index := index0; ; index++ {
 		seq.processAddrWithIndex(index)
@@ -103,11 +103,11 @@ func (seq *Sequence) Run() {
 }
 
 func (seq *Sequence) processAddrWithIndex(index int) {
-	seq.log.Debugf("Start processing idx=%v time=%v", index, time.Now().Unix())
 	addr, err := seq.GetAddress(index)
 	if err != nil {
-		seq.log.Panicf("Can't get address for idx=%v", index)
+		seq.log.Errorf("Can't get address for idx=%v", index)
 	}
+	seq.log.Infof("Start processing idx=%v, %v", index, addr)
 	inCh, cancelBalanceChan := seq.NewAddrBalanceChan(index)
 	defer cancelBalanceChan()
 
@@ -115,7 +115,7 @@ func (seq *Sequence) processAddrWithIndex(index int) {
 	s := <-inCh
 	if s.balance != 0 {
 		// start sending routine if balance is non zero
-		seq.log.Debugf("Balance of addr idx=%v != 0", index)
+		seq.log.Infof("Non zero balance of idx=%v, %v..", index, addr[:12])
 		cancelSending := seq.DoSending(index)
 		defer cancelSending()
 	}
@@ -124,17 +124,13 @@ func (seq *Sequence) processAddrWithIndex(index int) {
 	// if balance = 0 and address is not spent, loop is waiting for the iotas
 	for ; !(s.balance == 0 && s.isSpent); s = <-inCh {
 		if count%12 == 0 {
-			if s.balance == 0 {
-				seq.log.Debugf("Address with idx=%v addr=%v.. has zero balance. Waiting for balance to become non zero",
-					index, addr[:9])
-			} else {
-				seq.log.Debugf("CURRENT address with idx=%v addr=%v.. has balance %v iotas", index, addr[:9], s.balance)
-			}
+			seq.log.Debugf("CURRENT address idx=%v, %v. Balance = %v",
+				index, addr, s.balance)
 		}
 		time.Sleep(5 * time.Second)
 		count++
 	}
-	seq.log.Debugf("Finish processing idx=%v time=%v", index, time.Now().Unix())
+	seq.log.Infof("Finished processing idx=%v, %v", index, addr)
 }
 
 func (seq *Sequence) GetAddress(index int) (giota.Address, error) {

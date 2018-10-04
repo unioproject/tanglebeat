@@ -54,7 +54,7 @@ func (seq *Sequence) DoSending(index int) func() {
 		for {
 			nextState, err = seq.doSendingAction(index, &state)
 			if err != nil {
-				seq.log.Errorf("DoSending: %v", err)
+				seq.log.Errorf("DoSendingAction returned: %v", err)
 			} else {
 				if nextState != nil {
 					state = *nextState
@@ -64,7 +64,6 @@ func (seq *Sequence) DoSending(index int) func() {
 			case <-chCancel:
 				return
 			case <-time.After(5 * time.Second):
-				// promote or reattach
 			}
 		}
 	}()
@@ -80,7 +79,7 @@ func (seq *Sequence) doSendingAction(index int, state *sendingState) (*sendingSt
 
 	if len(state.lastBundle) == 0 {
 		// can be in the beginning of sending or after snapshot
-		seq.log.Debugf("lastBundle is empty index = %v. Sending to the next", index)
+		seq.log.Debugf("Didn't find spending bundle. idx = %v. Sending balance to the next", index)
 		ret, err := seq.sendToNext(index, state)
 		if err != nil {
 			return nil, err
@@ -92,7 +91,7 @@ func (seq *Sequence) doSendingAction(index int, state *sendingState) (*sendingSt
 		if time.Now().After(state.nextPromoTime) {
 			if seq.Params.PromoteNoChain {
 				// promote blowball
-				seq.log.Debugf("Promote 'blowball' index = %v, txh = %v", index, state.lastBundle[0].Hash())
+				seq.log.Debugf("Promote 'blowball' idx=%v, txh=%v", index, state.lastBundle[0].Hash())
 				if ret, err := seq.promoteOrReattach(&state.lastBundle[0], state); err != nil {
 					return nil, err
 				} else {
@@ -100,7 +99,7 @@ func (seq *Sequence) doSendingAction(index int, state *sendingState) (*sendingSt
 				}
 			} else {
 				// promote chain
-				seq.log.Debugf("Promote 'chain' index = %v, txh = %v", index, state.lastPromoBundle[0].Hash())
+				seq.log.Debugf("Promote 'chain' idx=%v, txh=%v", index, state.lastPromoBundle[0].Hash())
 				if ret, err := seq.promoteOrReattach(&state.lastPromoBundle[0], state); err != nil {
 					return nil, err
 				} else {
@@ -109,7 +108,7 @@ func (seq *Sequence) doSendingAction(index int, state *sendingState) (*sendingSt
 			}
 		}
 	} else {
-		seq.log.Debugf("No last promotion bundle stored, starting new promo chain. index = %v", index)
+		seq.log.Debugf("Didn't find last promotion bundle, starting new promo chain. idx=%v", index)
 		if ret, err := seq.promoteOrReattach(&state.lastBundle[0], state); err != nil {
 			return nil, err
 		} else {
@@ -122,20 +121,20 @@ func (seq *Sequence) doSendingAction(index int, state *sendingState) (*sendingSt
 		return nil, err
 	}
 	if !consistent {
-		seq.log.Debugf("Last bundle is inconsistent. index = %v", index)
+		seq.log.Debugf("Last bundle is inconsistent. idx=%v", index)
 	}
 	if time.Now().After(state.nextForceReattachTime) {
-		seq.log.Debugf("Time for forced reattachment after %v min. index=%v", seq.Params.ForceReattachAfterMin, index)
+		seq.log.Debugf("It's time for forced reattachment after %v min. idx=%v", seq.Params.ForceReattachAfterMin, index)
 	}
 	if !consistent || time.Now().After(state.nextForceReattachTime) {
-		seq.log.Debugf("Reattach index %v, %v", index, state.lastBundle[0].Hash())
-		ret, err := seq.reattach(&state.lastBundle[0], state)
+		seq.log.Debugf("Reattach idx=%v, txh %v", index, state.lastBundle[0].Hash())
+		ret, err := seq.reattach(state)
 		if err != nil {
 			return nil, err
 		}
 		return ret, nil
 	}
-	seq.log.Debugf("No action, index %v", index)
+	seq.log.Debugf("No action, wait. idx=%v", index)
 	return nil, nil
 }
 
@@ -146,7 +145,7 @@ func (seq *Sequence) promoteOrReattach(tx *giota.Transaction, state *sendingStat
 		return nil, err
 	}
 	if consistent {
-		seq.log.Debugf("Promote %v", tx.Hash())
+		seq.log.Debugf("Promote tail %v", tx.Hash())
 		ret, err := seq.promote(tx, state)
 		if err != nil {
 			return nil, err
@@ -154,8 +153,8 @@ func (seq *Sequence) promoteOrReattach(tx *giota.Transaction, state *sendingStat
 		return ret, nil
 	}
 	// can't promote --> reattach
-	seq.log.Debugf("Reattach %v", tx.Hash())
-	ret, err := seq.reattach(tx, state)
+	seq.log.Debugf("Reattach latest bundle")
+	ret, err := seq.reattach(state)
 	if err != nil {
 		return nil, err
 	}

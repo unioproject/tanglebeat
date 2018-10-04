@@ -137,7 +137,7 @@ func (seq *Sequence) promote(tx *giota.Transaction, state *sendingState) (*sendi
 	return &ret, nil
 }
 
-func (seq *Sequence) reattach(tx *giota.Transaction, state *sendingState) (*sendingState, error) {
+func (seq *Sequence) reattach(state *sendingState) (*sendingState, error) {
 	gttaResp, err := seq.IotaAPIgTTA.GetTransactionsToApprove(3, 100, giota.Trytes(""))
 	if err != nil {
 		return nil, err
