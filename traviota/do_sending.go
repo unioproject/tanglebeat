@@ -30,6 +30,9 @@ func (seq *Sequence) DoSending(stateOrig *sendingState) func() *sendingState {
 		seq.log.Debugf("Started DoSending routine for idx = %v, %v", state.index, state.addr)
 		defer seq.log.Debugf("Finished DoSending routine for idx = %v, %v", state.index, state.addr)
 
+		publishStartSending(state.index, state.addr)
+		defer publishFinishSending(state.index, state.addr)
+
 		wg.Add(1)
 		defer wg.Done()
 
