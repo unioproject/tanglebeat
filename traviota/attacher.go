@@ -17,11 +17,9 @@ func (seq *Sequence) attachToTangle(trunkHash, branchHash giota.Trytes, trytes [
 	})
 }
 
-func (seq *Sequence) sendToNext(index int, state *sendingState) (*sendingState, error) {
-	addr, err := seq.GetAddress(index)
-	if err != nil {
-		return nil, err
-	}
+func (seq *Sequence) sendToNext(state *sendingState) (*sendingState, error) {
+	index := state.index
+	addr := state.addr
 	nextAddr, err := seq.GetAddress(index + 1)
 	if err != nil {
 		return nil, err

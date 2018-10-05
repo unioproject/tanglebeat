@@ -97,12 +97,14 @@ func (seq *Sequence) Run() {
 	seq.log.Infof("Start running sequence from index0 = %v", index0)
 
 	for index := index0; ; index++ {
+		//state := seq.processAddrWithIndex(index)
 		seq.processAddrWithIndex(index)
+		seq.log.Debugf("State returned, going to the next index. idx=%v", index)
 		seq.saveIndex(index)
 	}
 }
 
-func (seq *Sequence) processAddrWithIndex(index int) {
+func (seq *Sequence) processAddrWithIndex(index int) *sendingState {
 	addr, err := seq.GetAddress(index)
 	if err != nil {
 		seq.log.Errorf("Can't get address for idx=%v", index)
@@ -111,13 +113,16 @@ func (seq *Sequence) processAddrWithIndex(index int) {
 	inCh, cancelBalanceChan := seq.NewAddrBalanceChan(index)
 	defer cancelBalanceChan()
 
+	state := sendingState{index: index, addr: addr}
 	count := 0
 	s := <-inCh
+	stopSending := func() *sendingState { return nil }
 	if s.balance != 0 {
 		// start sending routine if balance is non zero
 		seq.log.Infof("Non zero balance, do sending. idx=%v %v..", index, addr[:12])
-		cancelSending := seq.DoSending(index)
-		defer cancelSending()
+		stopSending = seq.DoSending(&state)
+	} else {
+		seq.log.Infof("Zero balance. idx=%v %v..", index, addr[:12])
 	}
 
 	// processAddrWithIndex only finishes if balance is 0 and address is spent
@@ -130,7 +135,8 @@ func (seq *Sequence) processAddrWithIndex(index int) {
 		time.Sleep(5 * time.Second)
 		count++
 	}
-	seq.log.Infof("Finished processing idx=%v, %v", index, addr)
+	seq.log.Infof("Finished processing: zero balance and spent. idx=%v, %v", index, addr)
+	return stopSending()
 }
 
 func (seq *Sequence) GetAddress(index int) (giota.Address, error) {
@@ -229,4 +235,12 @@ func (seq *Sequence) checkConsistency(tailHash giota.Trytes) (bool, error) {
 		log.Debugf("Tail %v is inconsistent. Reason: %v", tailHash, ccResp.Info)
 	}
 	return consistent, nil
+}
+
+func (seq *Sequence) isConfirmed(txHash giota.Trytes) (bool, error) {
+	incl, err := seq.IotaAPI.GetLatestInclusion([]giota.Trytes{txHash})
+	if err != nil {
+		return false, err
+	}
+	return incl[0], nil
 }

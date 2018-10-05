@@ -11,6 +11,8 @@ import (
 
 type sendingState struct {
 	index                 int
+	addr                  giota.Address
+	balance               int64
 	lastBundle            giota.Bundle
 	lastAttachmentTime    time.Time
 	nextForceReattachTime time.Time
@@ -19,27 +21,27 @@ type sendingState struct {
 	lastPromoBundle       giota.Bundle
 }
 
-func (seq *Sequence) DoSending(index int) func() {
-	chCancel := make(chan struct{})
-	addr, _ := seq.GetAddress(index)
+// starts sending routine. Returns stop function
+func (seq *Sequence) DoSending(stateOrig *sendingState) func() *sendingState {
+	state := *stateOrig
+	chStop := make(chan struct{})
 	var wg sync.WaitGroup
 	go func() {
-		seq.log.Debugf("Started DoSending routine for idx = %v, %v", index, addr)
-		defer seq.log.Debugf("Finished DoSending routine for idx = %v, %v", index, addr)
+		seq.log.Debugf("Started DoSending routine for idx = %v, %v", state.index, state.addr)
+		defer seq.log.Debugf("Finished DoSending routine for idx = %v, %v", state.index, state.addr)
 
 		wg.Add(1)
 		defer wg.Done()
 
 		var err error
-		state := sendingState{index: index}
 
 		// in case of errors will keep retrieving latest bundle
 		// can return empty bundle without error if sending just started or after snapshot
 		for found := false; !found; {
-			state.lastBundle, err = seq.findLatestSpendingBundle(index)
+			state.lastBundle, err = seq.findLatestSpendingBundle(&state)
 			found = err == nil
 			if !found {
-				seq.log.Errorf("Error while retrieving latest spending bundle for index=%v:  %v", index, err)
+				seq.log.Errorf("Error while retrieving latest spending bundle for index=%v:  %v", state.index, err)
 				time.Sleep(10 * time.Second)
 			} else {
 				if len(state.lastBundle) > 0 {
@@ -62,15 +64,17 @@ func (seq *Sequence) DoSending(index int) func() {
 				}
 			}
 			select {
-			case <-chCancel:
+			case <-chStop:
 				return
 			case <-time.After(5 * time.Second):
 			}
 		}
+		// update original structure
 	}()
-	return func() {
-		close(chCancel)
+	return func() *sendingState {
+		close(chStop)
 		wg.Wait()
+		return &state
 	}
 }
 
@@ -81,11 +85,33 @@ func (seq *Sequence) doSendingAction(state *sendingState) (*sendingState, error)
 	if len(state.lastBundle) == 0 {
 		// can be in the beginning of sending or after snapshot
 		seq.log.Debugf("Didn't find spending bundle. idx = %v. Sending balance to the next", index)
-		ret, err := seq.sendToNext(index, state)
+		ret, err := seq.sendToNext(state)
 		if err != nil {
 			return nil, err
 		}
 		return ret, nil
+	}
+	confirmed, err := seq.isConfirmed(state.lastBundle[0].Hash())
+	if err != nil {
+		return nil, err
+	}
+	if confirmed {
+		balance, err := seq.GetBalanceAddr([]giota.Address{state.addr})
+		if err != nil {
+			return nil, err
+		}
+		if balance[0] == 0 {
+			// there's nothing to do, if balance = 0 and last bundle is confirmed
+			seq.log.Debugf("balance = 0, last bundle confirmed -> all done, no action. idx=%v, addr=%v", index, state.addr)
+		} else {
+			// exotic situation: iotas have been sent to the address while current sending. But it happens!
+			seq.log.Debugf("balance > 0, last bundle confirmed -> sending remaining balance. idx=%v, addr=%v", index, state.addr)
+			ret, err := seq.sendToNext(state)
+			if err != nil {
+				return nil, err
+			}
+			return ret, nil
+		}
 	}
 	if len(state.lastPromoBundle) != 0 {
 		// promo already started.
@@ -171,11 +197,10 @@ func (seq *Sequence) findTrytes(txReq *giota.FindTransactionsRequest) (*giota.Ge
 	return seq.IotaAPI.GetTrytes(ftResp.Hashes)
 }
 
-func (seq *Sequence) findLatestSpendingBundle(index int) (giota.Bundle, error) {
-	addr, err := seq.GetAddress(index)
-	if err != nil {
-		return nil, err
-	}
+func (seq *Sequence) findLatestSpendingBundle(state *sendingState) (giota.Bundle, error) {
+	index := state.index
+	addr := state.addr
+
 	// find all transactions of the address
 	ftResp, err := seq.findTrytes(
 		&giota.FindTransactionsRequest{
