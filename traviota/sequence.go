@@ -97,9 +97,9 @@ func (seq *Sequence) Run() {
 	seq.log.Infof("Start running sequence from index0 = %v", index0)
 
 	for index := index0; ; index++ {
-		//state := seq.processAddrWithIndex(index)
+		//state := seq.processAddrWithIndex(Index)
 		seq.processAddrWithIndex(index)
-		seq.log.Debugf("State returned, going to the next index. idx=%v", index)
+		seq.log.Debugf("State returned, going to the next Index. idx=%v", index)
 		seq.saveIndex(index)
 	}
 }

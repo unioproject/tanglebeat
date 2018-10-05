@@ -44,7 +44,7 @@ func (seq *Sequence) DoSending(stateOrig *sendingState) func() *sendingState {
 			state.lastBundle, err = seq.findLatestSpendingBundle(&state)
 			found = err == nil
 			if !found {
-				seq.log.Errorf("Error while retrieving latest spending bundle for index=%v:  %v", state.index, err)
+				seq.log.Errorf("Error while retrieving latest spending bundle for Index=%v:  %v", state.index, err)
 				time.Sleep(10 * time.Second)
 			} else {
 				if len(state.lastBundle) > 0 {
@@ -252,7 +252,7 @@ func (seq *Sequence) findLatestSpendingBundle(state *sendingState) (giota.Bundle
 }
 
 // give the tail and transaction set, filers out from the set the bundle of that tail
-// checks consistency of the bundle. Sorts it by index
+// checks consistency of the bundle. Sorts it by Index
 
 func extractBundleTxByTail(tail giota.Transaction, allTx []giota.Transaction) []giota.Transaction {
 	// first in a bundle is tail tx
