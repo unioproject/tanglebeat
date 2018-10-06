@@ -26,8 +26,8 @@ var (
 
 type ConfigStructYAML struct {
 	SiteDataDir string
-	Sender      SenderYAML `yaml:"sender"`
-	Publisher   string     `yaml:"publisher"`
+	Sender      SenderYAML      `yaml:"sender"`
+	Publisher   PublisherParams `yaml:"publisher"`
 }
 
 type SenderYAML struct {
@@ -57,6 +57,11 @@ type SenderParams struct {
 	ForceReattachAfterMin int      `yaml:"forceReattachAfterMin"`
 	PromoteNoChain        bool     `yaml:"promoteNoChain"`
 	PromoteEverySec       int      `yaml:"promoteEverySec"`
+}
+
+type PublisherParams struct {
+	Disabled   bool `yaml:"disabled"`
+	ZmqOutPort int  `yaml:"zmqOutPort"`
 }
 
 //  create config structure with default values

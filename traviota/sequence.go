@@ -18,6 +18,7 @@ import (
 
 type Sequence struct {
 	Name          string
+	UID           string
 	Params        SenderParams
 	IotaAPI       *giota.API
 	IotaAPIgTTA   *giota.API
@@ -80,15 +81,23 @@ func NewSequence(name string) (*Sequence, error) {
 	)
 	ret.log.Infof("IOTA node for ATT: %v, Timeout: %v sec", ret.Params.IOTANodeATT[0], ret.Params.TimeoutATT)
 
-	ret.Seed, _ = giota.ToTrytes(ret.Params.Seed)
-	ret.TxTag, _ = giota.ToTrytes(ret.Params.TxTag)
-	ret.TxTagPromote, _ = giota.ToTrytes(ret.Params.TxTagPromote)
-
-	uid, err := ret.GetUID()
+	ret.Seed, err = giota.ToTrytes(ret.Params.Seed)
 	if err != nil {
 		return nil, err
 	}
-	ret.log.Infof("Created sequence instance. UID = %v", uid)
+	ret.UID, err = ret.GetUID()
+	if err != nil {
+		return nil, err
+	}
+	ret.TxTag, err = giota.ToTrytes(ret.Params.TxTag)
+	if err != nil {
+		return nil, err
+	}
+	ret.TxTagPromote, err = giota.ToTrytes(ret.Params.TxTagPromote)
+	if err != nil {
+		return nil, err
+	}
+	ret.log.Infof("Created sequence instance. UID = %v", ret.UID)
 	return &ret, nil
 }
 
@@ -97,9 +106,12 @@ func (seq *Sequence) Run() {
 	seq.log.Infof("Start running sequence from index0 = %v", index0)
 
 	for index := index0; ; index++ {
-		//state := seq.processAddrWithIndex(Index)
-		seq.processAddrWithIndex(index)
+		state := seq.processAddrWithIndex(index)
 		seq.log.Debugf("State returned, going to the next Index. idx=%v", index)
+		if state != nil {
+			// address was processed
+			seq.publishState(state, UPD_CONFIRM)
+		}
 		seq.saveIndex(index)
 	}
 }
@@ -166,16 +178,12 @@ func (seq *Sequence) GetUID() (string, error) {
 	return ret[len(ret)-12:], nil
 }
 
-func (seq *Sequence) getLastIndexFname() (string, error) {
-	uid, err := seq.GetUID()
-	return path.Join(Config.SiteDataDir, uid), err
+func (seq *Sequence) getLastIndexFname() string {
+	return path.Join(Config.SiteDataDir, seq.UID)
 }
 
 func (seq *Sequence) saveIndex(index int) error {
-	fname, err := seq.getLastIndexFname()
-	if err != nil {
-		return err
-	}
+	fname := seq.getLastIndexFname()
 	fout, err := os.OpenFile(fname, os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		return err
@@ -188,10 +196,7 @@ func (seq *Sequence) saveIndex(index int) error {
 }
 
 func (seq *Sequence) getLastIndex() int {
-	fname, err := seq.getLastIndexFname()
-	if err != nil {
-		return seq.Params.Index0
-	}
+	fname := seq.getLastIndexFname()
 	b, err := ioutil.ReadFile(fname)
 	if err != nil {
 		return seq.Params.Index0

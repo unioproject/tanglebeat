@@ -9,6 +9,7 @@ func main() {
 	ReadConfig("traviota.yaml")
 	log.Infof("Enabled sequences: %v", GetEnabledSeqNames())
 	initPublisher()
+
 	var sequences = make([]*Sequence, 0)
 	for _, name := range GetEnabledSeqNames() {
 		if seq, err := NewSequence(name); err != nil {
