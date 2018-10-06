@@ -47,10 +47,13 @@ func initChanDataToZMQ() error {
 	go func() {
 		defer pub.Close()
 		for data := range chanDataToZMQ {
+			log.Debugf("======= data received from chanDataToZMQ")
 			msg := zmq4.NewMsg(data)
 			err := pub.Send(msg)
 			if err != nil {
-				log.Errorf("zm4.Send error: %v Data='%v'", err, string(data))
+				log.Errorf("======= chanDataToZMQ.zm4.Send error: %v Data='%v'", err, string(data))
+			} else {
+				log.Debugf("======= data sent to zmq chanDataToZMQ")
 			}
 		}
 	}()
