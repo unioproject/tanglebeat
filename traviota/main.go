@@ -5,29 +5,32 @@ import (
 	"sync"
 )
 
-func main() {
-	ReadConfig("traviota.yaml")
-	log.Infof("Enabled sequences: %v", GetEnabledSeqNames())
-	initPublisher()
-
-	var sequences = make([]*Sequence, 0)
-	for _, name := range GetEnabledSeqNames() {
+func runSender(wg *sync.WaitGroup) {
+	for _, name := range getEnabledSeqNames() {
 		if seq, err := NewSequence(name); err != nil {
 			log.Error(err)
 			log.Info("Ciao")
 			os.Exit(1)
 		} else {
-			sequences = append(sequences, seq)
+			wg.Add(1)
+			go func() {
+				seq.Run()
+				wg.Done()
+			}()
 		}
-
 	}
+}
+
+func main() {
+	MasterConfig("traviota.yaml")
 	var wg sync.WaitGroup
-	for _, seq := range sequences {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			seq.Run()
-		}()
+	if !Config.Publisher.Disabled {
+		log.Infof("Starting publisher")
+		runPublisher(&wg)
+	}
+	if !Config.Sender.Disabled {
+		log.Infof("Starting sender. Enabled sequences: %v", getEnabledSeqNames())
+		runSender(&wg)
 	}
 	wg.Wait()
 }

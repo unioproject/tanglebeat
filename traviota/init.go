@@ -20,25 +20,28 @@ const PREFIX_MODULE = "traviota"
 
 var (
 	log                  *logging.Logger
+	logPub               *logging.Logger
 	masterLoggingBackend logging.LeveledBackend
 	logInitialized       = false
 )
 
 type ConfigStructYAML struct {
-	SiteDataDir string
-	Sender      SenderYAML      `yaml:"sender"`
-	Publisher   PublisherParams `yaml:"publisher"`
+	SiteDataDir      string
+	Sender           SenderYAML      `yaml:"sender"`
+	Publisher        PublisherParams `yaml:"publisher"`
+	Debug            bool            `yaml:"nodebug"`
+	Pprof            bool            `yaml:"pprof"`
+	MemStats         bool            `yaml:"memStats"`
+	MemStatsInterval int             `yaml:"memStatsInterval"`
 }
 
 type SenderYAML struct {
-	LogDir           string                  `yaml:"logDir"`
-	LogConsoleOnly   bool                    `yaml:"logConsoleOnly"`
-	LogFormat        string                  `yaml:"logFormat"`
-	Pprof            bool                    `yaml:"pprof"`
-	MemStats         bool                    `yaml:"memStats"`
-	MemStatsInterval int                     `yaml:"memStatsInterval"`
-	Globals          SenderParams            `yaml:"globals"`
-	Sequences        map[string]SenderParams `yaml:"sequences"`
+	Disabled       bool                    `yaml:"disabled"`
+	LogDir         string                  `yaml:"logDir"`
+	LogConsoleOnly bool                    `yaml:"logConsoleOnly"`
+	LogFormat      string                  `yaml:"logFormat"`
+	Globals        SenderParams            `yaml:"globals"`
+	Sequences      map[string]SenderParams `yaml:"sequences"`
 }
 
 type SenderParams struct {
@@ -49,7 +52,6 @@ type SenderParams struct {
 	TimeoutAPI            int      `yaml:"apiTimeout"`
 	TimeoutGTTA           int      `yaml:"gttaTimeout"`
 	TimeoutATT            int      `yaml:"attTimeout"`
-	Nodebug               bool     `yaml:"nodebug"`
 	Seed                  string   `yaml:"seed"`
 	Index0                int      `yaml:"index0"`
 	TxTag                 string   `yaml:"txTag"`
@@ -60,8 +62,11 @@ type SenderParams struct {
 }
 
 type PublisherParams struct {
-	Disabled bool `yaml:"disabled"`
-	OutPort  int  `yaml:"outPort"`
+	Disabled       bool   `yaml:"disabled"`
+	LogDir         string `yaml:"logDir"`
+	LogConsoleOnly bool   `yaml:"logConsoleOnly"`
+	LogFormat      string `yaml:"logFormat"`
+	OutPort        int    `yaml:"outPort"`
 }
 
 //  create config structure with default values
@@ -77,7 +82,7 @@ var Config = ConfigStructYAML{
 
 var msgBeforeLog = []string{"----- TangleBeat project. Starting Traviota module"}
 
-func beforeLog() {
+func flushMsgBeforeLog() {
 	for _, msg := range msgBeforeLog {
 		if logInitialized {
 			log.Info(msg)
@@ -87,8 +92,7 @@ func beforeLog() {
 	}
 }
 
-func ReadConfig(configFilename string) {
-	defer beforeLog()
+func MasterConfig(configFilename string) {
 
 	currentDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
@@ -109,6 +113,7 @@ func ReadConfig(configFilename string) {
 	yamlFile, err := os.Open(configFilePath)
 	if err != nil {
 		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Failed: %v.\nUsing default config values: %+v\n", err, &Config))
+		flushMsgBeforeLog()
 		return
 	}
 	defer yamlFile.Close()
@@ -119,25 +124,27 @@ func ReadConfig(configFilename string) {
 	if err != nil {
 		panic(fmt.Sprintf("Failed to unmarshal config file. Error: %v\n", err))
 	}
-	ConfigLogging()
+	configMasterLogging()
+	flushMsgBeforeLog()
+	configDebugging()
+}
 
-	if Config.Sender.MemStats {
-		sl := lib.Max(5, Config.Sender.MemStatsInterval)
+func configDebugging() {
+	if Config.MemStats {
+		sl := lib.Max(5, Config.MemStatsInterval)
 		go func() {
 			for {
-				LogMemStats()
+				logMemStats()
 				time.Sleep(time.Duration(sl) * time.Second)
 			}
 		}()
 		log.Infof("Will be logging MemStats every %v sec", sl)
 	}
-
-	msgBeforeLog = append(msgBeforeLog, "Traviota initialized successfully")
 }
 
 //	`%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
 
-func getFormatter() logging.Formatter {
+func getSenderLogFormatter() logging.Formatter {
 	if len(Config.Sender.LogFormat) == 0 {
 		return logging.MustStringFormatter(
 			`%{time:2006-01-02 15:04:05.000} [%{shortfunc}] %{level:.4s} %{message}`,
@@ -147,17 +154,17 @@ func getFormatter() logging.Formatter {
 	}
 }
 
-func ConfigLogging() {
+func configMasterLogging() {
 	var logWriter io.Writer
 	var level logging.Level
 	var levelName string
 
-	if Config.Sender.Globals.Nodebug {
-		level = logging.INFO
-		levelName = "INFO"
-	} else {
+	if Config.Debug {
 		level = logging.DEBUG
 		levelName = "DEBUG"
+	} else {
+		level = logging.INFO
+		levelName = "INFO"
 	}
 
 	// opening log file if necessary
@@ -174,14 +181,13 @@ func ConfigLogging() {
 		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Will be logging at %v level to stderr and %v\n", levelName, logFname))
 	}
 	// creating master logger 'log'
-	loggerName := "main"
-	log = logging.MustGetLogger(loggerName)
+	log = logging.MustGetLogger("main")
 
 	logBackend := logging.NewLogBackend(logWriter, "", 0)
-	formatter := getFormatter()
+	formatter := getSenderLogFormatter()
 	logBackendFormatter := logging.NewBackendFormatter(logBackend, formatter)
 	masterLoggingBackend = logging.AddModuleLevel(logBackendFormatter)
-	masterLoggingBackend.SetLevel(level, loggerName)
+	masterLoggingBackend.SetLevel(level, "main")
 
 	log.SetBackend(masterLoggingBackend)
 	logInitialized = true
@@ -189,10 +195,11 @@ func ConfigLogging() {
 
 // creates child logger with the given name. It always writes to the file
 // everything with is logged to this logger, will go to the master logger as well
-func createChildLogger(name string, masterBackend *logging.LeveledBackend, formatter *logging.Formatter) (*logging.Logger, error) {
+func createChildLogger(name string, dir string, masterBackend *logging.LeveledBackend,
+	formatter *logging.Formatter, level logging.Level) (*logging.Logger, error) {
 	var logger *logging.Logger
 
-	logFname := path.Join(Config.SiteDataDir, Config.Sender.LogDir, PREFIX_MODULE+"."+name+".log")
+	logFname := path.Join(dir, PREFIX_MODULE+"."+name+".log")
 	fout, err := os.OpenFile(logFname, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if err != nil {
 		return nil, err
@@ -201,20 +208,16 @@ func createChildLogger(name string, masterBackend *logging.LeveledBackend, forma
 
 		logBackend := logging.NewLogBackend(logWriter, "", 0)
 		logBackendFormatter := logging.NewBackendFormatter(logBackend, *formatter)
-		seqLoggingBackend := logging.AddModuleLevel(logBackendFormatter)
-		if Config.Sender.Globals.Nodebug {
-			masterLoggingBackend.SetLevel(logging.INFO, name)
-		} else {
-			masterLoggingBackend.SetLevel(logging.DEBUG, name)
-		}
+		childBackend := logging.AddModuleLevel(logBackendFormatter)
+		childBackend.SetLevel(level, name)
 		logger = logging.MustGetLogger(name)
-		logger.SetBackend(logging.MultiLogger(*masterBackend, seqLoggingBackend))
+		logger.SetBackend(logging.MultiLogger(*masterBackend, childBackend))
 	}
 	logger.Infof("Created child logger '%v' -> %v", name, logFname)
 	return logger, nil
 }
 
-func GetSeqParams(name string) (SenderParams, error) {
+func getSeqParams(name string) (SenderParams, error) {
 	stru, ok := Config.Sender.Sequences[name]
 	if !ok {
 		return SenderParams{}, errors.New(fmt.Sprintf("Sequence '%v' doesn't exist\n", name))
@@ -239,9 +242,6 @@ func GetSeqParams(name string) (SenderParams, error) {
 		if len(ret.IOTANodeATT) == 0 {
 			ret.IOTANodeATT = ret.IOTANode
 		}
-	}
-	if Config.Sender.Globals.Nodebug {
-		ret.Nodebug = true
 	}
 	if len(ret.TxTag) == 0 {
 		ret.TxTag = Config.Sender.Globals.TxTag
@@ -278,7 +278,7 @@ func GetSeqParams(name string) (SenderParams, error) {
 	return ret, nil
 }
 
-func GetEnabledSeqNames() []string {
+func getEnabledSeqNames() []string {
 	ret := make([]string, 0)
 	for name, params := range Config.Sender.Sequences {
 		if !params.Disabled {
@@ -288,7 +288,7 @@ func GetEnabledSeqNames() []string {
 	return ret
 }
 
-func LogMemStats() {
+func logMemStats() {
 	var mem runtime.MemStats
 
 	runtime.ReadMemStats(&mem)

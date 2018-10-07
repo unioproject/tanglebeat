@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"github.com/lunfardo314/giota"
 	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/op/go-logging"
 	"nanomsg.org/go-mangos"
 	"nanomsg.org/go-mangos/protocol/pub"
 	"nanomsg.org/go-mangos/transport/tcp"
+	"path"
+	"sync"
 	"time"
 )
 
@@ -65,35 +68,6 @@ func initChanDataPublish() error {
 	return nil
 }
 
-//func initChanDataToZMQ() error {
-//	if Config.Publisher.Disabled {
-//		return errors.New("publisher is disabled, 'chanDataToPublish' channel wasn't be created")
-//	}
-//
-//	chanDataToPublish = make(chan []byte)
-//	pub := zmq4.NewPub(context.Background())
-//
-//	log.Infof("Publisher ZMQ port is %v", Config.Publisher.OutPort)
-//	err := pub.Listen(fmt.Sprintf("tcp://*:%v", Config.Publisher.OutPort))
-//	if err != nil {
-//		return err
-//	}
-//	go func() {
-//		defer pub.Close()
-//		for data := range chanDataToPublish {
-//			log.Debugf("======= data received from chanDataToPublish")
-//			msg := zmq4.NewMsg(data)
-//			err := pub.Send(msg)
-//			if err != nil {
-//				log.Errorf("======= chanDataToPublish.zm4.Send error: %v Data='%v'", err, string(data))
-//			} else {
-//				log.Debugf("======= data sent to zmq chanDataToPublish")
-//			}
-//		}
-//	}()
-//	return nil
-//}
-
 func publishData(data []byte) {
 	if !Config.Publisher.Disabled {
 		chanDataToPublish <- data
@@ -145,18 +119,17 @@ type senderUpdate struct {
 	TPS                   float32 `json:"tps"` // contribution to tps
 }
 
-func initPublisher() {
-	if Config.Publisher.Disabled {
-		log.Infof("Publisher is disabled!!!")
-		return
-	}
+func runPublisher(wg *sync.WaitGroup) {
+	configPublisherLogging()
+
 	chanUpdates = make(chan *senderUpdate)
 	err := initChanDataPublish()
 	if err != nil {
-		log.Errorf("Failed to create publishing channel. Publisher is disabled: %v", err)
+		logPub.Errorf("Failed to create publishing channel. Publisher is disabled: %v", err)
 		Config.Publisher.Disabled = true
 		return
 	}
+	wg.Add(1)
 	go func() {
 		for update := range chanUpdates {
 			if data, err := json.Marshal(update); err != nil {
@@ -165,12 +138,20 @@ func initPublisher() {
 				publishData(data)
 			}
 		}
+		wg.Done()
 	}()
 }
 
 func publishUpdate(upd *senderUpdate) {
 	if !Config.Publisher.Disabled {
 		chanUpdates <- upd
+		if upd.UpdType == UPD_START_SENDING || upd.UpdType == UPD_FINISH_SENDING || upd.UpdType == UPD_CONFIRM {
+			logPub.Infof("Published event '%v' for SeqID = %v, index = %v",
+				upd.UpdType.String(), upd.SenderUID, upd.Index)
+		} else {
+			logPub.Debugf("Published event '%v' for SeqID = %v, index = %v",
+				upd.UpdType.String(), upd.SenderUID, upd.Index)
+		}
 	}
 }
 
@@ -208,6 +189,36 @@ func (seq *Sequence) publishState(state *sendingState, updType updateType) {
 	} else {
 		upd.TPS = 0
 	}
-
 	publishUpdate(&upd)
+}
+
+func getPublisherLogFormatter() logging.Formatter {
+	if len(Config.Publisher.LogFormat) == 0 {
+		return logging.MustStringFormatter(
+			`%{time:2006-01-02 15:04:05.000} [%{shortfunc}] %{level:.4s} %{message}`,
+		)
+	} else {
+		return logging.MustStringFormatter(Config.Publisher.LogFormat)
+	}
+}
+
+func configPublisherLogging() {
+	if Config.Publisher.LogConsoleOnly {
+		logPub = log
+		return
+	}
+	var err error
+	formatter := getPublisherLogFormatter()
+
+	var level logging.Level
+	if Config.Debug {
+		level = logging.DEBUG
+	} else {
+		level = logging.INFO
+	}
+	logPub, err = createChildLogger(
+		"publisher", path.Join(Config.SiteDataDir, Config.Sender.LogDir), &masterLoggingBackend, &formatter, level)
+	if err != nil {
+		log.Panicf("Can't create publisher log")
+	}
 }

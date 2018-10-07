@@ -42,7 +42,7 @@ func main() {
 			fmt.Printf("Cannot receive: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("CLIENT: RECEIVED %s\n", string(msg))
+		fmt.Printf("RECEIVED %s\n", string(msg))
 	}
 }
 

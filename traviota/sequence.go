@@ -35,7 +35,7 @@ type Sequence struct {
 }
 
 func NewSequence(name string) (*Sequence, error) {
-	params, err := GetSeqParams(name)
+	params, err := getSeqParams(name)
 	if err != nil {
 		return nil, err
 	}
@@ -44,8 +44,15 @@ func NewSequence(name string) (*Sequence, error) {
 		logger = log
 		log.Infof("Separate logger for the sequence won't be created")
 	} else {
-		formatter := getFormatter()
-		logger, err = createChildLogger(name, &masterLoggingBackend, &formatter)
+		formatter := getSenderLogFormatter()
+		var level logging.Level
+		if Config.Debug {
+			level = logging.DEBUG
+		} else {
+			level = logging.INFO
+		}
+		logger, err = createChildLogger(
+			name, path.Join(Config.SiteDataDir, Config.Sender.LogDir), &masterLoggingBackend, &formatter, level)
 		if err != nil {
 			return nil, err
 		}
