@@ -8,18 +8,11 @@ import (
 )
 
 func main() {
-	ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	pub := zmq4.NewPub(ctx)
+	// ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	pub := zmq4.NewPub(context.Background())
 	uri := "tcp://*:3000"
 	fmt.Println(uri)
 	err := pub.Listen(uri)
-	//fmt.Println("Before send")
-	//err = pub.Send(zmq4.NewMsg([]byte("MSG")))
-	//fmt.Println("After send")
-	//if err != nil{
-	//	panic(err)
-	//}
-
 	for i := 0; ; i++ {
 		s := fmt.Sprintf("%d", i)
 		msg := zmq4.NewMsg([]byte(s))

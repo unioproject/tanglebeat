@@ -60,8 +60,8 @@ type SenderParams struct {
 }
 
 type PublisherParams struct {
-	Disabled   bool `yaml:"disabled"`
-	ZmqOutPort int  `yaml:"zmqOutPort"`
+	Disabled bool `yaml:"disabled"`
+	OutPort  int  `yaml:"outPort"`
 }
 
 //  create config structure with default values

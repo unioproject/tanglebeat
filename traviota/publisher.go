@@ -1,13 +1,14 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-zeromq/zmq4"
 	"github.com/lunfardo314/giota"
 	"github.com/lunfardo314/tanglebeat/lib"
+	"nanomsg.org/go-mangos"
+	"nanomsg.org/go-mangos/protocol/pub"
+	"nanomsg.org/go-mangos/transport/tcp"
 	"time"
 )
 
@@ -26,43 +27,76 @@ const (
 )
 
 var (
-	chanUpdates   chan *senderUpdate
-	chanDataToZMQ chan []byte
+	chanUpdates       chan *senderUpdate
+	chanDataToPublish chan []byte
 )
 
-// reads input stream of byte arrays and sends them to pub ZMQ channel
-func initChanDataToZMQ() error {
+// reads input stream of byte arrays and sends them to publish channel
+func initChanDataPublish() error {
 	if Config.Publisher.Disabled {
-		return errors.New("publisher is disabled, 'chanDataToZMQ' channel wasn't be created")
+		return errors.New("publisher is disabled, 'chanDataToPublish' channel wasn't be created")
+	}
+	var sock mangos.Socket
+	var err error
+	if sock, err = pub.NewSocket(); err != nil {
+		return errors.New(fmt.Sprintf("can't get new sub socket: %v", err))
 	}
 
-	chanDataToZMQ = make(chan []byte)
-	pub := zmq4.NewPub(context.Background())
-
-	log.Infof("Publisher ZMQ port is %v", Config.Publisher.ZmqOutPort)
-	err := pub.Listen(fmt.Sprintf("tcp://*:%v", Config.Publisher.ZmqOutPort))
-	if err != nil {
-		return err
+	chanDataToPublish = make(chan []byte)
+	// sock.AddTransport(ipc.NewTransport())
+	sock.AddTransport(tcp.NewTransport())
+	log.Infof("Publisher port is %v", Config.Publisher.OutPort)
+	url := fmt.Sprintf("tcp://localhost:%v", Config.Publisher.OutPort)
+	if err = sock.Listen(url); err != nil {
+		return errors.New(fmt.Sprintf("can't listen new pub socket: %v", err))
 	}
 	go func() {
-		defer pub.Close()
-		for data := range chanDataToZMQ {
-			log.Debugf("======= data received from chanDataToZMQ")
-			msg := zmq4.NewMsg(data)
-			err := pub.Send(msg)
+		defer sock.Close()
+		for data := range chanDataToPublish {
+			log.Debugf("======= data received from chanDataToPublish")
+			err := sock.Send(data)
 			if err != nil {
-				log.Errorf("======= chanDataToZMQ.zm4.Send error: %v Data='%v'", err, string(data))
+				log.Errorf("======= chanDataToPublish.Send error: %v Data='%v'", err, string(data))
 			} else {
-				log.Debugf("======= data sent to zmq chanDataToZMQ")
+				log.Debugf("======= data sent to chanDataToPublish")
 			}
 		}
 	}()
 	return nil
 }
 
+//func initChanDataToZMQ() error {
+//	if Config.Publisher.Disabled {
+//		return errors.New("publisher is disabled, 'chanDataToPublish' channel wasn't be created")
+//	}
+//
+//	chanDataToPublish = make(chan []byte)
+//	pub := zmq4.NewPub(context.Background())
+//
+//	log.Infof("Publisher ZMQ port is %v", Config.Publisher.OutPort)
+//	err := pub.Listen(fmt.Sprintf("tcp://*:%v", Config.Publisher.OutPort))
+//	if err != nil {
+//		return err
+//	}
+//	go func() {
+//		defer pub.Close()
+//		for data := range chanDataToPublish {
+//			log.Debugf("======= data received from chanDataToPublish")
+//			msg := zmq4.NewMsg(data)
+//			err := pub.Send(msg)
+//			if err != nil {
+//				log.Errorf("======= chanDataToPublish.zm4.Send error: %v Data='%v'", err, string(data))
+//			} else {
+//				log.Debugf("======= data sent to zmq chanDataToPublish")
+//			}
+//		}
+//	}()
+//	return nil
+//}
+
 func publishData(data []byte) {
 	if !Config.Publisher.Disabled {
-		chanDataToZMQ <- data
+		chanDataToPublish <- data
 	}
 }
 
@@ -117,9 +151,9 @@ func initPublisher() {
 		return
 	}
 	chanUpdates = make(chan *senderUpdate)
-	err := initChanDataToZMQ()
+	err := initChanDataPublish()
 	if err != nil {
-		log.Errorf("Failed to create ZMQ output channel. Publisher is disabled: %v", err)
+		log.Errorf("Failed to create publishing channel. Publisher is disabled: %v", err)
 		Config.Publisher.Disabled = true
 		return
 	}
