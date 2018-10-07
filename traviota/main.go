@@ -22,7 +22,7 @@ func runSender(wg *sync.WaitGroup) {
 }
 
 func main() {
-	MasterConfig("traviota.yaml")
+	masterConfig("traviota.yaml")
 	var wg sync.WaitGroup
 	if !Config.Publisher.Disabled {
 		log.Infof("Starting publisher")

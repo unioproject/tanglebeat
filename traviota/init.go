@@ -71,12 +71,21 @@ type PublisherParams struct {
 
 //  create config structure with default values
 //  other default values are nil values
+//	`%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
+
 var Config = ConfigStructYAML{
 	SiteDataDir: ".\\",
 	Sender: SenderYAML{
+		LogConsoleOnly: true,
+		LogFormat:      "%{time:2006-01-02 15:04:05.000} [%{shortfunc}] %{level:.4s} %{message}",
 		Globals: SenderParams{
 			IOTANode: []string{"https://field.deviota.com:443"},
 		},
+	},
+	Publisher: PublisherParams{
+		LogConsoleOnly: true,
+		LogFormat:      "%{time:2006-01-02 15:04:05.000} [%{shortfunc}] %{level:.4s} %{message}",
+		OutPort:        3000,
 	},
 }
 
@@ -87,34 +96,34 @@ func flushMsgBeforeLog() {
 		if logInitialized {
 			log.Info(msg)
 		} else {
-			log.Error(msg)
+			fmt.Println(msg)
 		}
 	}
 }
 
-func MasterConfig(configFilename string) {
+func masterConfig(configFilename string) {
 
 	currentDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
 		panic(fmt.Sprintf("Can't get current current dir. Error: %v", err))
 	}
-	msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Current directory is %v\n", currentDir))
+	msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Current directory is %v", currentDir))
 
 	Config.SiteDataDir = os.Getenv("SITE_DATA_DIR")
 	if Config.SiteDataDir == "" {
-		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Environment variable SITE_DATA_DIR is undefined. Taking current directory: %v\n", currentDir))
+		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Environment variable SITE_DATA_DIR is undefined. Taking current directory: %v", currentDir))
 		Config.SiteDataDir = currentDir
 	} else {
-		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("SITE_DATA_DIR = %v\n", Config.SiteDataDir))
+		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("SITE_DATA_DIR = %v", Config.SiteDataDir))
 	}
 	configFilePath := path.Join(Config.SiteDataDir, configFilename)
-	msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Reading config values from %v\n", configFilePath))
+	msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Reading config values from %v", configFilePath))
 
 	yamlFile, err := os.Open(configFilePath)
 	if err != nil {
-		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Failed: %v.\nUsing default config values: %+v\n", err, &Config))
+		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Failed init logging %v:\nExit", err))
 		flushMsgBeforeLog()
-		return
+		os.Exit(1)
 	}
 	defer yamlFile.Close()
 
@@ -122,7 +131,7 @@ func MasterConfig(configFilename string) {
 
 	err = yaml.Unmarshal(yamlbytes, &Config)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to unmarshal config file. Error: %v\n", err))
+		os.Exit(1)
 	}
 	configMasterLogging()
 	flushMsgBeforeLog()
@@ -139,18 +148,6 @@ func configDebugging() {
 			}
 		}()
 		log.Infof("Will be logging MemStats every %v sec", sl)
-	}
-}
-
-//	`%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
-
-func getSenderLogFormatter() logging.Formatter {
-	if len(Config.Sender.LogFormat) == 0 {
-		return logging.MustStringFormatter(
-			`%{time:2006-01-02 15:04:05.000} [%{shortfunc}] %{level:.4s} %{message}`,
-		)
-	} else {
-		return logging.MustStringFormatter(Config.Sender.LogFormat)
 	}
 }
 
@@ -184,7 +181,7 @@ func configMasterLogging() {
 	log = logging.MustGetLogger("main")
 
 	logBackend := logging.NewLogBackend(logWriter, "", 0)
-	formatter := getSenderLogFormatter()
+	formatter := logging.MustStringFormatter(Config.Sender.LogFormat)
 	logBackendFormatter := logging.NewBackendFormatter(logBackend, formatter)
 	masterLoggingBackend = logging.AddModuleLevel(logBackendFormatter)
 	masterLoggingBackend.SetLevel(level, "main")

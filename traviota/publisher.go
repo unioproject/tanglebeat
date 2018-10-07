@@ -192,32 +192,25 @@ func (seq *Sequence) publishState(state *sendingState, updType updateType) {
 	publishUpdate(&upd)
 }
 
-func getPublisherLogFormatter() logging.Formatter {
-	if len(Config.Publisher.LogFormat) == 0 {
-		return logging.MustStringFormatter(
-			`%{time:2006-01-02 15:04:05.000} [%{shortfunc}] %{level:.4s} %{message}`,
-		)
-	} else {
-		return logging.MustStringFormatter(Config.Publisher.LogFormat)
-	}
-}
-
 func configPublisherLogging() {
 	if Config.Publisher.LogConsoleOnly {
 		logPub = log
 		return
 	}
 	var err error
-	formatter := getPublisherLogFormatter()
-
 	var level logging.Level
 	if Config.Debug {
 		level = logging.DEBUG
 	} else {
 		level = logging.INFO
 	}
+	formatter := logging.MustStringFormatter(Config.Publisher.LogFormat)
 	logPub, err = createChildLogger(
-		"publisher", path.Join(Config.SiteDataDir, Config.Sender.LogDir), &masterLoggingBackend, &formatter, level)
+		"publisher",
+		path.Join(Config.SiteDataDir, Config.Sender.LogDir),
+		&masterLoggingBackend,
+		&formatter,
+		level)
 	if err != nil {
 		log.Panicf("Can't create publisher log")
 	}

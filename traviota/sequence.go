@@ -44,15 +44,19 @@ func NewSequence(name string) (*Sequence, error) {
 		logger = log
 		log.Infof("Separate logger for the sequence won't be created")
 	} else {
-		formatter := getSenderLogFormatter()
 		var level logging.Level
 		if Config.Debug {
 			level = logging.DEBUG
 		} else {
 			level = logging.INFO
 		}
+		formatter := logging.MustStringFormatter(Config.Publisher.LogFormat)
 		logger, err = createChildLogger(
-			name, path.Join(Config.SiteDataDir, Config.Sender.LogDir), &masterLoggingBackend, &formatter, level)
+			name,
+			path.Join(Config.SiteDataDir, Config.Sender.LogDir),
+			&masterLoggingBackend,
+			&formatter,
+			level)
 		if err != nil {
 			return nil, err
 		}
