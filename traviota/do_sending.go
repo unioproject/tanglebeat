@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/lunfardo314/giota"
+	"github.com/lunfardo314/tanglebeat/comm"
 	"github.com/lunfardo314/tanglebeat/lib"
 	"sync"
 	"time"
@@ -42,8 +43,8 @@ func (seq *Sequence) DoSending(stateOrig *sendingState) func() *sendingState {
 		seq.log.Debugf("Started DoSending routine for idx = %v, %v", state.index, state.addr)
 		defer seq.log.Debugf("Finished DoSending routine for idx = %v, %v", state.index, state.addr)
 
-		seq.publishState(&state, UPD_START_SENDING)
-		defer seq.publishState(&state, UPD_FINISH_SENDING)
+		seq.publishState(&state, comm.UPD_START_SENDING)
+		defer seq.publishState(&state, comm.UPD_FINISH_SENDING)
 
 		wg.Add(1)
 		defer wg.Done()
@@ -69,7 +70,7 @@ func (seq *Sequence) DoSending(stateOrig *sendingState) func() *sendingState {
 		}
 		// main sending loop. Programmatically can be interrupted only with stop function
 		var nextState *sendingState
-		var ut updateType
+		var ut comm.UpdateType
 		for {
 			nextState, ut, err = seq.doSendingAction(&state)
 			if err != nil {
@@ -97,25 +98,25 @@ func (seq *Sequence) DoSending(stateOrig *sendingState) func() *sendingState {
 
 // performs action if it is time. Returns changed state
 // otherwise return nil state
-func (seq *Sequence) doSendingAction(state *sendingState) (*sendingState, updateType, error) {
+func (seq *Sequence) doSendingAction(state *sendingState) (*sendingState, comm.UpdateType, error) {
 	index := state.index
 	if len(state.lastBundle) == 0 {
 		// can be in the beginning of sending or after snapshot
 		seq.log.Debugf("Didn't find spending bundle. idx = %v. Sending balance to the next", index)
 		ret, err := seq.sendToNext(state)
 		if err != nil {
-			return nil, UPD_UNDEF, err
+			return nil, comm.UPD_UNDEF, err
 		}
-		return ret, UPD_SEND, nil
+		return ret, comm.UPD_SEND, nil
 	}
 	confirmed, err := seq.isConfirmed(state.lastBundle[0].Hash())
 	if err != nil {
-		return nil, UPD_UNDEF, err
+		return nil, comm.UPD_UNDEF, err
 	}
 	if confirmed {
 		balance, err := seq.GetBalanceAddr([]giota.Address{state.addr})
 		if err != nil {
-			return nil, UPD_UNDEF, err
+			return nil, comm.UPD_UNDEF, err
 		}
 		if balance[0] == 0 {
 			// there's nothing to do, if balance = 0 and last bundle is confirmed
@@ -125,9 +126,9 @@ func (seq *Sequence) doSendingAction(state *sendingState) (*sendingState, update
 			seq.log.Debugf("balance > 0, last bundle confirmed -> sending remaining balance. idx=%v, addr=%v", index, state.addr)
 			ret, err := seq.sendToNext(state)
 			if err != nil {
-				return nil, UPD_UNDEF, err
+				return nil, comm.UPD_UNDEF, err
 			}
-			return ret, UPD_SEND, nil
+			return ret, comm.UPD_SEND, nil
 		}
 	}
 	if len(state.lastPromoBundle) != 0 {
@@ -150,7 +151,7 @@ func (seq *Sequence) doSendingAction(state *sendingState) (*sendingState, update
 	// promoteOrReattach conditions wasn't met. Check if reattachment is needed
 	consistent, err := seq.checkConsistency(state.lastBundle[0].Hash())
 	if err != nil {
-		return nil, UPD_UNDEF, err
+		return nil, comm.UPD_UNDEF, err
 	}
 	if !consistent {
 		seq.log.Debugf("Last bundle is inconsistent. idx=%v", index)
@@ -162,35 +163,35 @@ func (seq *Sequence) doSendingAction(state *sendingState) (*sendingState, update
 		seq.log.Debugf("Reattach idx=%v, txh %v", index, state.lastBundle[0].Hash())
 		ret, err := seq.reattach(state)
 		if err != nil {
-			return nil, UPD_UNDEF, err
+			return nil, comm.UPD_UNDEF, err
 		}
-		return ret, UPD_REATTACH, nil
+		return ret, comm.UPD_REATTACH, nil
 	}
 	seq.log.Debugf("No action, wait. idx=%v", index)
-	return nil, UPD_WAIT, nil
+	return nil, comm.UPD_WAIT, nil
 }
 
-func (seq *Sequence) promoteOrReattach(tx *giota.Transaction, state *sendingState) (*sendingState, updateType, error) {
+func (seq *Sequence) promoteOrReattach(tx *giota.Transaction, state *sendingState) (*sendingState, comm.UpdateType, error) {
 	var consistent bool
 	var err error
 	if consistent, err = seq.checkConsistency(tx.Hash()); err != nil {
-		return nil, UPD_UNDEF, err
+		return nil, comm.UPD_UNDEF, err
 	}
 	if consistent {
 		seq.log.Debugf("Promote. idx=%v, tail %v", state.index, tx.Hash())
 		ret, err := seq.promote(tx, state)
 		if err != nil {
-			return nil, UPD_UNDEF, err
+			return nil, comm.UPD_UNDEF, err
 		}
-		return ret, UPD_PROMOTE, nil
+		return ret, comm.UPD_PROMOTE, nil
 	}
 	// can't promote --> reattach
 	seq.log.Debugf("Reattach latest bundle. idx=%v", state.index)
 	ret, err := seq.reattach(state)
 	if err != nil {
-		return nil, UPD_UNDEF, err
+		return nil, comm.UPD_UNDEF, err
 	}
-	return ret, UPD_REATTACH, nil
+	return ret, comm.UPD_REATTACH, nil
 }
 
 func (seq *Sequence) findTrytes(txReq *giota.FindTransactionsRequest) (*giota.GetTrytesResponse, error) {

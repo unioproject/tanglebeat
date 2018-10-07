@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lunfardo314/giota"
+	"github.com/lunfardo314/tanglebeat/comm"
 	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/op/go-logging"
 	"io/ioutil"
@@ -121,7 +122,7 @@ func (seq *Sequence) Run() {
 		seq.log.Debugf("State returned, going to the next Index. idx=%v", index)
 		if state != nil {
 			// address was processed
-			seq.publishState(state, UPD_CONFIRM)
+			seq.publishState(state, comm.UPD_CONFIRM)
 		}
 		seq.saveIndex(index)
 	}
