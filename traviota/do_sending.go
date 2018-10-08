@@ -168,7 +168,7 @@ func (seq *Sequence) doSendingAction(state *sendingState) (*sendingState, comm.U
 		return ret, comm.UPD_REATTACH, nil
 	}
 	seq.log.Debugf("No action, wait. idx=%v", index)
-	return nil, comm.UPD_WAIT, nil
+	return nil, comm.UPD_NO_ACTION, nil
 }
 
 func (seq *Sequence) promoteOrReattach(tx *giota.Transaction, state *sendingState) (*sendingState, comm.UpdateType, error) {

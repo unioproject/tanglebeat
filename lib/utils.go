@@ -107,3 +107,12 @@ func FindTxByHash(hash giota.Trytes, txList []giota.Transaction) (giota.Transact
 	}
 	return giota.Transaction{}, false
 }
+
+func GetTail(bundle giota.Bundle) *giota.Transaction {
+	for _, tx := range bundle {
+		if tx.CurrentIndex == 0 {
+			return &tx
+		}
+	}
+	return nil
+}

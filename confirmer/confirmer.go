@@ -2,6 +2,8 @@ package confirmer
 
 import (
 	"github.com/lunfardo314/giota"
+	"github.com/lunfardo314/tanglebeat/comm"
+	"github.com/lunfardo314/tanglebeat/lib"
 	"net/http"
 	"time"
 )
@@ -41,14 +43,15 @@ type ConfirmerUpdate struct {
 	UpdateTime            time.Time
 	NumAttach             int
 	NumPromote            int
-	NumErrors             int
 	TotalDurationATTMsec  int
 	NumATT                int
 	TotalDurationGTTAMsec int
 	NumGTTA               int
+	UpdateType            comm.UpdateType
+	Err                   error
 }
 
-func (conf *Confirmer) Run(bundle giota.Bundle) chan *ConfirmerUpdate {
+func (conf *Confirmer) createAPIs() {
 	conf.iotaAPI = giota.NewAPI(
 		conf.IOTANode,
 		&http.Client{
@@ -69,21 +72,90 @@ func (conf *Confirmer) Run(bundle giota.Bundle) chan *ConfirmerUpdate {
 			Timeout: time.Duration(conf.TimeoutATT) * time.Second,
 		},
 	)
+}
+
+func (conf *Confirmer) Run(bundle giota.Bundle) chan *ConfirmerUpdate {
+	conf.createAPIs()
 	nowis := time.Now()
 	conf.lastBundle = bundle
 	conf.nextForceReattachTime = nowis.Add(time.Duration(conf.ForceReattachAfterMin) * time.Minute)
 	conf.nextPromoTime = nowis.Add(time.Duration(conf.PromoteEverySec) * time.Second)
-	ret := make(chan *ConfirmerUpdate)
+	chanConfirmerUpdate := make(chan *ConfirmerUpdate)
 	go func() {
-		defer close(ret)
+		defer close(chanConfirmerUpdate)
 		for {
-			incl, err := conf.iotaAPI.GetLatestInclusion([]giota.Trytes{conf.lastBundle[0].Hash()})
+			incl, err := conf.iotaAPI.GetLatestInclusion(
+				[]giota.Trytes{lib.GetTail(conf.lastBundle).Hash()})
 			confirmed := err == nil && incl[0]
 			if confirmed {
-				return // TODO must be update about it
+				conf.sendUpdateIfNeeded(chanConfirmerUpdate, comm.UPD_CONFIRM, nil)
+				return
 			}
-
+			updType, err := conf.doSendingAction()
+			conf.sendUpdateIfNeeded(chanConfirmerUpdate, updType, err)
 		}
 	}()
-	return ret
+	return chanConfirmerUpdate
+}
+
+func (conf *Confirmer) sendUpdateIfNeeded(ch chan<- *ConfirmerUpdate, updType comm.UpdateType, err error) {
+	if updType == comm.UPD_NO_ACTION && err == nil {
+		// nothing changes, so nothing to update
+		return
+	}
+	upd := &ConfirmerUpdate{
+		UpdateTime:            time.Now(),
+		NumAttach:             conf.numAttach,
+		NumPromote:            conf.numPromote,
+		TotalDurationATTMsec:  conf.totalDurationATTMsec,
+		NumATT:                conf.numATT,
+		TotalDurationGTTAMsec: conf.totalDurationATTMsec,
+		NumGTTA:               conf.numGTTA,
+		UpdateType:            updType,
+		Err:                   err,
+	}
+	if updType == comm.UPD_CONFIRM {
+		ch <- upd // last update should be never lost
+	} else {
+		select {
+		case ch <- upd:
+		case <-time.After(2 * time.Second): // update lost in this case
+		}
+	}
+}
+
+func (conf *Confirmer) doSendingAction() (comm.UpdateType, error) {
+	var tail *giota.Transaction
+	if len(conf.lastPromoBundle) != 0 {
+		// promo already started.
+		if time.Now().After(conf.nextPromoTime) {
+			if conf.PromoteNoChain {
+				// promote blowball
+				tail = lib.GetTail(conf.lastBundle)
+			} else {
+				// promote chain
+				tail = lib.GetTail(conf.lastPromoBundle)
+			}
+			return conf.promoteOrReattach(tail)
+
+		}
+	} else {
+		return conf.promoteOrReattach(lib.GetTail(conf.lastBundle))
+	}
+	// Not time for promotion yet. Check if reattachment is needed
+	gccResp, err := conf.iotaAPI.CheckConsistency([]giota.Trytes{lib.GetTail(conf.lastBundle).Hash()})
+	if err != nil {
+		return comm.UPD_NO_ACTION, err
+	}
+	consistent := gccResp.State
+	if !consistent || time.Now().After(conf.nextForceReattachTime) {
+		err := conf.reattach()
+		if err != nil {
+			return comm.UPD_NO_ACTION, err
+		} else {
+			return comm.UPD_REATTACH, err
+		}
+	}
+	// no action
+	return comm.UPD_NO_ACTION, nil
 }

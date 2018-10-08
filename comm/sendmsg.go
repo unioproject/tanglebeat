@@ -17,7 +17,7 @@ type UpdateType int
 
 const (
 	UPD_UNDEF          UpdateType = 0
-	UPD_WAIT           UpdateType = 1
+	UPD_NO_ACTION      UpdateType = 1
 	UPD_SEND           UpdateType = 2
 	UPD_REATTACH       UpdateType = 3
 	UPD_PROMOTE        UpdateType = 4
@@ -51,7 +51,7 @@ type SenderUpdate struct {
 
 func (u UpdateType) String() string {
 	switch u {
-	case UPD_WAIT:
+	case UPD_NO_ACTION:
 		return "Wait"
 	case UPD_SEND:
 		return "Send"
