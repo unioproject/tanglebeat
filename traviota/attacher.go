@@ -34,39 +34,7 @@ func (seq *Sequence) sendToNext(state *sendingState) (*sendingState, error) {
 	if balance == 0 {
 		return nil, errors.New(fmt.Sprintf("Address %v has 0 balance, can't sent to the next.", addr))
 	}
-	transfers := []giota.Transfer{
-		{Address: nextAddr,
-			Value: balance,
-			Tag:   seq.TxTag,
-		},
-	}
-	inputs := []giota.AddressInfo{
-		{Seed: seq.Seed, Index: index, Security: 2},
-	}
-	bundle, err := giota.PrepareTransfers(
-		seq.IotaAPI,
-		seq.Seed,
-		transfers,
-		inputs,
-		giota.Address(""),
-		seq.SecurityLevel,
-	)
-	if err != nil {
-		return nil, err
-	}
-	gttaResp, err := seq.IotaAPIgTTA.GetTransactionsToApprove(3, 100, giota.Trytes(""))
-	if err != nil {
-		return nil, err
-	}
-	attResp, err := seq.attachToTangle(gttaResp.TrunkTransaction, gttaResp.BranchTransaction, bundle)
-	if err != nil {
-		return nil, err
-	}
-	err = seq.IotaAPI.BroadcastTransactions(attResp.Trytes)
-	if err != nil {
-		return nil, err
-	}
-	err = seq.IotaAPI.StoreTransactions(attResp.Trytes)
+	bundle, err := seq.sendBalance(addr, nextAddr, balance, seq.Seed, index)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +50,7 @@ func (seq *Sequence) sendToNext(state *sendingState) (*sendingState, error) {
 	}
 	ret := *state
 	nowis := time.Now()
-	ret.lastBundle = attResp.Trytes
+	ret.lastBundle = bundle
 	ret.lastAttachmentTime = nowis
 	ret.nextForceReattachTime = nowis.Add(time.Duration(seq.Params.ForceReattachAfterMin) * time.Minute)
 	ret.lastPromoBundle = nil
