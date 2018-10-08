@@ -17,6 +17,9 @@ func (conf *Confirmer) attachToTangle(trunkHash, branchHash giota.Trytes, trytes
 }
 
 func (conf *Confirmer) promote(tx *giota.Transaction) error {
+	if conf.log != nil {
+		conf.log.Debugf("CONFIRMER: promoting")
+	}
 	transfers := []giota.Transfer{
 		{Address: giota.Address(strings.Repeat("9", 81)),
 			Value: 0,
@@ -67,6 +70,9 @@ func (conf *Confirmer) promote(tx *giota.Transaction) error {
 }
 
 func (conf *Confirmer) reattach() error {
+	if conf.log != nil {
+		conf.log.Debugf("CONFIRMER: reattaching")
+	}
 	gttaResp, err := conf.iotaAPIgTTA.GetTransactionsToApprove(3, 100, giota.Trytes(""))
 	if err != nil {
 		return err
@@ -92,11 +98,11 @@ func (conf *Confirmer) reattach() error {
 }
 
 func (conf *Confirmer) promoteOrReattach(tx *giota.Transaction) (comm.UpdateType, error) {
-	ccResp, err := conf.iotaAPI.CheckConsistency([]giota.Trytes{tx.Hash()})
+	consistent, err := conf.checkConsistency(tx.Hash())
 	if err != nil {
 		return comm.UPD_NO_ACTION, err
 	} else {
-		if ccResp.State {
+		if consistent {
 			if err = conf.promote(tx); err != nil {
 				return comm.UPD_NO_ACTION, err
 			} else {

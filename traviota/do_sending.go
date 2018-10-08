@@ -8,190 +8,71 @@ import (
 	"time"
 )
 
-// Performs (re)attachments and promotions
+func (seq *Sequence) startSending(addr giota.Address, index int) func() {
+	sendingStarted := time.Now()
 
-type sendingState struct {
-	index int
-	addr  giota.Address
-	//balance               int64
-	sendingStarted        time.Time
-	lastBundle            giota.Bundle
-	lastAttachmentTime    time.Time
-	nextForceReattachTime time.Time
-	numAttach             int
-	lastPromoTime         time.Time
-	nextPromoTime         time.Time
-	lastPromoBundle       giota.Bundle
-	numPromote            int
-	//
-	totalDurationATTMsec  int
-	numATT                int
-	totalDurationGTTAMsec int
-	numGTTA               int
-	tps                   float32
-}
-
-// starts sending routine. Returns stop function
-// stop function when called stops sending and returns last state
-func (seq *Sequence) DoSending(stateOrig *sendingState) func() *sendingState {
-	state := *stateOrig
-	state.sendingStarted = time.Now()
-
-	chStop := make(chan struct{})
 	var wg sync.WaitGroup
-	go func() {
-		seq.log.Debugf("Started DoSending routine for idx = %v, %v", state.index, state.addr)
-		defer seq.log.Debugf("Finished DoSending routine for idx = %v, %v", state.index, state.addr)
 
-		seq.publishState(&state, comm.UPD_START_SENDING)
-		defer seq.publishState(&state, comm.UPD_FINISH_SENDING)
+	go func() {
+		seq.log.Debugf("Started startSending routine for idx = %v, %v", index, addr)
+		defer seq.log.Debugf("Finished startSending routine for idx = %v, %v", index, addr)
 
 		wg.Add(1)
 		defer wg.Done()
 
-		var err error
-
-		// in case of errors will keep retrieving latest bundle
-		// can return empty bundle without error if sending just started or after snapshot
-		for found := false; !found; {
-			state.lastBundle, err = seq.findLatestSpendingBundle(&state)
-			found = err == nil
-			if !found {
-				seq.log.Errorf("Error while retrieving latest spending bundle for Index=%v:  %v", state.index, err)
-				time.Sleep(10 * time.Second)
+		var initStats comm.SendingStats
+		bundle, err := seq.findOrCreateBundleToConfirm(addr, index, &initStats)
+		if err != nil {
+			seq.log.Errorf("startSending: index = %v: %v", index, err)
+		}
+		chConfUpd := seq.startConfirmer(bundle, seq.log)
+		for updConf := range chConfUpd {
+			// summing up with stats collected during findOrCreateBundleToConfirm
+			if updConf.Err != nil {
+				seq.log.Errorf("Received error from confirmer: %v", updConf.Err)
 			} else {
-				if len(state.lastBundle) > 0 {
-					// TODO use AttachmentTimestamp instead of Timestamp
-					state.lastAttachmentTime = state.lastBundle[0].Timestamp
-					state.nextForceReattachTime =
-						state.lastAttachmentTime.Add(time.Duration(seq.Params.ForceReattachAfterMin) * time.Minute)
+				if updConf.UpdateType != comm.UPD_NO_ACTION {
+					updConf.Stats.NumAttaches += initStats.NumAttaches
+					updConf.Stats.NumATT += initStats.NumATT
+					updConf.Stats.NumGTTA += initStats.NumGTTA
+					updConf.Stats.TotalDurationATTMsec += initStats.TotalDurationATTMsec
+					updConf.Stats.TotalDurationGTTAMsec += initStats.TotalDurationGTTAMsec
+					seq.publishSenderUpdate(updConf, addr, index, sendingStarted)
 				}
 			}
 		}
-		// main sending loop. Programmatically can be interrupted only with stop function
-		var nextState *sendingState
-		var ut comm.UpdateType
-		for {
-			nextState, ut, err = seq.doSendingAction(&state)
-			if err != nil {
-				seq.log.Errorf("DoSendingAction returned: %v", err)
-			} else {
-				if nextState != nil {
-					state = *nextState
-					seq.publishState(&state, ut)
-				}
-			}
-			select {
-			case <-chStop:
-				return
-			case <-time.After(5 * time.Second):
-			}
-		}
-		// update original structure
 	}()
-	return func() *sendingState {
-		close(chStop)
+	return func() {
 		wg.Wait()
-		return &state
 	}
 }
 
-// performs action if it is time. Returns changed state
-// otherwise return nil state
-func (seq *Sequence) doSendingAction(state *sendingState) (*sendingState, comm.UpdateType, error) {
-	index := state.index
-	if len(state.lastBundle) == 0 {
-		// can be in the beginning of sending or after snapshot
-		seq.log.Debugf("Didn't find spending bundle. idx = %v. Sending balance to the next", index)
-		ret, err := seq.sendToNext(state)
-		if err != nil {
-			return nil, comm.UPD_UNDEF, err
-		}
-		return ret, comm.UPD_SEND, nil
-	}
-	confirmed, err := seq.isConfirmed(state.lastBundle[0].Hash())
+func (seq *Sequence) findOrCreateBundleToConfirm(addr giota.Address, index int, sendingStats *comm.SendingStats) (giota.Bundle, error) {
+	bundle, err := seq.findLatestSpendingBundle(addr, index, sendingStats)
 	if err != nil {
-		return nil, comm.UPD_UNDEF, err
+		return nil, err
 	}
-	if confirmed {
-		balance, err := seq.GetBalanceAddr([]giota.Address{state.addr})
-		if err != nil {
-			return nil, comm.UPD_UNDEF, err
-		}
-		if balance[0] == 0 {
-			// there's nothing to do, if balance = 0 and last bundle is confirmed
-			seq.log.Debugf("balance = 0, last bundle confirmed -> all done, no action. idx=%v, addr=%v", index, state.addr)
-		} else {
-			// exotic situation: iotas have been sent to the address while current sending. But it happens!
-			seq.log.Debugf("balance > 0, last bundle confirmed -> sending remaining balance. idx=%v, addr=%v", index, state.addr)
-			ret, err := seq.sendToNext(state)
-			if err != nil {
-				return nil, comm.UPD_UNDEF, err
-			}
-			return ret, comm.UPD_SEND, nil
-		}
+	if len(bundle) == 0 {
+		return seq.sendToNext(addr, index, sendingStats)
 	}
-	if len(state.lastPromoBundle) != 0 {
-		// promo already started.
-		if time.Now().After(state.nextPromoTime) {
-			if seq.Params.PromoteNoChain {
-				// promote blowball
-				seq.log.Debugf("Promote 'blowball' idx=%v, txh=%v", index, state.lastBundle[0].Hash())
-				return seq.promoteOrReattach(&state.lastBundle[0], state)
-			} else {
-				// promote chain
-				seq.log.Debugf("Promote 'chain' idx=%v, txh=%v", index, state.lastPromoBundle[0].Hash())
-				return seq.promoteOrReattach(&state.lastPromoBundle[0], state)
-			}
-		}
-	} else {
-		seq.log.Debugf("Didn't find last promotion bundle, starting new promo chain. idx=%v", index)
-		return seq.promoteOrReattach(&state.lastBundle[0], state)
-	}
-	// promoteOrReattach conditions wasn't met. Check if reattachment is needed
-	consistent, err := seq.checkConsistency(state.lastBundle[0].Hash())
+	confirmed, err := seq.isConfirmed(lib.GetTail(bundle).Hash())
 	if err != nil {
-		return nil, comm.UPD_UNDEF, err
+		return nil, err
 	}
-	if !consistent {
-		seq.log.Debugf("Last bundle is inconsistent. idx=%v", index)
+	if !confirmed {
+		return bundle, nil
 	}
-	if time.Now().After(state.nextForceReattachTime) {
-		seq.log.Infof("It's time for forced reattachment after %v min. idx=%v", seq.Params.ForceReattachAfterMin, index)
-	}
-	if !consistent || time.Now().After(state.nextForceReattachTime) {
-		seq.log.Debugf("Reattach idx=%v, txh %v", index, state.lastBundle[0].Hash())
-		ret, err := seq.reattach(state)
-		if err != nil {
-			return nil, comm.UPD_UNDEF, err
-		}
-		return ret, comm.UPD_REATTACH, nil
-	}
-	seq.log.Debugf("No action, wait. idx=%v", index)
-	return nil, comm.UPD_NO_ACTION, nil
-}
-
-func (seq *Sequence) promoteOrReattach(tx *giota.Transaction, state *sendingState) (*sendingState, comm.UpdateType, error) {
-	var consistent bool
-	var err error
-	if consistent, err = seq.checkConsistency(tx.Hash()); err != nil {
-		return nil, comm.UPD_UNDEF, err
-	}
-	if consistent {
-		seq.log.Debugf("Promote. idx=%v, tail %v", state.index, tx.Hash())
-		ret, err := seq.promote(tx, state)
-		if err != nil {
-			return nil, comm.UPD_UNDEF, err
-		}
-		return ret, comm.UPD_PROMOTE, nil
-	}
-	// can't promote --> reattach
-	seq.log.Debugf("Reattach latest bundle. idx=%v", state.index)
-	ret, err := seq.reattach(state)
+	// exotic situation, when balance != 0 and address is spent
+	// can happen when sent iotas in the middle of sending
+	balance, err := seq.GetBalanceAddr([]giota.Address{addr})
 	if err != nil {
-		return nil, comm.UPD_UNDEF, err
+		return nil, err
 	}
-	return ret, comm.UPD_REATTACH, nil
+	if balance[0] > 0 {
+		return seq.sendToNext(addr, index, sendingStats)
+	}
+	// confirmed, bal = 0  --> nothing to do
+	return nil, err
 }
 
 func (seq *Sequence) findTrytes(txReq *giota.FindTransactionsRequest) (*giota.GetTrytesResponse, error) {
@@ -203,10 +84,7 @@ func (seq *Sequence) findTrytes(txReq *giota.FindTransactionsRequest) (*giota.Ge
 	return seq.IotaAPI.GetTrytes(ftResp.Hashes)
 }
 
-func (seq *Sequence) findLatestSpendingBundle(state *sendingState) (giota.Bundle, error) {
-	index := state.index
-	addr := state.addr
-
+func (seq *Sequence) findLatestSpendingBundle(addr giota.Address, index int, sendingStats *comm.SendingStats) (giota.Bundle, error) {
 	// find all transactions of the address
 	ftResp, err := seq.findTrytes(
 		&giota.FindTransactionsRequest{
@@ -236,11 +114,14 @@ func (seq *Sequence) findLatestSpendingBundle(state *sendingState) (giota.Bundle
 	// TODO  use attachmentTimestamp instead
 	var maxTime time.Time
 	var maxTail giota.Transaction
-
+	var numTails int
 	for _, tx := range spendingBundlesTx {
-		if tx.CurrentIndex == 0 && tx.Timestamp.After(maxTime) {
-			maxTime = tx.Timestamp
-			maxTail = tx
+		if tx.CurrentIndex == 0 {
+			if tx.Timestamp.After(maxTime) {
+				maxTime = tx.Timestamp
+				maxTail = tx
+			}
+			numTails += 1
 		}
 	}
 	// collect the bundle by maxTail
@@ -251,6 +132,7 @@ func (seq *Sequence) findLatestSpendingBundle(state *sendingState) (giota.Bundle
 		// because it come from the node
 		seq.log.Errorf("Bundle inconsistency in idx = %v: %v", index, err)
 	}
+	sendingStats.NumAttaches = numTails
 	return giota.Bundle(bundleTx), nil
 }
 

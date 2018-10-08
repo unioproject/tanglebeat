@@ -4,7 +4,9 @@ import (
 	"github.com/lunfardo314/giota"
 	"github.com/lunfardo314/tanglebeat/comm"
 	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/op/go-logging"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -32,23 +34,21 @@ type Confirmer struct {
 	lastPromoBundle       giota.Bundle
 	numPromote            int
 	//
-	totalDurationATTMsec  int
+	totalDurationATTMsec  int64
 	numATT                int
-	totalDurationGTTAMsec int
+	totalDurationGTTAMsec int64
 	numGTTA               int
 	tps                   float32
+	//
+	chanUpdate chan *ConfirmerUpdate
+	log        *logging.Logger
 }
 
 type ConfirmerUpdate struct {
-	UpdateTime            time.Time
-	NumAttach             int
-	NumPromote            int
-	TotalDurationATTMsec  int
-	NumATT                int
-	TotalDurationGTTAMsec int
-	NumGTTA               int
-	UpdateType            comm.UpdateType
-	Err                   error
+	Stats      comm.SendingStats
+	UpdateTime time.Time
+	UpdateType comm.UpdateType
+	Err        error
 }
 
 func (conf *Confirmer) createAPIs() {
@@ -74,54 +74,52 @@ func (conf *Confirmer) createAPIs() {
 	)
 }
 
-func (conf *Confirmer) Run(bundle giota.Bundle) chan *ConfirmerUpdate {
+func (conf *Confirmer) Run(bundle giota.Bundle, log *logging.Logger) chan *ConfirmerUpdate {
+	conf.log = log
 	conf.createAPIs()
 	nowis := time.Now()
 	conf.lastBundle = bundle
 	conf.nextForceReattachTime = nowis.Add(time.Duration(conf.ForceReattachAfterMin) * time.Minute)
 	conf.nextPromoTime = nowis.Add(time.Duration(conf.PromoteEverySec) * time.Second)
-	chanConfirmerUpdate := make(chan *ConfirmerUpdate)
+	conf.chanUpdate = make(chan *ConfirmerUpdate)
 	go func() {
-		defer close(chanConfirmerUpdate)
+		defer close(conf.chanUpdate)
+		if conf.log != nil {
+			defer conf.log.Debugf("CONFIRMER: Leaving confirmer routine")
+		}
 		for {
 			incl, err := conf.iotaAPI.GetLatestInclusion(
 				[]giota.Trytes{lib.GetTail(conf.lastBundle).Hash()})
 			confirmed := err == nil && incl[0]
 			if confirmed {
-				conf.sendUpdateIfNeeded(chanConfirmerUpdate, comm.UPD_CONFIRM, nil)
+				conf.sendConfirmerUpdate(comm.UPD_CONFIRM, nil)
 				return
 			}
 			updType, err := conf.doSendingAction()
-			conf.sendUpdateIfNeeded(chanConfirmerUpdate, updType, err)
+			if updType != comm.UPD_NO_ACTION || err != nil {
+				conf.sendConfirmerUpdate(updType, err)
+			}
+			time.Sleep(5 * time.Second)
 		}
 	}()
-	return chanConfirmerUpdate
+	return conf.chanUpdate
 }
 
-func (conf *Confirmer) sendUpdateIfNeeded(ch chan<- *ConfirmerUpdate, updType comm.UpdateType, err error) {
-	if updType == comm.UPD_NO_ACTION && err == nil {
-		// nothing changes, so nothing to update
-		return
-	}
+func (conf *Confirmer) sendConfirmerUpdate(updType comm.UpdateType, err error) {
 	upd := &ConfirmerUpdate{
-		UpdateTime:            time.Now(),
-		NumAttach:             conf.numAttach,
-		NumPromote:            conf.numPromote,
-		TotalDurationATTMsec:  conf.totalDurationATTMsec,
-		NumATT:                conf.numATT,
-		TotalDurationGTTAMsec: conf.totalDurationATTMsec,
-		NumGTTA:               conf.numGTTA,
-		UpdateType:            updType,
-		Err:                   err,
+		Stats: comm.SendingStats{
+			NumAttaches:           conf.numAttach,
+			NumPromotions:         conf.numPromote,
+			TotalDurationATTMsec:  conf.totalDurationATTMsec,
+			NumATT:                conf.numATT,
+			TotalDurationGTTAMsec: conf.totalDurationATTMsec,
+			NumGTTA:               conf.numGTTA,
+		},
+		UpdateTime: time.Now(),
+		UpdateType: updType,
+		Err:        err,
 	}
-	if updType == comm.UPD_CONFIRM {
-		ch <- upd // last update should be never lost
-	} else {
-		select {
-		case ch <- upd:
-		case <-time.After(2 * time.Second): // update lost in this case
-		}
-	}
+	conf.chanUpdate <- upd
 }
 
 func (conf *Confirmer) doSendingAction() (comm.UpdateType, error) {
@@ -131,23 +129,27 @@ func (conf *Confirmer) doSendingAction() (comm.UpdateType, error) {
 		if time.Now().After(conf.nextPromoTime) {
 			if conf.PromoteNoChain {
 				// promote blowball
+				if conf.log != nil {
+					conf.log.Debugf("CONFIRMER: promoting 'blowball'")
+				}
 				tail = lib.GetTail(conf.lastBundle)
 			} else {
 				// promote chain
+				if conf.log != nil {
+					conf.log.Debugf("CONFIRMER: promoting 'chain'")
+				}
 				tail = lib.GetTail(conf.lastPromoBundle)
 			}
 			return conf.promoteOrReattach(tail)
-
 		}
 	} else {
 		return conf.promoteOrReattach(lib.GetTail(conf.lastBundle))
 	}
 	// Not time for promotion yet. Check if reattachment is needed
-	gccResp, err := conf.iotaAPI.CheckConsistency([]giota.Trytes{lib.GetTail(conf.lastBundle).Hash()})
+	consistent, err := conf.checkConsistency(lib.GetTail(conf.lastBundle).Hash())
 	if err != nil {
 		return comm.UPD_NO_ACTION, err
 	}
-	consistent := gccResp.State
 	if !consistent || time.Now().After(conf.nextForceReattachTime) {
 		err := conf.reattach()
 		if err != nil {
@@ -158,4 +160,21 @@ func (conf *Confirmer) doSendingAction() (comm.UpdateType, error) {
 	}
 	// no action
 	return comm.UPD_NO_ACTION, nil
+}
+
+func (conf *Confirmer) checkConsistency(tailHash giota.Trytes) (bool, error) {
+	ccResp, err := conf.iotaAPI.CheckConsistency([]giota.Trytes{tailHash})
+	if err != nil {
+		return false, err
+	}
+	consistent := ccResp.State
+	if !consistent && strings.Contains(ccResp.Info, "not solid") {
+		consistent = true
+	}
+	if !consistent {
+		if conf.log != nil {
+			conf.log.Debugf("CONFIRMER: inconsistent tail. Reason: %v", ccResp.Info)
+		}
+	}
+	return consistent, nil
 }

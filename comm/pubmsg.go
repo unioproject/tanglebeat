@@ -13,22 +13,30 @@ import (
 
 var log *logging.Logger
 
-type UpdateType int
+type UpdateType string
 
 const (
-	UPD_UNDEF          UpdateType = 0
-	UPD_NO_ACTION      UpdateType = 1
-	UPD_SEND           UpdateType = 2
-	UPD_REATTACH       UpdateType = 3
-	UPD_PROMOTE        UpdateType = 4
-	UPD_NOGO           UpdateType = 5
-	UPD_CONFIRM        UpdateType = 6
-	UPD_START_SENDING  UpdateType = 7
-	UPD_FINISH_SENDING UpdateType = 8
+	UPD_UNDEF     UpdateType = "undef"
+	UPD_NO_ACTION UpdateType = "no action"
+	UPD_SEND      UpdateType = "send"
+	UPD_REATTACH  UpdateType = "reattach"
+	UPD_PROMOTE   UpdateType = "promote"
+	UPD_NOGO      UpdateType = "nogo"
+	UPD_CONFIRM   UpdateType = "confirm"
 )
 
+type SendingStats struct {
+	NumAttaches           int
+	NumPromotions         int
+	TotalDurationATTMsec  int64
+	NumATT                int
+	TotalDurationGTTAMsec int64
+	NumGTTA               int
+}
+
 type SenderUpdate struct {
-	SenderUID               string        `json:"uid"`
+	SeqUID                  string        `json:"uid"`
+	SeqName                 string        `json:"nam"`
 	UpdType                 UpdateType    `json:"typ"`
 	Index                   int           `json:"idx"`
 	Addr                    giota.Address `json:"adr"`
@@ -47,29 +55,6 @@ type SenderUpdate struct {
 	ForceReattachAfterSec int     `json:"fre"`
 	PromoteNochain        bool    `json:"bb"`  // promo strategy. false means 'blowball', true mean 'chain'
 	TPS                   float32 `json:"tps"` // contribution to tps
-}
-
-func (u UpdateType) String() string {
-	switch u {
-	case UPD_NO_ACTION:
-		return "Wait"
-	case UPD_SEND:
-		return "Send"
-	case UPD_REATTACH:
-		return "Reattach"
-	case UPD_PROMOTE:
-		return "Promote"
-	case UPD_NOGO:
-		return "Nogo"
-	case UPD_CONFIRM:
-		return "Confirmed"
-		// internal
-	case UPD_START_SENDING:
-		return "Start sending"
-	case UPD_FINISH_SENDING:
-		return "Stop sending"
-	}
-	return "Undef"
 }
 
 var chanDataToPub chan []byte

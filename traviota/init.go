@@ -29,7 +29,7 @@ type ConfigStructYAML struct {
 	SiteDataDir      string
 	Sender           SenderYAML      `yaml:"sender"`
 	Publisher        PublisherParams `yaml:"publisher"`
-	Debug            bool            `yaml:"nodebug"`
+	Debug            bool            `yaml:"debug"`
 	Pprof            bool            `yaml:"pprof"`
 	MemStats         bool            `yaml:"memStats"`
 	MemStatsInterval int             `yaml:"memStatsInterval"`
@@ -102,7 +102,6 @@ func flushMsgBeforeLog() {
 }
 
 func masterConfig(configFilename string) {
-
 	currentDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
 		panic(fmt.Sprintf("Can't get current current dir. Error: %v", err))
@@ -289,7 +288,7 @@ func logMemStats() {
 	var mem runtime.MemStats
 
 	runtime.ReadMemStats(&mem)
-	log.Debugf("--- DEBUG:MemStats: Alloc = %v MB  TotalAlloc = %v MB Sys = %v MB  NumGC = %v\n",
+	log.Debugf("-------------- DEBUG:MemStats: Alloc = %v MB  TotalAlloc = %v MB Sys = %v MB  NumGC = %v\n",
 		bToMb(mem.Alloc),
 		bToMb(mem.TotalAlloc),
 		bToMb(mem.Sys),

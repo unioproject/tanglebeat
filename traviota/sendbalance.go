@@ -3,10 +3,13 @@ package main
 import (
 	"errors"
 	"github.com/lunfardo314/giota"
+	"github.com/lunfardo314/tanglebeat/comm"
+	"github.com/lunfardo314/tanglebeat/lib"
 	"time"
 )
 
-func (seq *Sequence) sendBalance(fromAddr, toAddr giota.Address, balance int64, seed giota.Trytes, fromIndex int) (giota.Bundle, error) {
+func (seq *Sequence) sendBalance(fromAddr, toAddr giota.Address, balance int64,
+	seed giota.Trytes, fromIndex int, sendingStats *comm.SendingStats) (giota.Bundle, error) {
 	// fromIndex is required to calculate inputs, cant specifiy inputs explicitely to PrepareTransfers
 	transfers := []giota.Transfer{
 		{Address: toAddr,
@@ -28,15 +31,22 @@ func (seq *Sequence) sendBalance(fromAddr, toAddr giota.Address, balance int64, 
 	if err != nil {
 		return nil, err
 	}
-	// TODO ATT and GTTA durations
+	st := lib.UnixMs(time.Now())
 	gttaResp, err := seq.IotaAPIgTTA.GetTransactionsToApprove(3, 100, giota.Trytes(""))
 	if err != nil {
 		return nil, err
 	}
+	sendingStats.TotalDurationGTTAMsec += lib.UnixMs(time.Now()) - st
+	sendingStats.NumGTTA += 1
+
+	st = lib.UnixMs(time.Now())
 	attResp, err := seq.attachToTangle(gttaResp.TrunkTransaction, gttaResp.BranchTransaction, bundle)
 	if err != nil {
 		return nil, err
 	}
+	sendingStats.TotalDurationATTMsec += lib.UnixMs(time.Now()) - st
+	sendingStats.NumATT += 1
+
 	err = seq.IotaAPI.BroadcastTransactions(attResp.Trytes)
 	if err != nil {
 		return nil, err
@@ -55,5 +65,6 @@ func (seq *Sequence) sendBalance(fromAddr, toAddr giota.Address, balance int64, 
 		time.Sleep(1 * time.Second)
 		spent, err = seq.IsSpentAddr(fromAddr)
 	}
+	sendingStats.NumAttaches += 1
 	return attResp.Trytes, nil
 }

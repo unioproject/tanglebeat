@@ -12,7 +12,6 @@ import (
 	"os"
 	"path"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -118,17 +117,13 @@ func (seq *Sequence) Run() {
 	seq.log.Infof("Start running sequence from index0 = %v", index0)
 
 	for index := index0; ; index++ {
-		state := seq.processAddrWithIndex(index)
-		seq.log.Debugf("State returned, going to the next Index. idx=%v", index)
-		if state != nil {
-			// address was processed
-			seq.publishState(state, comm.UPD_CONFIRM)
-		}
+		seq.processAddrWithIndex(index)
+		seq.log.Debugf("Going to the next index. %v --> %v", index, index+1)
 		seq.saveIndex(index)
 	}
 }
 
-func (seq *Sequence) processAddrWithIndex(index int) *sendingState {
+func (seq *Sequence) processAddrWithIndex(index int) {
 	addr, err := seq.GetAddress(index)
 	if err != nil {
 		seq.log.Errorf("Can't get address for idx=%v", index)
@@ -137,21 +132,16 @@ func (seq *Sequence) processAddrWithIndex(index int) *sendingState {
 	inCh, cancelBalanceChan := seq.NewAddrBalanceChan(index)
 	defer cancelBalanceChan()
 
-	state := sendingState{index: index, addr: addr}
 	count := 0
-	s := <-inCh
-	stopSending := func() *sendingState { return nil }
-	if s.balance != 0 {
-		// start sending routine if balance is non zero
-		seq.log.Infof("Non zero balance, do sending. idx=%v %v..", index, addr[:12])
-		stopSending = seq.DoSending(&state)
-	} else {
-		seq.log.Infof("Zero balance. idx=%v %v..", index, addr[:12])
-	}
-
 	// processAddrWithIndex only finishes if balance is 0 and address is spent
 	// if balance = 0 and address is not spent, loop is waiting for the iotas
-	for ; !(s.balance == 0 && s.isSpent); s = <-inCh {
+	sendingStarted := false
+	waitSendingToStop := func() {}
+	for s := <-inCh; !(s.balance == 0 && s.isSpent); s = <-inCh {
+		if !sendingStarted {
+			waitSendingToStop = seq.startSending(addr, index)
+			sendingStarted = true
+		}
 		if count%12 == 0 {
 			seq.log.Infof("CURRENT address idx=%v, %v. Balance = %v",
 				index, addr, s.balance)
@@ -159,8 +149,8 @@ func (seq *Sequence) processAddrWithIndex(index int) *sendingState {
 		time.Sleep(5 * time.Second)
 		count++
 	}
-	seq.log.Infof("Finished processing: zero balance and spent. idx=%v, %v", index, addr)
-	return stopSending()
+	waitSendingToStop()
+	seq.log.Infof("Finished processing: balance == 0 and isSpent. idx=%v, %v", index, addr)
 }
 
 func (seq *Sequence) GetAddress(index int) (giota.Address, error) {
@@ -239,25 +229,51 @@ func (seq *Sequence) GetBalanceAddr(addresses []giota.Address) ([]int64, error) 
 	}
 }
 
-func (seq *Sequence) checkConsistency(tailHash giota.Trytes) (bool, error) {
-	ccResp, err := seq.IotaAPI.CheckConsistency([]giota.Trytes{tailHash})
-	if err != nil {
-		return false, err
-	}
-	consistent := ccResp.State
-	if !consistent && strings.Contains(ccResp.Info, "not solid") {
-		consistent = true
-	}
-	if !consistent {
-		log.Debugf("Tail %v is inconsistent. Reason: %v", tailHash, ccResp.Info)
-	}
-	return consistent, nil
-}
-
 func (seq *Sequence) isConfirmed(txHash giota.Trytes) (bool, error) {
 	incl, err := seq.IotaAPI.GetLatestInclusion([]giota.Trytes{txHash})
 	if err != nil {
 		return false, err
 	}
 	return incl[0], nil
+}
+
+func (seq *Sequence) attachToTangle(trunkHash, branchHash giota.Trytes, trytes []giota.Transaction) (*giota.AttachToTangleResponse, error) {
+	return seq.IotaAPIaTT.AttachToTangle(&giota.AttachToTangleRequest{
+		TrunkTransaction:   trunkHash,
+		BranchTransaction:  branchHash,
+		Trytes:             trytes,
+		MinWeightMagnitude: 14,
+	})
+}
+
+func (seq *Sequence) sendToNext(addr giota.Address, index int, sendingStats *comm.SendingStats) (giota.Bundle, error) {
+	nextAddr, err := seq.GetAddress(index + 1)
+	if err != nil {
+		return nil, err
+	}
+	seq.log.Infof("Send. idx=%v. %v --> %v", index, addr, nextAddr)
+
+	gbResp, err := seq.IotaAPI.GetBalances([]giota.Address{addr}, 100)
+	if err != nil {
+		return nil, err
+	}
+	balance := gbResp.Balances[0]
+	if balance == 0 {
+		return nil, errors.New(fmt.Sprintf("Address %v has 0 balance, can't sent to the next.", addr))
+	}
+	bundle, err := seq.sendBalance(addr, nextAddr, balance, seq.Seed, index, sendingStats)
+	if err != nil {
+		return nil, err
+	}
+	// wait until address will acquire isSpent status
+	spent, err := seq.IsSpentAddr(addr)
+	timeout := 10
+	for count := 0; !spent && err == nil; count++ {
+		if count > timeout {
+			return nil, errors.New("!!!!!!!! Didn't get 'spent' state in 10 seconds")
+		}
+		time.Sleep(1 * time.Second)
+		spent, err = seq.IsSpentAddr(addr)
+	}
+	return bundle, err
 }
