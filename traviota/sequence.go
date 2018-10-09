@@ -136,8 +136,8 @@ func (seq *Sequence) processAddrWithIndex(index int) {
 	// if balance = 0 and address is not spent, loop is waiting for the iotas
 	sendingStarted := false
 	var wg sync.WaitGroup
-
-	for zeroAndSpent, err := seq.isZeroBalanceAndSpent(addr); !zeroAndSpent || err != nil; zeroAndSpent, err = seq.isZeroBalanceAndSpent(addr) {
+	zeroAndSpent, err := seq.isZeroBalanceAndSpent(addr)
+	for ; !zeroAndSpent || err != nil; zeroAndSpent, err = seq.isZeroBalanceAndSpent(addr) {
 		if err != nil {
 			seq.log.Errorf("idx=%v, %v: %v", index, addr, err)
 		} else {
