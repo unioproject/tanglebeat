@@ -136,20 +136,25 @@ func (seq *Sequence) processAddrWithIndex(index int) {
 	// if balance = 0 and address is not spent, loop is waiting for the iotas
 	sendingStarted := false
 	var wg sync.WaitGroup
-	for !seq.isZeroBalanceAndSpent(addr) {
-		if !sendingStarted {
-			wg.Add(1)
-			go func() {
-				seq.doSending(addr, index)
-				wg.Done()
-			}()
-			sendingStarted = true
-		}
-		if count%12 == 0 {
-			seq.log.Infof("Current address balance != 0. idx=%v, %v", index, addr)
+
+	for zeroAndSpent, err := seq.isZeroBalanceAndSpent(addr); !zeroAndSpent || err != nil; zeroAndSpent, err = seq.isZeroBalanceAndSpent(addr) {
+		if err != nil {
+			seq.log.Errorf("idx=%v, %v: %v", index, addr, err)
+		} else {
+			if !sendingStarted {
+				wg.Add(1)
+				go func() {
+					seq.doSending(addr, index)
+					wg.Done()
+				}()
+				sendingStarted = true
+			}
+			if count%10 == 0 {
+				seq.log.Infof("Current address balance != 0. idx=%v, %v", index, addr)
+			}
+			count++
 		}
 		time.Sleep(5 * time.Second)
-		count++
 	}
 	// wait for sending to stop. Sending ends upn confirmation. Loop ends with balance == 0 criterium
 	wg.Wait()
@@ -249,21 +254,21 @@ func (seq *Sequence) attachToTangle(trunkHash, branchHash giota.Trytes, trytes [
 	})
 }
 
-func (seq *Sequence) isZeroBalanceAndSpent(addr giota.Address) bool {
+func (seq *Sequence) isZeroBalanceAndSpent(addr giota.Address) (bool, error) {
 	bal, err := seq.GetBalanceAddr([]giota.Address{addr})
 	if err != nil {
 		seq.log.Errorf("GetBalances: %v", err)
-		return false
+		return false, err
 	}
 	if bal[0] != 0 {
-		return false
+		return false, nil
 	}
 	spent, err := seq.IsSpentAddr(addr)
 	if err != nil {
 		seq.log.Errorf("WereAddressesSpentFrom: %v", err)
-		return false
+		return false, err
 	}
-	return spent
+	return spent, nil
 }
 
 func (seq *Sequence) sendToNext(addr giota.Address, index int, sendingStats *pubsub.SendingStats) (giota.Bundle, error) {
