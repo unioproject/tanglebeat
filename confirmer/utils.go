@@ -2,6 +2,7 @@ package confirmer
 
 import (
 	"github.com/lunfardo314/giota"
+	"github.com/lunfardo314/tanglebeat/lib"
 	"strings"
 	"time"
 )
@@ -36,20 +37,22 @@ func (conf *Confirmer) promote(tx *giota.Transaction) error {
 	if err != nil {
 		return err
 	}
+	st := lib.UnixMs(time.Now())
 	gttaResp, err := conf.iotaAPIgTTA.GetTransactionsToApprove(3, 100, giota.Trytes(""))
 	if err != nil {
 		return err
 	}
-	// TODO GTTA duration
+	conf.totalDurationGTTAMsec += lib.UnixMs(time.Now()) - st
 	conf.numGTTA += 1
 	trunkTxh := tx.Hash()
 	branchTxh := gttaResp.BranchTransaction
 
+	st = lib.UnixMs(time.Now())
 	attResp, err := conf.attachToTangle(trunkTxh, branchTxh, bundle)
 	if err != nil {
 		return err
 	}
-	// TODO ATT duration
+	conf.totalDurationATTMsec += lib.UnixMs(time.Now()) - st
 	conf.numATT += 1
 
 	bundle = attResp.Trytes
