@@ -180,7 +180,7 @@ func (seq *Sequence) GetUID() (string, error) {
 		return "", errors.New(fmt.Sprintf("%v: %v", seq.Name, err))
 	}
 	ret := string(hash)
-	return ret[len(ret)-12:], nil
+	return ret[len(ret)-pubsub.SEQUENCE_UID_LEN:], nil
 }
 
 func (seq *Sequence) getLastIndexFname() string {

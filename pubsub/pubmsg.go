@@ -24,6 +24,8 @@ const (
 	UPD_CONFIRM   UpdateType = "confirm"
 )
 
+const SEQUENCE_UID_LEN = 12
+
 type SendingStats struct {
 	NumAttaches           int
 	NumPromotions         int
