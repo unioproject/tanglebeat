@@ -2,12 +2,21 @@ package confirmer
 
 import (
 	"github.com/lunfardo314/giota"
-	"github.com/lunfardo314/tanglebeat/comm"
 	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/lunfardo314/tanglebeat/pubsub"
 	"github.com/op/go-logging"
 	"net/http"
 	"strings"
 	"time"
+)
+
+type UpdateType int
+
+const (
+	UPD_NO_ACTION UpdateType = 0
+	UPD_REATTACH  UpdateType = 1
+	UPD_PROMOTE   UpdateType = 2
+	UPD_CONFIRM   UpdateType = 3
 )
 
 type Confirmer struct {
@@ -45,38 +54,45 @@ type Confirmer struct {
 }
 
 type ConfirmerUpdate struct {
-	Stats      comm.SendingStats
+	Stats      pubsub.SendingStats
 	UpdateTime time.Time
-	UpdateType comm.UpdateType
+	UpdateType UpdateType
 	Err        error
 }
 
-func (conf *Confirmer) createAPIs() {
+func (conf *Confirmer) createIotaAPIs(log *logging.Logger) {
 	conf.iotaAPI = giota.NewAPI(
 		conf.IOTANode,
 		&http.Client{
 			Timeout: time.Duration(conf.TimeoutAPI) * time.Second,
 		},
 	)
-	//ret.log.Infof("IOTA node: %v, Timeout: %v sec", ret.Params.IOTANode[0], ret.Params.TimeoutAPI)
+	if log != nil {
+		log.Debugf("CONFIRMER: IOTA node: %v, Timeout: %v sec", conf.IOTANode, conf.TimeoutAPI)
+	}
 	conf.iotaAPIgTTA = giota.NewAPI(
 		conf.IOTANodeGTTA,
 		&http.Client{
 			Timeout: time.Duration(conf.TimeoutGTTA) * time.Second,
 		},
 	)
-	// ret.log.Infof("IOTA node for gTTA: %v, Timeout: %v sec", ret.Params.IOTANodeGTTA[0], ret.Params.TimeoutGTTA)
+	if log != nil {
+		log.Debugf("CONFIRMER: IOTA node for gTTA: %v, Timeout: %v sec", conf.IOTANodeGTTA, conf.TimeoutGTTA)
+	}
 	conf.iotaAPIaTT = giota.NewAPI(
 		conf.IOTANodeATT,
 		&http.Client{
 			Timeout: time.Duration(conf.TimeoutATT) * time.Second,
 		},
 	)
+	if log != nil {
+		log.Debugf("CONFIRMER: IOTA node for ATT: %v, Timeout: %v sec", conf.IOTANodeATT, conf.TimeoutATT)
+	}
 }
 
 func (conf *Confirmer) Run(bundle giota.Bundle, log *logging.Logger) chan *ConfirmerUpdate {
 	conf.log = log
-	conf.createAPIs()
+	conf.createIotaAPIs(log)
 	nowis := time.Now()
 	conf.lastBundle = bundle
 	conf.nextForceReattachTime = nowis.Add(time.Duration(conf.ForceReattachAfterMin) * time.Minute)
@@ -85,18 +101,18 @@ func (conf *Confirmer) Run(bundle giota.Bundle, log *logging.Logger) chan *Confi
 	go func() {
 		defer close(conf.chanUpdate)
 		if conf.log != nil {
-			defer conf.log.Debugf("CONFIRMER: Leaving confirmer routine")
+			defer conf.log.Debugf("CONFIRMER: confirmer routine ended")
 		}
 		for {
 			incl, err := conf.iotaAPI.GetLatestInclusion(
 				[]giota.Trytes{lib.GetTail(conf.lastBundle).Hash()})
 			confirmed := err == nil && incl[0]
 			if confirmed {
-				conf.sendConfirmerUpdate(comm.UPD_CONFIRM, nil)
+				conf.sendConfirmerUpdate(UPD_CONFIRM, nil)
 				return
 			}
 			updType, err := conf.doSendingAction()
-			if updType != comm.UPD_NO_ACTION || err != nil {
+			if updType != UPD_NO_ACTION || err != nil {
 				conf.sendConfirmerUpdate(updType, err)
 			}
 			time.Sleep(5 * time.Second)
@@ -105,9 +121,9 @@ func (conf *Confirmer) Run(bundle giota.Bundle, log *logging.Logger) chan *Confi
 	return conf.chanUpdate
 }
 
-func (conf *Confirmer) sendConfirmerUpdate(updType comm.UpdateType, err error) {
+func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, err error) {
 	upd := &ConfirmerUpdate{
-		Stats: comm.SendingStats{
+		Stats: pubsub.SendingStats{
 			NumAttaches:           conf.numAttach,
 			NumPromotions:         conf.numPromote,
 			TotalDurationATTMsec:  conf.totalDurationATTMsec,
@@ -122,7 +138,7 @@ func (conf *Confirmer) sendConfirmerUpdate(updType comm.UpdateType, err error) {
 	conf.chanUpdate <- upd
 }
 
-func (conf *Confirmer) doSendingAction() (comm.UpdateType, error) {
+func (conf *Confirmer) doSendingAction() (UpdateType, error) {
 	var tail *giota.Transaction
 	if len(conf.lastPromoBundle) != 0 {
 		// promo already started.
@@ -148,18 +164,18 @@ func (conf *Confirmer) doSendingAction() (comm.UpdateType, error) {
 	// Not time for promotion yet. Check if reattachment is needed
 	consistent, err := conf.checkConsistency(lib.GetTail(conf.lastBundle).Hash())
 	if err != nil {
-		return comm.UPD_NO_ACTION, err
+		return UPD_NO_ACTION, err
 	}
 	if !consistent || time.Now().After(conf.nextForceReattachTime) {
 		err := conf.reattach()
 		if err != nil {
-			return comm.UPD_NO_ACTION, err
+			return UPD_NO_ACTION, err
 		} else {
-			return comm.UPD_REATTACH, err
+			return UPD_REATTACH, err
 		}
 	}
 	// no action
-	return comm.UPD_NO_ACTION, nil
+	return UPD_NO_ACTION, nil
 }
 
 func (conf *Confirmer) checkConsistency(tailHash giota.Trytes) (bool, error) {

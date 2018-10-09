@@ -26,7 +26,7 @@ func main() {
 	var wg sync.WaitGroup
 	if !Config.Publisher.Disabled {
 		log.Infof("Starting publisher")
-		runPublisher(&wg)
+		initAndRunPublisher()
 	}
 	if !Config.Sender.Disabled {
 		log.Infof("Starting sender. Enabled sequences: %v", getEnabledSeqNames())

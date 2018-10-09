@@ -2,57 +2,60 @@ package main
 
 import (
 	"github.com/lunfardo314/giota"
-	"github.com/lunfardo314/tanglebeat/comm"
+	"github.com/lunfardo314/tanglebeat/confirmer"
 	"github.com/lunfardo314/tanglebeat/lib"
-	"sync"
+	"github.com/lunfardo314/tanglebeat/pubsub"
 	"time"
 )
 
-func (seq *Sequence) startSending(addr giota.Address, index int) func() {
+func (seq *Sequence) doSending(addr giota.Address, index int) {
 	sendingStarted := time.Now()
 
-	var wg sync.WaitGroup
+	seq.log.Debugf("Started doSending routine for idx = %v, %v", index, addr)
+	defer seq.log.Debugf("Finished doSending routine for idx = %v, %v", index, addr)
 
-	go func() {
-		seq.log.Debugf("Started startSending routine for idx = %v, %v", index, addr)
-		defer seq.log.Debugf("Finished startSending routine for idx = %v, %v", index, addr)
-
-		wg.Add(1)
-		defer wg.Done()
-
-		var initStats comm.SendingStats
+	var initStats pubsub.SendingStats
+	for {
 		bundle, err := seq.findOrCreateBundleToConfirm(addr, index, &initStats)
 		if err != nil {
-			seq.log.Errorf("startSending: index = %v: %v", index, err)
+			seq.log.Errorf("doSending: index = %v: %v", index, err)
+		} else {
+			if len(bundle) == 0 {
+				// nothing left to spend, leaving routine
+				return //>>>>>>>>>>>>>>>>>>>>>>>
+			}
 		}
-		chConfUpd := seq.startConfirmer(bundle, seq.log)
+		seq.initSendUpdateToPub(addr, index, sendingStarted, &initStats)
+
+		// start confirmer and run until confirmed
+		chConfUpd := seq.NewConfirmerChan(bundle, seq.log)
 		for updConf := range chConfUpd {
 			// summing up with stats collected during findOrCreateBundleToConfirm
 			if updConf.Err != nil {
 				seq.log.Errorf("Received error from confirmer: %v", updConf.Err)
 			} else {
-				if updConf.UpdateType != comm.UPD_NO_ACTION {
+				if updConf.UpdateType != confirmer.UPD_NO_ACTION {
 					updConf.Stats.NumAttaches += initStats.NumAttaches
 					updConf.Stats.NumATT += initStats.NumATT
 					updConf.Stats.NumGTTA += initStats.NumGTTA
 					updConf.Stats.TotalDurationATTMsec += initStats.TotalDurationATTMsec
 					updConf.Stats.TotalDurationGTTAMsec += initStats.TotalDurationGTTAMsec
-					seq.publishSenderUpdate(updConf, addr, index, sendingStarted)
+					seq.confirmerUpdateToPub(updConf, addr, index, sendingStarted)
 				}
 			}
 		}
-	}()
-	return func() {
-		wg.Wait()
 	}
 }
 
-func (seq *Sequence) findOrCreateBundleToConfirm(addr giota.Address, index int, sendingStats *comm.SendingStats) (giota.Bundle, error) {
+// finds or creates latest unconfirmed bundle, if balance != 0
+// otherwise return empty bundle
+func (seq *Sequence) findOrCreateBundleToConfirm(addr giota.Address, index int, sendingStats *pubsub.SendingStats) (giota.Bundle, error) {
 	bundle, err := seq.findLatestSpendingBundle(addr, index, sendingStats)
 	if err != nil {
 		return nil, err
 	}
 	if len(bundle) == 0 {
+		// there're no spending bundles, create one
 		return seq.sendToNext(addr, index, sendingStats)
 	}
 	confirmed, err := seq.isConfirmed(lib.GetTail(bundle).Hash())
@@ -60,6 +63,7 @@ func (seq *Sequence) findOrCreateBundleToConfirm(addr giota.Address, index int, 
 		return nil, err
 	}
 	if !confirmed {
+		// latest spending bundle has been found. If it is unconfirmed, return it
 		return bundle, nil
 	}
 	// exotic situation, when balance != 0 and address is spent
@@ -69,10 +73,12 @@ func (seq *Sequence) findOrCreateBundleToConfirm(addr giota.Address, index int, 
 		return nil, err
 	}
 	if balance[0] > 0 {
+		// all spending bundle are confirmed, but address balance still > 0.
+		// initiate sending of the reminder. This exposes private key, but who cares: address won't be used again
 		return seq.sendToNext(addr, index, sendingStats)
 	}
-	// confirmed, bal = 0  --> nothing to do
-	return nil, err
+	// all spending bundles confirmed, bal = 0  --> nothing to do
+	return nil, nil
 }
 
 func (seq *Sequence) findTrytes(txReq *giota.FindTransactionsRequest) (*giota.GetTrytesResponse, error) {
@@ -84,7 +90,7 @@ func (seq *Sequence) findTrytes(txReq *giota.FindTransactionsRequest) (*giota.Ge
 	return seq.IotaAPI.GetTrytes(ftResp.Hashes)
 }
 
-func (seq *Sequence) findLatestSpendingBundle(addr giota.Address, index int, sendingStats *comm.SendingStats) (giota.Bundle, error) {
+func (seq *Sequence) findLatestSpendingBundle(addr giota.Address, index int, sendingStats *pubsub.SendingStats) (giota.Bundle, error) {
 	// find all transactions of the address
 	ftResp, err := seq.findTrytes(
 		&giota.FindTransactionsRequest{

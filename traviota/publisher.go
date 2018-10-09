@@ -1,15 +1,15 @@
 package main
 
 import (
-	"github.com/lunfardo314/tanglebeat/comm"
+	"github.com/lunfardo314/tanglebeat/confirmer"
+	"github.com/lunfardo314/tanglebeat/pubsub"
 	"github.com/op/go-logging"
 	"path"
-	"sync"
 )
 
-func runPublisher(wg *sync.WaitGroup) {
+func initAndRunPublisher() {
 	configPublisherLogging()
-	err := comm.InitUpdatePublisher(Config.Publisher.OutPort)
+	err := pubsub.RunPublisher(Config.Publisher.OutPort)
 	if err != nil {
 		logPub.Errorf("Failed to create publishing channel. Publisher is disabled: %v", err)
 		Config.Publisher.Disabled = true
@@ -41,18 +41,32 @@ func configPublisherLogging() {
 	}
 }
 
-func publishUpdate(upd *comm.SenderUpdate) error {
+func publishUpdate(upd *pubsub.SenderUpdate) error {
 	if !Config.Publisher.Disabled {
-		if upd.UpdType == comm.UPD_CONFIRM {
+		if upd.UpdType == pubsub.UPD_CONFIRM {
 			logPub.Infof("Published event '%v' for %v(%v), index = %v",
 				upd.UpdType, upd.SeqUID, upd.SeqName, upd.Index)
 		} else {
 			logPub.Debugf("Published event '%v' for %v(%v), index = %v",
 				upd.UpdType, upd.SeqUID, upd.SeqName, upd.Index)
 		}
-		if err := comm.SendUpdate(upd); err != nil {
+		if err := pubsub.SendUpdate(upd); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func confirmerUpdType2Sender(confUpdType confirmer.UpdateType) pubsub.UpdateType {
+	switch confUpdType {
+	case confirmer.UPD_NO_ACTION:
+		return pubsub.UPD_NO_ACTION
+	case confirmer.UPD_REATTACH:
+		return pubsub.UPD_REATTACH
+	case confirmer.UPD_PROMOTE:
+		return pubsub.UPD_PROMOTE
+	case confirmer.UPD_CONFIRM:
+		return pubsub.UPD_CONFIRM
+	}
+	return pubsub.UPD_UNDEF // can't be
 }

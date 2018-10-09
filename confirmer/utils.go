@@ -2,7 +2,6 @@ package confirmer
 
 import (
 	"github.com/lunfardo314/giota"
-	"github.com/lunfardo314/tanglebeat/comm"
 	"strings"
 	"time"
 )
@@ -97,22 +96,22 @@ func (conf *Confirmer) reattach() error {
 	return nil
 }
 
-func (conf *Confirmer) promoteOrReattach(tx *giota.Transaction) (comm.UpdateType, error) {
+func (conf *Confirmer) promoteOrReattach(tx *giota.Transaction) (UpdateType, error) {
 	consistent, err := conf.checkConsistency(tx.Hash())
 	if err != nil {
-		return comm.UPD_NO_ACTION, err
+		return UPD_NO_ACTION, err
 	} else {
 		if consistent {
 			if err = conf.promote(tx); err != nil {
-				return comm.UPD_NO_ACTION, err
+				return UPD_NO_ACTION, err
 			} else {
-				return comm.UPD_PROMOTE, err
+				return UPD_PROMOTE, err
 			}
 		}
 	}
 	// can't promote --> reattach
 	if err = conf.reattach(); err != nil {
-		return comm.UPD_NO_ACTION, err
+		return UPD_NO_ACTION, err
 	}
-	return comm.UPD_REATTACH, nil
+	return UPD_REATTACH, nil
 }

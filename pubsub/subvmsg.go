@@ -1,4 +1,4 @@
-package comm
+package pubsub
 
 import (
 	"encoding/json"

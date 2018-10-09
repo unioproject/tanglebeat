@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/lunfardo314/tanglebeat/comm"
+	"github.com/lunfardo314/tanglebeat/pubsub"
 )
 
 func main() {
@@ -9,7 +9,7 @@ func main() {
 	log.Infof("Will be receiving transaction data from '%v'", Config.TraviotaURI)
 	log.Infof("Database file: '%v'", Config.DbFile)
 
-	chanUpdate, err := comm.OpenTraviotaChan(Config.TraviotaURI)
+	chanUpdate, err := pubsub.OpenTraviotaChan(Config.TraviotaURI)
 	if err != nil {
 		log.Criticalf("can't get new sub socket: %v", err)
 	}

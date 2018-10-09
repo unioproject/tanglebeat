@@ -11,10 +11,6 @@ func UnixMs(t time.Time) int64 {
 	return t.UnixNano() / int64(time.Millisecond)
 }
 
-func UnixnowMs() int64 {
-	return UnixMs(time.Now())
-}
-
 // calculates hash of the same length
 func KerlTrytes(s giota.Trytes) (giota.Trytes, error) {
 	k := giota.NewKerl()

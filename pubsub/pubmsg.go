@@ -1,4 +1,4 @@
-package comm
+package pubsub
 
 import (
 	"encoding/json"
@@ -21,7 +21,6 @@ const (
 	UPD_SEND      UpdateType = "send"
 	UPD_REATTACH  UpdateType = "reattach"
 	UPD_PROMOTE   UpdateType = "promote"
-	UPD_NOGO      UpdateType = "nogo"
 	UPD_CONFIRM   UpdateType = "confirm"
 )
 
@@ -60,7 +59,7 @@ type SenderUpdate struct {
 var chanDataToPub chan []byte
 
 // reads input stream of byte arrays and sends them to publish channel
-func InitUpdatePublisher(port int) error {
+func RunPublisher(port int) error {
 	var sock mangos.Socket
 	var err error
 	if sock, err = pub.NewSocket(); err != nil {

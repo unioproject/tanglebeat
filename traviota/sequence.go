@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lunfardo314/giota"
-	"github.com/lunfardo314/tanglebeat/comm"
 	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/lunfardo314/tanglebeat/pubsub"
 	"github.com/op/go-logging"
 	"io/ioutil"
 	"net/http"
@@ -123,33 +123,36 @@ func (seq *Sequence) Run() {
 	}
 }
 
+// without balance channel
 func (seq *Sequence) processAddrWithIndex(index int) {
 	addr, err := seq.GetAddress(index)
 	if err != nil {
 		seq.log.Errorf("Can't get address for idx=%v", index)
 	}
 	seq.log.Infof("Start processing idx=%v, %v", index, addr)
-	inCh, cancelBalanceChan := seq.NewAddrBalanceChan(index)
-	defer cancelBalanceChan()
 
 	count := 0
 	// processAddrWithIndex only finishes if balance is 0 and address is spent
 	// if balance = 0 and address is not spent, loop is waiting for the iotas
 	sendingStarted := false
-	waitSendingToStop := func() {}
-	for s := <-inCh; !(s.balance == 0 && s.isSpent); s = <-inCh {
+	var wg sync.WaitGroup
+	for !seq.isZeroBalanceAndSpent(addr) {
 		if !sendingStarted {
-			waitSendingToStop = seq.startSending(addr, index)
+			wg.Add(1)
+			go func() {
+				seq.doSending(addr, index)
+				wg.Done()
+			}()
 			sendingStarted = true
 		}
 		if count%12 == 0 {
-			seq.log.Infof("CURRENT address idx=%v, %v. Balance = %v",
-				index, addr, s.balance)
+			seq.log.Infof("Current address balance != 0. idx=%v, %v", index, addr)
 		}
 		time.Sleep(5 * time.Second)
 		count++
 	}
-	waitSendingToStop()
+	// wait for sending to stop. Sending ends upn confirmation. Loop ends with balance == 0 criterium
+	wg.Wait()
 	seq.log.Infof("Finished processing: balance == 0 and isSpent. idx=%v, %v", index, addr)
 }
 
@@ -246,7 +249,24 @@ func (seq *Sequence) attachToTangle(trunkHash, branchHash giota.Trytes, trytes [
 	})
 }
 
-func (seq *Sequence) sendToNext(addr giota.Address, index int, sendingStats *comm.SendingStats) (giota.Bundle, error) {
+func (seq *Sequence) isZeroBalanceAndSpent(addr giota.Address) bool {
+	bal, err := seq.GetBalanceAddr([]giota.Address{addr})
+	if err != nil {
+		seq.log.Errorf("GetBalances: %v", err)
+		return false
+	}
+	if bal[0] != 0 {
+		return false
+	}
+	spent, err := seq.IsSpentAddr(addr)
+	if err != nil {
+		seq.log.Errorf("WereAddressesSpentFrom: %v", err)
+		return false
+	}
+	return spent
+}
+
+func (seq *Sequence) sendToNext(addr giota.Address, index int, sendingStats *pubsub.SendingStats) (giota.Bundle, error) {
 	nextAddr, err := seq.GetAddress(index + 1)
 	if err != nil {
 		return nil, err
@@ -276,4 +296,65 @@ func (seq *Sequence) sendToNext(addr giota.Address, index int, sendingStats *com
 		spent, err = seq.IsSpentAddr(addr)
 	}
 	return bundle, err
+}
+
+func (seq *Sequence) sendBalance(fromAddr, toAddr giota.Address, balance int64,
+	seed giota.Trytes, fromIndex int, sendingStats *pubsub.SendingStats) (giota.Bundle, error) {
+	// fromIndex is required to calculate inputs, cant specifiy inputs explicitely to PrepareTransfers
+	transfers := []giota.Transfer{
+		{Address: toAddr,
+			Value: balance,
+			Tag:   seq.TxTag,
+		},
+	}
+	inputs := []giota.AddressInfo{
+		{Seed: seq.Seed, Index: fromIndex, Security: seq.SecurityLevel},
+	}
+	bundle, err := giota.PrepareTransfers(
+		seq.IotaAPI,
+		seq.Seed,
+		transfers,
+		inputs,
+		giota.Address(""),
+		seq.SecurityLevel,
+	)
+	if err != nil {
+		return nil, err
+	}
+	st := lib.UnixMs(time.Now())
+	gttaResp, err := seq.IotaAPIgTTA.GetTransactionsToApprove(3, 100, giota.Trytes(""))
+	if err != nil {
+		return nil, err
+	}
+	sendingStats.TotalDurationGTTAMsec += lib.UnixMs(time.Now()) - st
+	sendingStats.NumGTTA += 1
+
+	st = lib.UnixMs(time.Now())
+	attResp, err := seq.attachToTangle(gttaResp.TrunkTransaction, gttaResp.BranchTransaction, bundle)
+	if err != nil {
+		return nil, err
+	}
+	sendingStats.TotalDurationATTMsec += lib.UnixMs(time.Now()) - st
+	sendingStats.NumATT += 1
+
+	err = seq.IotaAPI.BroadcastTransactions(attResp.Trytes)
+	if err != nil {
+		return nil, err
+	}
+	err = seq.IotaAPI.StoreTransactions(attResp.Trytes)
+	if err != nil {
+		return nil, err
+	}
+	// wait until address will acquire isSpent status
+	spent, err := seq.IsSpentAddr(fromAddr)
+	timeout := 10
+	for count := 0; !spent && err == nil; count++ {
+		if count > timeout {
+			return nil, errors.New("!!!!!!!! Didn't get 'spent' state in 10 seconds")
+		}
+		time.Sleep(1 * time.Second)
+		spent, err = seq.IsSpentAddr(fromAddr)
+	}
+	sendingStats.NumAttaches += 1
+	return attResp.Trytes, nil
 }
