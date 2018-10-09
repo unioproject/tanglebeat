@@ -158,7 +158,7 @@ func (seq *Sequence) processAddrWithIndex(index int) {
 	}
 	// wait for sending to stop. Sending ends upn confirmation. Loop ends with balance == 0 criterium
 	wg.Wait()
-	seq.log.Infof("Finished processing: balance == 0 and isSpent. idx=%v, %v", index, addr)
+	seq.log.Infof("Finished processing: idx=%v balance == 0 and isSpent", index)
 }
 
 func (seq *Sequence) GetAddress(index int) (giota.Address, error) {

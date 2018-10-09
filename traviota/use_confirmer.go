@@ -19,7 +19,7 @@ func (seq *Sequence) NewConfirmerChan(bundle giota.Bundle, log *logging.Logger) 
 		TimeoutATT:            seq.Params.TimeoutATT,
 		TxTagPromote:          seq.TxTagPromote,
 		ForceReattachAfterMin: seq.Params.ForceReattachAfterMin,
-		PromoteNoChain:        seq.Params.PromoteNoChain,
+		PromoteChain:          seq.Params.PromoteChain,
 		PromoteEverySec:       seq.Params.PromoteEverySec,
 	}
 	return ret.Run(bundle, log)
@@ -39,7 +39,7 @@ func (seq *Sequence) confirmerUpdateToPub(updConf *confirmer.ConfirmerUpdate, ad
 		NodeGTTA:              seq.Params.IOTANodeGTTA[0],
 		PromoteEveryNumSec:    seq.Params.PromoteEverySec,
 		ForceReattachAfterSec: seq.Params.ForceReattachAfterMin,
-		PromoteNochain:        seq.Params.PromoteNoChain,
+		PromoteChain:          seq.Params.PromoteChain,
 	}
 	timeSinceStart := time.Since(sendingStarted)
 	timeSinceStartMsec := int64(timeSinceStart / time.Millisecond)
@@ -77,7 +77,7 @@ func (seq *Sequence) initSendUpdateToPub(addr giota.Address, index int, sendingS
 		NodeGTTA:              seq.Params.IOTANodeGTTA[0],
 		PromoteEveryNumSec:    seq.Params.PromoteEverySec,
 		ForceReattachAfterSec: seq.Params.ForceReattachAfterMin,
-		PromoteNochain:        seq.Params.PromoteNoChain,
+		PromoteChain:          seq.Params.PromoteChain,
 	}
 	timeSinceStart := time.Since(sendingStarted)
 	timeSinceStartMsec := int64(timeSinceStart / time.Millisecond)

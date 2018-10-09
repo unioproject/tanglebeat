@@ -57,7 +57,7 @@ type SenderParams struct {
 	TxTag                 string   `yaml:"txTag"`
 	TxTagPromote          string   `yaml:"txTagPromote"`
 	ForceReattachAfterMin int      `yaml:"forceReattachAfterMin"`
-	PromoteNoChain        bool     `yaml:"promoteNoChain"`
+	PromoteChain          bool     `yaml:"promoteChain"`
 	PromoteEverySec       int      `yaml:"promoteEverySec"`
 }
 

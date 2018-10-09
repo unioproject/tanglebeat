@@ -41,10 +41,10 @@ type SenderUpdate struct {
 	UpdType                 UpdateType    `json:"typ"`
 	Index                   int           `json:"idx"`
 	Addr                    giota.Address `json:"adr"`
-	NumAttaches             int           `json:"rea"`  // number of out bundles in tha tangle
-	NumPromotions           int           `json:"prom"` // number of promotions in the current session (starts with 0 after restart)
 	SendingStartedTs        int64         `json:"str"`  // time when sending started in this session. Not correct after restart
 	SinceSendingMsec        int64         `json:"now"`  // time passed until the update. Based on the same clock as sendingStarted
+	NumAttaches             int           `json:"rea"`  // number of out bundles in tha tangle
+	NumPromotions           int           `json:"prom"` // number of promotions in the current session (starts with 0 after restart)
 	AvgPoWDurationPerTxMsec int64         `json:"pow"`  // total millisec spent on attachToTangle calls / nnumer of tx attached
 	AvgGTTADurationMsec     int64         `json:"gtta"` // total millisec spent on getTransactionsToApproves calls
 	NodeATT                 string        `json:"natt"`
@@ -54,7 +54,7 @@ type SenderUpdate struct {
 	PromoBundleSize       int     `json:"pbsiz"` // size of the promo bundle in number of tx
 	PromoteEveryNumSec    int     `json:"psec"`
 	ForceReattachAfterSec int     `json:"fre"`
-	PromoteNochain        bool    `json:"bb"`  // promo strategy. false means 'blowball', true mean 'chain'
+	PromoteChain          bool    `json:"chn"` // promo strategy. false means 'blowball', true mean 'chain'
 	TPS                   float32 `json:"tps"` // contribution to tps
 }
 

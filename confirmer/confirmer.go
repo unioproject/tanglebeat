@@ -28,7 +28,7 @@ type Confirmer struct {
 	TimeoutATT            int
 	TxTagPromote          giota.Trytes
 	ForceReattachAfterMin int
-	PromoteNoChain        bool
+	PromoteChain          bool
 	PromoteEverySec       int
 	// internal
 	iotaAPI               *giota.API
@@ -143,18 +143,18 @@ func (conf *Confirmer) doSendingAction() (UpdateType, error) {
 	if len(conf.lastPromoBundle) != 0 {
 		// promo already started.
 		if time.Now().After(conf.nextPromoTime) {
-			if conf.PromoteNoChain {
-				// promote blowball
-				if conf.log != nil {
-					conf.log.Debugf("CONFIRMER: promoting 'blowball'")
-				}
-				tail = lib.GetTail(conf.lastBundle)
-			} else {
+			if conf.PromoteChain {
 				// promote chain
 				if conf.log != nil {
 					conf.log.Debugf("CONFIRMER: promoting 'chain'")
 				}
 				tail = lib.GetTail(conf.lastPromoBundle)
+			} else {
+				// promote blowball
+				if conf.log != nil {
+					conf.log.Debugf("CONFIRMER: promoting 'blowball'")
+				}
+				tail = lib.GetTail(conf.lastBundle)
 			}
 			return conf.promoteOrReattach(tail)
 		}
