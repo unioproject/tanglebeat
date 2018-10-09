@@ -1,6 +1,7 @@
 package confirmer
 
 import (
+	"errors"
 	"github.com/lunfardo314/giota"
 	"github.com/lunfardo314/tanglebeat/lib"
 	"strings"
@@ -100,6 +101,9 @@ func (conf *Confirmer) reattach() error {
 }
 
 func (conf *Confirmer) promoteOrReattach(tx *giota.Transaction) (UpdateType, error) {
+	if tx == nil {
+		return UPD_NO_ACTION, errors.New("promoteOrReattach: tx ==  nil")
+	}
 	consistent, err := conf.checkConsistency(tx.Hash())
 	if err != nil {
 		return UPD_NO_ACTION, err

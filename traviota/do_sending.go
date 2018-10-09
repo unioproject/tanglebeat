@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"github.com/lunfardo314/giota"
 	"github.com/lunfardo314/tanglebeat/confirmer"
 	"github.com/lunfardo314/tanglebeat/lib"
@@ -17,30 +18,31 @@ func (seq *Sequence) doSending(addr giota.Address, index int) {
 	var initStats pubsub.SendingStats
 	for {
 		bundle, err := seq.findOrCreateBundleToConfirm(addr, index, &initStats)
-		if err != nil {
-			seq.log.Errorf("doSending: index = %v: %v", index, err)
-		} else {
+		if err == nil {
 			if len(bundle) == 0 {
 				// nothing left to spend, leaving routine
 				return //>>>>>>>>>>>>>>>>>>>>>>>
 			}
-		}
-		seq.initSendUpdateToPub(addr, index, sendingStarted, &initStats)
+			seq.initSendUpdateToPub(addr, index, sendingStarted, &initStats)
 
-		// start confirmer and run until confirmed
-		chConfUpd := seq.NewConfirmerChan(bundle, seq.log)
-		for updConf := range chConfUpd {
-			// summing up with stats collected during findOrCreateBundleToConfirm
-			if updConf.Err != nil {
-				seq.log.Errorf("Received error from confirmer: %v", updConf.Err)
-			} else {
-				if updConf.UpdateType != confirmer.UPD_NO_ACTION {
-					updConf.Stats.NumAttaches += initStats.NumAttaches
-					updConf.Stats.TotalDurationATTMsec += initStats.TotalDurationATTMsec
-					updConf.Stats.TotalDurationGTTAMsec += initStats.TotalDurationGTTAMsec
-					seq.confirmerUpdateToPub(updConf, addr, index, sendingStarted)
+			// start confirmer and run until confirmed
+			chConfUpd := seq.NewConfirmerChan(bundle, seq.log)
+			for updConf := range chConfUpd {
+				// summing up with stats collected during findOrCreateBundleToConfirm
+				if updConf.Err != nil {
+					seq.log.Errorf("Received error from confirmer: %v", updConf.Err)
+				} else {
+					if updConf.UpdateType != confirmer.UPD_NO_ACTION {
+						updConf.Stats.NumAttaches += initStats.NumAttaches
+						updConf.Stats.TotalDurationATTMsec += initStats.TotalDurationATTMsec
+						updConf.Stats.TotalDurationGTTAMsec += initStats.TotalDurationGTTAMsec
+						seq.confirmerUpdateToPub(updConf, addr, index, sendingStarted)
+					}
 				}
 			}
+		} else {
+			seq.log.Errorf("doSending: index = %v: %v", index, err)
+			time.Sleep(5 * time.Second)
 		}
 	}
 }
@@ -56,7 +58,11 @@ func (seq *Sequence) findOrCreateBundleToConfirm(addr giota.Address, index int, 
 		// there're no spending bundles, create one
 		return seq.sendToNext(addr, index, sendingStats)
 	}
-	confirmed, err := seq.isConfirmed(lib.GetTail(bundle).Hash())
+	tail := lib.GetTail(bundle)
+	if tail == nil {
+		return nil, errors.New("Can't get tail 1")
+	}
+	confirmed, err := seq.isConfirmed(tail.Hash())
 	if err != nil {
 		return nil, err
 	}

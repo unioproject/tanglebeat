@@ -1,6 +1,7 @@
 package confirmer
 
 import (
+	"errors"
 	"github.com/lunfardo314/giota"
 	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/lunfardo314/tanglebeat/pubsub"
@@ -88,6 +89,7 @@ func (conf *Confirmer) createIotaAPIs(log *logging.Logger) {
 }
 
 func (conf *Confirmer) Run(bundle giota.Bundle, log *logging.Logger) chan *ConfirmerUpdate {
+	lib.Assert(len(bundle) > 0, "len(bundle)> 0 (2)", log)
 	conf.log = log
 	conf.createIotaAPIs(log)
 	nowis := time.Now()
@@ -101,8 +103,11 @@ func (conf *Confirmer) Run(bundle giota.Bundle, log *logging.Logger) chan *Confi
 			defer conf.log.Debugf("CONFIRMER: confirmer routine ended")
 		}
 		for {
+			tail := lib.GetTail(conf.lastBundle)
+			lib.Assert(tail != nil, "tail!=nil", log)
+
 			incl, err := conf.iotaAPI.GetLatestInclusion(
-				[]giota.Trytes{lib.GetTail(conf.lastBundle).Hash()})
+				[]giota.Trytes{tail.Hash()})
 			confirmed := err == nil && incl[0]
 			if confirmed {
 				conf.sendConfirmerUpdate(UPD_CONFIRM, nil)
@@ -157,7 +162,11 @@ func (conf *Confirmer) doSendingAction() (UpdateType, error) {
 		return conf.promoteOrReattach(lib.GetTail(conf.lastBundle))
 	}
 	// Not time for promotion yet. Check if reattachment is needed
-	consistent, err := conf.checkConsistency(lib.GetTail(conf.lastBundle).Hash())
+	tail = lib.GetTail(conf.lastBundle)
+	if tail == nil {
+		return UPD_NO_ACTION, errors.New("Can't get tail")
+	}
+	consistent, err := conf.checkConsistency(tail.Hash())
 	if err != nil {
 		return UPD_NO_ACTION, err
 	}

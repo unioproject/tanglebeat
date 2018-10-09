@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lunfardo314/giota"
+	"github.com/op/go-logging"
 	"time"
 )
 
@@ -120,4 +121,14 @@ func GetTail(bundle giota.Bundle) *giota.Transaction {
 		}
 	}
 	return nil
+}
+
+func Assert(cond bool, msg string, log *logging.Logger) {
+	if !cond {
+		if log != nil {
+			log.Panicf("Assertion error: %v", msg)
+		} else {
+			panic(fmt.Sprintf("Assertion error: %v", msg))
+		}
+	}
 }
