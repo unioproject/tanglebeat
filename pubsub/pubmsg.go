@@ -30,32 +30,29 @@ type SendingStats struct {
 	NumAttaches           int
 	NumPromotions         int
 	TotalDurationATTMsec  int64
-	NumATT                int
 	TotalDurationGTTAMsec int64
-	NumGTTA               int
 }
 
 type SenderUpdate struct {
-	SeqUID                  string        `json:"uid"`
-	SeqName                 string        `json:"nam"`
-	UpdType                 UpdateType    `json:"typ"`
-	Index                   int           `json:"idx"`
-	Addr                    giota.Address `json:"adr"`
-	SendingStartedTs        int64         `json:"str"`  // time when sending started in this session. Not correct after restart
-	SinceSendingMsec        int64         `json:"now"`  // time passed until the update. Based on the same clock as sendingStarted
-	NumAttaches             int           `json:"rea"`  // number of out bundles in tha tangle
-	NumPromotions           int           `json:"prom"` // number of promotions in the current session (starts with 0 after restart)
-	AvgPoWDurationPerTxMsec int64         `json:"pow"`  // total millisec spent on attachToTangle calls / nnumer of tx attached
-	AvgGTTADurationMsec     int64         `json:"gtta"` // total millisec spent on getTransactionsToApproves calls
-	NodeATT                 string        `json:"natt"`
-	NodeGTTA                string        `json:"ngta"`
+	SeqUID           string        `json:"uid"`
+	SeqName          string        `json:"nam"`
+	UpdType          UpdateType    `json:"typ"`
+	Index            int           `json:"idx"`
+	Addr             giota.Address `json:"adr"`
+	SendingStartedTs int64         `json:"str"`  // time when sending started in this session. Not correct after restart
+	UpdateTs         int64         `json:"now"`  // time when the update created. Based on the same clock as sendingStarted
+	NumAttaches      int           `json:"rea"`  // number of out bundles in tha tangle
+	NumPromotions    int           `json:"prom"` // number of promotions in the current session (starts with 0 after restart)
+	TotalPoWMsec     int64         `json:"pow"`  // total millisec spent on attachToTangle calls
+	TotalTipselMsec  int64         `json:"gtta"` // total millisec spent on getTransactionsToApproves calls
+	NodeATT          string        `json:"natt"`
+	NodeGTTA         string        `json:"ngta"`
 	// sender's configuration
-	BundleSize            int     `json:"bsiz"`  // size of the spending bundle in number of tx
-	PromoBundleSize       int     `json:"pbsiz"` // size of the promo bundle in number of tx
-	PromoteEveryNumSec    int     `json:"psec"`
-	ForceReattachAfterSec int     `json:"fre"`
-	PromoteChain          bool    `json:"chn"` // promo strategy. false means 'blowball', true mean 'chain'
-	TPS                   float32 `json:"tps"` // contribution to tps
+	BundleSize            int  `json:"bsiz"`  // size of the spending bundle in number of tx
+	PromoBundleSize       int  `json:"pbsiz"` // size of the promo bundle in number of tx
+	PromoteEveryNumSec    int  `json:"psec"`
+	ForceReattachAfterSec int  `json:"fre"`
+	PromoteChain          bool `json:"chn"` // promo strategy. false means 'blowball', true mean 'chain'
 }
 
 var chanDataToPub chan []byte

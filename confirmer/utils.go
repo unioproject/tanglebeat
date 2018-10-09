@@ -43,7 +43,6 @@ func (conf *Confirmer) promote(tx *giota.Transaction) error {
 		return err
 	}
 	conf.totalDurationGTTAMsec += lib.UnixMs(time.Now()) - st
-	conf.numGTTA += 1
 	trunkTxh := tx.Hash()
 	branchTxh := gttaResp.BranchTransaction
 
@@ -53,7 +52,6 @@ func (conf *Confirmer) promote(tx *giota.Transaction) error {
 		return err
 	}
 	conf.totalDurationATTMsec += lib.UnixMs(time.Now()) - st
-	conf.numATT += 1
 
 	bundle = attResp.Trytes
 	err = conf.iotaAPI.BroadcastTransactions(bundle)
@@ -65,6 +63,7 @@ func (conf *Confirmer) promote(tx *giota.Transaction) error {
 		return err
 	}
 	nowis := time.Now()
+	conf.numPromote += 1
 	conf.lastPromoBundle = bundle
 	conf.lastPromoTime = nowis
 	conf.nextPromoTime = nowis.Add(time.Duration(conf.PromoteEverySec) * time.Second)
@@ -92,6 +91,7 @@ func (conf *Confirmer) reattach() error {
 		return err
 	}
 	nowis := time.Now()
+	conf.numAttach += 1
 	conf.lastBundle = attResp.Trytes
 	conf.lastAttachmentTime = nowis
 	conf.nextForceReattachTime = nowis.Add(time.Duration(conf.ForceReattachAfterMin) * time.Minute)

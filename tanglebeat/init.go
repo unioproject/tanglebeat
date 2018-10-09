@@ -31,7 +31,7 @@ type ConfigStructYAML struct {
 	MemStats         bool   `yaml:"memStats"`
 	MemStatsInterval int    `yaml:"memStatsInterval"`
 	DbFile           string `yaml:"dbfile"`
-	TraviotaURI      string `yaml:"traviotaURI"`
+	SenderURI        string `yaml:"senderURI"`
 }
 
 //  create config structure with default values
@@ -41,7 +41,7 @@ var Config = ConfigStructYAML{
 	LogConsoleOnly: true,
 	LogFormat:      "%{time:2006-01-02 15:04:05.000} [%{shortfunc}] %{level:.4s} %{message}",
 	DbFile:         "tanglebeat.db",
-	TraviotaURI:    "tcp://traviota.iotalt.com:3000",
+	SenderURI:      "tcp://traviota.iotalt.com:3000",
 }
 
 var msgBeforeLog = []string{"----- Starting Tanglebeat module"}

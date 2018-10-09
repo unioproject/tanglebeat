@@ -54,6 +54,15 @@ func TrytesInSet(a giota.Trytes, list []giota.Trytes) bool {
 	return false
 }
 
+func StringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}
+
 // check consistency of the indices of the set and return sorted slice.
 // if finds inconsistency, returns same set and error
 func CheckAndSortBundle(txSet []giota.Transaction) ([]giota.Transaction, error) {

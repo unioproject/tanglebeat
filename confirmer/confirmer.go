@@ -44,10 +44,7 @@ type Confirmer struct {
 	numPromote            int
 	//
 	totalDurationATTMsec  int64
-	numATT                int
 	totalDurationGTTAMsec int64
-	numGTTA               int
-	tps                   float32
 	//
 	chanUpdate chan *ConfirmerUpdate
 	log        *logging.Logger
@@ -127,9 +124,7 @@ func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, err error) {
 			NumAttaches:           conf.numAttach,
 			NumPromotions:         conf.numPromote,
 			TotalDurationATTMsec:  conf.totalDurationATTMsec,
-			NumATT:                conf.numATT,
 			TotalDurationGTTAMsec: conf.totalDurationATTMsec,
-			NumGTTA:               conf.numGTTA,
 		},
 		UpdateTime: time.Now(),
 		UpdateType: updType,

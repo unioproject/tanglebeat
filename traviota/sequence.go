@@ -332,7 +332,6 @@ func (seq *Sequence) sendBalance(fromAddr, toAddr giota.Address, balance int64,
 		return nil, err
 	}
 	sendingStats.TotalDurationGTTAMsec += lib.UnixMs(time.Now()) - st
-	sendingStats.NumGTTA += 1
 
 	st = lib.UnixMs(time.Now())
 	attResp, err := seq.attachToTangle(gttaResp.TrunkTransaction, gttaResp.BranchTransaction, bundle)
@@ -340,7 +339,6 @@ func (seq *Sequence) sendBalance(fromAddr, toAddr giota.Address, balance int64,
 		return nil, err
 	}
 	sendingStats.TotalDurationATTMsec += lib.UnixMs(time.Now()) - st
-	sendingStats.NumATT += 1
 
 	err = seq.IotaAPI.BroadcastTransactions(attResp.Trytes)
 	if err != nil {

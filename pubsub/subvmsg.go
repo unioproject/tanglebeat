@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/op/go-logging"
 	"nanomsg.org/go-mangos"
 	"nanomsg.org/go-mangos/protocol/sub"
 	"nanomsg.org/go-mangos/transport/tcp"
 )
 
-func OpenTraviotaChan(traviotaURI string) (chan *SenderUpdate, error) {
+func OpenSenderUpdateChan(senderURI string, log *logging.Logger) (chan *SenderUpdate, error) {
 	var sock mangos.Socket
 	var err error
 
@@ -19,7 +20,7 @@ func OpenTraviotaChan(traviotaURI string) (chan *SenderUpdate, error) {
 	//sock.AddTransport(ipc.NewTransport())
 	sock.AddTransport(tcp.NewTransport())
 
-	if err = sock.Dial(traviotaURI); err != nil {
+	if err = sock.Dial(senderURI); err != nil {
 		return nil, errors.New(fmt.Sprintf("can't dial sub socket: %v", err))
 	}
 	err = sock.SetOption(mangos.OptionSubscribe, []byte(""))
@@ -42,5 +43,8 @@ func OpenTraviotaChan(traviotaURI string) (chan *SenderUpdate, error) {
 			}
 		}
 	}()
+	if log != nil {
+		log.Infof("Opened listening channel for Mangos data stream from sender at %v", senderURI)
+	}
 	return chanUpd, nil
 }

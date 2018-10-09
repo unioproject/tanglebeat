@@ -40,26 +40,13 @@ func (seq *Sequence) confirmerUpdateToPub(updConf *confirmer.ConfirmerUpdate, ad
 		PromoteEveryNumSec:    seq.Params.PromoteEverySec,
 		ForceReattachAfterSec: seq.Params.ForceReattachAfterMin,
 		PromoteChain:          seq.Params.PromoteChain,
+		TotalPoWMsec:          updConf.Stats.TotalDurationATTMsec,
+		TotalTipselMsec:       updConf.Stats.TotalDurationGTTAMsec,
 	}
-	timeSinceStart := time.Since(sendingStarted)
-	timeSinceStartMsec := int64(timeSinceStart / time.Millisecond)
-	upd.SinceSendingMsec = timeSinceStartMsec
+	upd.UpdateTs = lib.UnixMs(time.Now())
 	securityLevel := 2
 	upd.BundleSize = securityLevel + 2
 	upd.PromoBundleSize = 1
-	totalTx := upd.BundleSize*upd.NumAttaches + upd.PromoBundleSize*upd.NumPromotions
-	if updConf.Stats.NumATT != 0 && totalTx != 0 {
-		upd.AvgPoWDurationPerTxMsec = updConf.Stats.TotalDurationATTMsec / int64(updConf.Stats.NumATT*totalTx)
-	}
-	if updConf.Stats.NumGTTA != 0 {
-		upd.AvgGTTADurationMsec = updConf.Stats.TotalDurationGTTAMsec / int64(updConf.Stats.NumGTTA)
-	}
-	timeSinceStartSec := float32(timeSinceStartMsec) / float32(1000)
-	if timeSinceStartSec > 0.1 {
-		upd.TPS = float32(totalTx) / timeSinceStartSec
-	} else {
-		upd.TPS = 0
-	}
 	publishUpdate(&upd)
 }
 
@@ -78,25 +65,12 @@ func (seq *Sequence) initSendUpdateToPub(addr giota.Address, index int, sendingS
 		PromoteEveryNumSec:    seq.Params.PromoteEverySec,
 		ForceReattachAfterSec: seq.Params.ForceReattachAfterMin,
 		PromoteChain:          seq.Params.PromoteChain,
+		TotalPoWMsec:          initStats.TotalDurationATTMsec,
+		TotalTipselMsec:       initStats.TotalDurationGTTAMsec,
 	}
-	timeSinceStart := time.Since(sendingStarted)
-	timeSinceStartMsec := int64(timeSinceStart / time.Millisecond)
-	upd.SinceSendingMsec = timeSinceStartMsec
+	upd.UpdateTs = lib.UnixMs(time.Now())
 	securityLevel := 2
 	upd.BundleSize = securityLevel + 2
 	upd.PromoBundleSize = 1
-	totalTx := upd.BundleSize*upd.NumAttaches + upd.PromoBundleSize*upd.NumPromotions
-	if initStats.NumATT != 0 && totalTx != 0 {
-		upd.AvgPoWDurationPerTxMsec = initStats.TotalDurationATTMsec / int64(initStats.NumATT*totalTx)
-	}
-	if initStats.NumGTTA != 0 {
-		upd.AvgGTTADurationMsec = initStats.TotalDurationGTTAMsec / int64(initStats.NumGTTA)
-	}
-	timeSinceStartSec := float32(timeSinceStartMsec) / float32(1000)
-	if timeSinceStartSec > 0.1 {
-		upd.TPS = float32(totalTx) / timeSinceStartSec
-	} else {
-		upd.TPS = 0
-	}
 	publishUpdate(&upd)
 }

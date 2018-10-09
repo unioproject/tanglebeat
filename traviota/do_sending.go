@@ -36,8 +36,6 @@ func (seq *Sequence) doSending(addr giota.Address, index int) {
 			} else {
 				if updConf.UpdateType != confirmer.UPD_NO_ACTION {
 					updConf.Stats.NumAttaches += initStats.NumAttaches
-					updConf.Stats.NumATT += initStats.NumATT
-					updConf.Stats.NumGTTA += initStats.NumGTTA
 					updConf.Stats.TotalDurationATTMsec += initStats.TotalDurationATTMsec
 					updConf.Stats.TotalDurationGTTAMsec += initStats.TotalDurationGTTAMsec
 					seq.confirmerUpdateToPub(updConf, addr, index, sendingStarted)
