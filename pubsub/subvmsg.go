@@ -44,7 +44,7 @@ func OpenSenderUpdateChan(senderURI string, log *logging.Logger) (chan *SenderUp
 		}
 	}()
 	if log != nil {
-		log.Infof("Opened listening channel for Mangos data stream from sender at %v", senderURI)
+		log.Infof("Opened listening channel for nanomsg/Mangos data stream from sender at %v", senderURI)
 	}
 	return chanUpd, nil
 }

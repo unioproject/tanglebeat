@@ -72,9 +72,10 @@ func runUpdateDb() {
 
 	log.Info("Started listening to data stream from sender")
 	for upd := range chanUpdate {
-		log.Debugf("Received update '%v'", upd.UpdType)
 		if err := updateRecord(upd); err != nil {
 			log.Errorf("Error from updateRecord: %v", err)
+		} else {
+			log.Infof("Update '%v' seq = %v(%v), index = %v", upd.UpdType, upd.SeqUID, upd.SeqName, upd.Index)
 		}
 	}
 }
