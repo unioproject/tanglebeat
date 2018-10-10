@@ -47,11 +47,11 @@ type SenderYAML struct {
 type SenderParams struct {
 	Disabled              bool     `yaml:"disabled"`
 	IOTANode              []string `yaml:"iotaNode"`
-	IOTANodeGTTA          []string `yaml:"iotaNodeGTTA"`
-	IOTANodeATT           []string `yaml:"iotaNodeATT"`
+	IOTANodeGTTA          []string `yaml:"iotaNodeTipsel"`
+	IOTANodeATT           []string `yaml:"iotaNodePOW"`
 	TimeoutAPI            int      `yaml:"apiTimeout"`
-	TimeoutGTTA           int      `yaml:"gttaTimeout"`
-	TimeoutATT            int      `yaml:"attTimeout"`
+	TimeoutGTTA           int      `yaml:"GTTATimeout"`
+	TimeoutATT            int      `yaml:"ATTTimeout"`
 	Seed                  string   `yaml:"seed"`
 	Index0                int      `yaml:"index0"`
 	TxTag                 string   `yaml:"txTag"`
