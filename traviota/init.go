@@ -149,6 +149,8 @@ func configDebugging() {
 	}
 }
 
+// TODO rotating log
+
 func configMasterLogging() {
 	var logWriter io.Writer
 	var level logging.Level

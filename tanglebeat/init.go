@@ -109,6 +109,7 @@ func configDebugging() {
 }
 
 //	`%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
+// TODO rotating log
 
 func configLogging() {
 	var logWriter io.Writer

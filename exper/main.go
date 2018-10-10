@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func main() {
+func mainold() {
 	ch := make(chan int)
 	go func() {
 		fmt.Println("Pries")
