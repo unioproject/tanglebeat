@@ -27,7 +27,6 @@ type ConfigStructYAML struct {
 	LogConsoleOnly   bool   `yaml:"logConsoleOnly"`
 	LogFormat        string `yaml:"logFormat"`
 	Debug            bool   `yaml:"debug"`
-	Pprof            bool   `yaml:"pprof"`
 	MemStats         bool   `yaml:"memStats"`
 	MemStatsInterval int    `yaml:"memStatsInterval"`
 	DbFile           string `yaml:"dbfile"`

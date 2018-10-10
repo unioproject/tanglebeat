@@ -30,7 +30,6 @@ type ConfigStructYAML struct {
 	Sender           SenderYAML      `yaml:"sender"`
 	Publisher        PublisherParams `yaml:"publisher"`
 	Debug            bool            `yaml:"debug"`
-	Pprof            bool            `yaml:"pprof"`
 	MemStats         bool            `yaml:"memStats"`
 	MemStatsInterval int             `yaml:"memStatsInterval"`
 }
