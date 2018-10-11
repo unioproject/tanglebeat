@@ -9,8 +9,7 @@ import (
 	"time"
 )
 
-func (seq *Sequence) NewConfirmerChan(bundle giota.Bundle, log *logging.Logger) chan *confirmer.ConfirmerUpdate {
-	lib.Assert(len(bundle) > 0, "len(bundle)> 0 (1)", log)
+func (seq *Sequence) RunConfirmer(bundle giota.Bundle, log *logging.Logger) (chan *confirmer.ConfirmerUpdate, error) {
 	ret := confirmer.Confirmer{
 		IOTANode:              seq.Params.IOTANode[0],
 		IOTANodeGTTA:          seq.Params.IOTANodeGTTA[0],

@@ -1,7 +1,6 @@
 package confirmer
 
 import (
-	"errors"
 	"github.com/lunfardo314/giota"
 	"github.com/lunfardo314/tanglebeat/lib"
 	"strings"
@@ -19,7 +18,14 @@ func (conf *Confirmer) attachToTangle(trunkHash, branchHash giota.Trytes, trytes
 
 func (conf *Confirmer) promote(tx *giota.Transaction) error {
 	if conf.log != nil {
-		conf.log.Debugf("CONFIRMER: promoting")
+		var m string
+		if conf.PromoteChain {
+			m = "chain"
+		} else {
+			m = "blowball"
+		}
+		conf.log.Debugf("CONFIRMER: promoting '%v' every ~%v sec if bundle is consistent. Tag = '%v'",
+			m, conf.PromoteEverySec, conf.TxTagPromote)
 	}
 	transfers := []giota.Transfer{
 		{Address: giota.Address(strings.Repeat("9", 81)),
@@ -65,7 +71,9 @@ func (conf *Confirmer) promote(tx *giota.Transaction) error {
 	}
 	nowis := time.Now()
 	conf.numPromote += 1
-	conf.lastPromoBundle = bundle
+	if conf.PromoteChain {
+		conf.nextBundleToPromote = bundle
+	}
 	conf.lastPromoTime = nowis
 	conf.nextPromoTime = nowis.Add(time.Duration(conf.PromoteEverySec) * time.Second)
 	return nil
@@ -96,29 +104,7 @@ func (conf *Confirmer) reattach() error {
 	conf.lastBundle = attResp.Trytes
 	conf.lastAttachmentTime = nowis
 	conf.nextForceReattachTime = nowis.Add(time.Duration(conf.ForceReattachAfterMin) * time.Minute)
-	conf.lastPromoBundle = nil
+	conf.nextBundleToPromote = nil
+	conf.isNotPromotable = true
 	return nil
-}
-
-func (conf *Confirmer) promoteOrReattach(tx *giota.Transaction) (UpdateType, error) {
-	if tx == nil {
-		return UPD_NO_ACTION, errors.New("promoteOrReattach: tx ==  nil")
-	}
-	consistent, err := conf.checkConsistency(tx.Hash())
-	if err != nil {
-		return UPD_NO_ACTION, err
-	} else {
-		if consistent {
-			if err = conf.promote(tx); err != nil {
-				return UPD_NO_ACTION, err
-			} else {
-				return UPD_PROMOTE, err
-			}
-		}
-	}
-	// can't promote --> reattach
-	if err = conf.reattach(); err != nil {
-		return UPD_NO_ACTION, err
-	}
-	return UPD_REATTACH, nil
 }

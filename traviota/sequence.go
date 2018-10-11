@@ -276,7 +276,7 @@ func (seq *Sequence) sendToNext(addr giota.Address, index int, sendingStats *pub
 	if err != nil {
 		return nil, err
 	}
-	seq.log.Infof("Send. idx=%v. %v --> %v", index, addr, nextAddr)
+	seq.log.Infof("Send with tag = '%v'. idx=%v. %v --> %v", seq.Params.TxTag, index, addr, nextAddr)
 
 	gbResp, err := seq.IotaAPI.GetBalances([]giota.Address{addr}, 100)
 	if err != nil {

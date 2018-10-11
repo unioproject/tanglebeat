@@ -8,6 +8,7 @@ import (
 	"github.com/op/go-logging"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -41,14 +42,17 @@ type Confirmer struct {
 	numAttach             int
 	lastPromoTime         time.Time
 	nextPromoTime         time.Time
-	lastPromoBundle       giota.Bundle
+	nextBundleToPromote   giota.Bundle
 	numPromote            int
 	//
 	totalDurationATTMsec  int64
 	totalDurationGTTAMsec int64
 	//
-	chanUpdate chan *ConfirmerUpdate
-	log        *logging.Logger
+	chanUpdate      chan *ConfirmerUpdate
+	log             *logging.Logger
+	isNotPromotable bool
+	mutex           sync.Mutex //sync between promote and confirm go routines
+
 }
 
 type ConfirmerUpdate struct {
@@ -58,15 +62,15 @@ type ConfirmerUpdate struct {
 	Err        error
 }
 
-func (conf *Confirmer) createIotaAPIs(log *logging.Logger) {
+func (conf *Confirmer) createIotaAPIs() {
 	conf.iotaAPI = giota.NewAPI(
 		conf.IOTANode,
 		&http.Client{
 			Timeout: time.Duration(conf.TimeoutAPI) * time.Second,
 		},
 	)
-	if log != nil {
-		log.Debugf("CONFIRMER: IOTA node: %v, Timeout: %v sec", conf.IOTANode, conf.TimeoutAPI)
+	if conf.log != nil {
+		conf.log.Debugf("CONFIRMER: IOTA node: %v, Timeout: %v sec", conf.IOTANode, conf.TimeoutAPI)
 	}
 	conf.iotaAPIgTTA = giota.NewAPI(
 		conf.IOTANodeGTTA,
@@ -74,8 +78,8 @@ func (conf *Confirmer) createIotaAPIs(log *logging.Logger) {
 			Timeout: time.Duration(conf.TimeoutGTTA) * time.Second,
 		},
 	)
-	if log != nil {
-		log.Debugf("CONFIRMER: IOTA node for gTTA: %v, Timeout: %v sec", conf.IOTANodeGTTA, conf.TimeoutGTTA)
+	if conf.log != nil {
+		conf.log.Debugf("CONFIRMER: IOTA node for gTTA: %v, Timeout: %v sec", conf.IOTANodeGTTA, conf.TimeoutGTTA)
 	}
 	conf.iotaAPIaTT = giota.NewAPI(
 		conf.IOTANodeATT,
@@ -83,47 +87,64 @@ func (conf *Confirmer) createIotaAPIs(log *logging.Logger) {
 			Timeout: time.Duration(conf.TimeoutATT) * time.Second,
 		},
 	)
-	if log != nil {
-		log.Debugf("CONFIRMER: IOTA node for ATT: %v, Timeout: %v sec", conf.IOTANodeATT, conf.TimeoutATT)
+	if conf.log != nil {
+		conf.log.Debugf("CONFIRMER: IOTA node for ATT: %v, Timeout: %v sec", conf.IOTANodeATT, conf.TimeoutATT)
 	}
 }
 
-func (conf *Confirmer) Run(bundle giota.Bundle, log *logging.Logger) chan *ConfirmerUpdate {
-	lib.Assert(len(bundle) > 0, "len(bundle)> 0 (2)", log)
+func (conf *Confirmer) Run(bundle giota.Bundle, log *logging.Logger) (chan *ConfirmerUpdate, error) {
+	if len(bundle) == 0 {
+		return nil, errors.New("attempt to run confirmer with empty bundle")
+	}
 	conf.log = log
-	conf.createIotaAPIs(log)
+	conf.createIotaAPIs()
 	nowis := time.Now()
 	conf.lastBundle = bundle
 	conf.nextForceReattachTime = nowis.Add(time.Duration(conf.ForceReattachAfterMin) * time.Minute)
-	conf.nextPromoTime = nowis.Add(time.Duration(conf.PromoteEverySec) * time.Second)
+	conf.nextPromoTime = nowis
+	conf.nextBundleToPromote = bundle
+	conf.isNotPromotable = false
 	conf.chanUpdate = make(chan *ConfirmerUpdate)
+
 	go func() {
 		defer close(conf.chanUpdate)
 		if conf.log != nil {
 			defer conf.log.Debugf("CONFIRMER: confirmer routine ended")
 		}
-		for {
-			tail := lib.GetTail(conf.lastBundle)
-			lib.Assert(tail != nil, "tail!=nil", log)
+		cancelPromo := conf.runPromote()
+		cancelReattach := conf.runReattach()
 
+		for {
+			conf.mutex.Lock()
+			tail := lib.GetTail(conf.lastBundle)
+			conf.mutex.Unlock()
+
+			if tail == nil {
+				if log != nil {
+					conf.log.Criticalf("can't get tail")
+					return
+				}
+			}
 			incl, err := conf.iotaAPI.GetLatestInclusion(
 				[]giota.Trytes{tail.Hash()})
 			confirmed := err == nil && incl[0]
+
 			if confirmed {
+				cancelPromo()
+				cancelReattach()
 				conf.sendConfirmerUpdate(UPD_CONFIRM, nil)
 				return
-			}
-			updType, err := conf.doSendingAction()
-			if updType != UPD_NO_ACTION || err != nil {
-				conf.sendConfirmerUpdate(updType, err)
 			}
 			time.Sleep(5 * time.Second)
 		}
 	}()
-	return conf.chanUpdate
+	return conf.chanUpdate, nil
 }
 
 func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, err error) {
+	conf.mutex.Lock()
+	defer conf.mutex.Unlock()
+
 	upd := &ConfirmerUpdate{
 		Stats: pubsub.SendingStats{
 			NumAttaches:           conf.numAttach,
@@ -136,50 +157,6 @@ func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, err error) {
 		Err:        err,
 	}
 	conf.chanUpdate <- upd
-}
-
-func (conf *Confirmer) doSendingAction() (UpdateType, error) {
-	var tail *giota.Transaction
-	if len(conf.lastPromoBundle) != 0 {
-		// promo already started.
-		if time.Now().After(conf.nextPromoTime) {
-			if conf.PromoteChain {
-				// promote chain
-				if conf.log != nil {
-					conf.log.Debugf("CONFIRMER: promoting 'chain'")
-				}
-				tail = lib.GetTail(conf.lastPromoBundle)
-			} else {
-				// promote blowball
-				if conf.log != nil {
-					conf.log.Debugf("CONFIRMER: promoting 'blowball'")
-				}
-				tail = lib.GetTail(conf.lastBundle)
-			}
-			return conf.promoteOrReattach(tail)
-		}
-	} else {
-		return conf.promoteOrReattach(lib.GetTail(conf.lastBundle))
-	}
-	// Not time for promotion yet. Check if reattachment is needed
-	tail = lib.GetTail(conf.lastBundle)
-	if tail == nil {
-		return UPD_NO_ACTION, errors.New("Can't get tail")
-	}
-	consistent, err := conf.checkConsistency(tail.Hash())
-	if err != nil {
-		return UPD_NO_ACTION, err
-	}
-	if !consistent || time.Now().After(conf.nextForceReattachTime) {
-		err := conf.reattach()
-		if err != nil {
-			return UPD_NO_ACTION, err
-		} else {
-			return UPD_REATTACH, err
-		}
-	}
-	// no action
-	return UPD_NO_ACTION, nil
 }
 
 func (conf *Confirmer) checkConsistency(tailHash giota.Trytes) (bool, error) {
@@ -197,4 +174,116 @@ func (conf *Confirmer) checkConsistency(tailHash giota.Trytes) (bool, error) {
 		}
 	}
 	return consistent, nil
+}
+
+func (conf *Confirmer) checkIfToPromote() (bool, *giota.Transaction, error) {
+	conf.mutex.Lock()
+	defer conf.mutex.Unlock()
+
+	if conf.isNotPromotable || time.Now().Before(conf.nextPromoTime) {
+		return false, nil, nil
+	}
+	tail := lib.GetTail(conf.nextBundleToPromote)
+	if tail != nil {
+		txh := tail.Hash()
+		consistent, err := conf.checkConsistency(txh)
+		if err != nil {
+			return false, nil, err
+		}
+		conf.isNotPromotable = !consistent
+		return consistent, tail, nil
+	}
+	return false, tail, errors.New("can't get tail")
+}
+
+func (conf *Confirmer) runPromote() func() {
+	chCancel := make(chan struct{})
+	var wg sync.WaitGroup
+	go func() {
+		if conf.log != nil {
+			conf.log.Debug("Started promoter routine")
+			defer conf.log.Debug("Ended promoter routine")
+		}
+		wg.Add(1)
+		defer wg.Done()
+		var err error
+		var toPromote bool
+		var tail *giota.Transaction
+		for {
+			toPromote, tail, err = conf.checkIfToPromote()
+			if err == nil && toPromote {
+				conf.mutex.Lock()
+				err = conf.promote(tail)
+				conf.mutex.Unlock()
+				if err != nil {
+					conf.sendConfirmerUpdate(UPD_NO_ACTION, err)
+				} else {
+					conf.sendConfirmerUpdate(UPD_PROMOTE, nil)
+				}
+			}
+			if err != nil && conf.log != nil {
+				conf.log.Errorf("promotion routine: %v", err)
+			}
+			if err != nil {
+				time.Sleep(5 * time.Second)
+			}
+			select {
+			case <-chCancel:
+				return
+			case <-time.After(100 * time.Millisecond):
+			}
+		}
+	}()
+	return func() {
+		close(chCancel)
+		wg.Wait()
+	}
+}
+
+func (conf *Confirmer) runReattach() func() {
+	chCancel := make(chan struct{})
+	var wg sync.WaitGroup
+	go func() {
+		if conf.log != nil {
+			conf.log.Debug("Started reattacher routine")
+			defer conf.log.Debug("Ended reattacher routine")
+		}
+		wg.Add(1)
+		defer wg.Done()
+		var err error
+		var sendUpdate bool
+		for {
+			conf.mutex.Lock()
+			if conf.isNotPromotable || time.Now().After(conf.nextForceReattachTime) {
+				err = conf.reattach()
+				sendUpdate = true
+			}
+			conf.mutex.Unlock()
+
+			if sendUpdate {
+				if err != nil {
+					conf.sendConfirmerUpdate(UPD_NO_ACTION, err)
+				} else {
+					conf.sendConfirmerUpdate(UPD_REATTACH, nil)
+				}
+			}
+			if err != nil && conf.log != nil {
+				conf.log.Errorf("promotion routine: %v", err)
+			}
+			if err != nil {
+				time.Sleep(5 * time.Second)
+			}
+			sendUpdate = false
+			err = nil
+			select {
+			case <-chCancel:
+				return
+			case <-time.After(100 * time.Millisecond):
+			}
+		}
+	}()
+	return func() {
+		close(chCancel)
+		wg.Wait()
+	}
 }

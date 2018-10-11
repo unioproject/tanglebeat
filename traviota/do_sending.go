@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"github.com/lunfardo314/giota"
-	"github.com/lunfardo314/tanglebeat/confirmer"
 	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/lunfardo314/tanglebeat/pubsub"
 	"time"
@@ -26,19 +25,26 @@ func (seq *Sequence) doSending(addr giota.Address, index int) {
 			seq.initSendUpdateToPub(addr, index, sendingStarted, &initStats)
 
 			// start confirmer and run until confirmed
-			chConfUpd := seq.NewConfirmerChan(bundle, seq.log)
-			for updConf := range chConfUpd {
-				// summing up with stats collected during findOrCreateBundleToConfirm
-				if updConf.Err != nil {
-					seq.log.Errorf("Received error from confirmer: %v", updConf.Err)
-				} else {
-					if updConf.UpdateType != confirmer.UPD_NO_ACTION {
-						updConf.Stats.NumAttaches += initStats.NumAttaches
-						updConf.Stats.TotalDurationATTMsec += initStats.TotalDurationATTMsec
-						updConf.Stats.TotalDurationGTTAMsec += initStats.TotalDurationGTTAMsec
-						seq.confirmerUpdateToPub(updConf, addr, index, sendingStarted)
+			if chConfUpd, err := seq.RunConfirmer(bundle, seq.log); err == nil {
+				for updConf := range chConfUpd {
+					// summing up with stats collected during findOrCreateBundleToConfirm
+					if updConf.Err != nil {
+						seq.log.Errorf("Received error from confirmer: %v", updConf.Err)
+					} else {
+						if updConf.Err == nil {
+							updConf.Stats.NumAttaches += initStats.NumAttaches
+							updConf.Stats.TotalDurationATTMsec += initStats.TotalDurationATTMsec
+							updConf.Stats.TotalDurationGTTAMsec += initStats.TotalDurationGTTAMsec
+
+							seq.confirmerUpdateToPub(updConf, addr, index, sendingStarted)
+						} else {
+							log.Errorf("Confirmer reported an error: %v", updConf.Err)
+						}
 					}
 				}
+			} else {
+				seq.log.Errorf("doSending: index = %v: %v", index, err)
+				time.Sleep(5 * time.Second)
 			}
 		} else {
 			seq.log.Errorf("doSending: index = %v: %v", index, err)
