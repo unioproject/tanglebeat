@@ -105,13 +105,13 @@ func CheckAndSortBundle(txSet []giota.Transaction) ([]giota.Transaction, error) 
 }
 
 // by hash find specific tx in a set of transaction
-func FindTxByHash(hash giota.Trytes, txList []giota.Transaction) (giota.Transaction, bool) {
+func FindTxByHash(hash giota.Trytes, txList []giota.Transaction) (*giota.Transaction, bool) {
 	for _, tx := range txList {
 		if tx.Hash() == hash {
-			return tx, true
+			return &tx, true
 		}
 	}
-	return giota.Transaction{}, false
+	return nil, false
 }
 
 func GetTail(bundle giota.Bundle) *giota.Transaction {
@@ -131,4 +131,11 @@ func Assert(cond bool, msg string, log *logging.Logger) {
 			panic(fmt.Sprintf("Assertion error: %v", msg))
 		}
 	}
+}
+
+func Iff(cond bool, trueVal interface{}, falseVal interface{}) interface{} {
+	if cond {
+		return trueVal
+	}
+	return falseVal
 }

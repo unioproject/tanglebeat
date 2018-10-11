@@ -2,17 +2,18 @@ package main
 
 import (
 	_ "github.com/mattn/go-sqlite3"
+	"os"
 )
 
 func main() {
 	readConfig("tanglebeat.yml")
 	log.Infof("Will be receiving transaction data from '%v'", Config.SenderURI)
 	initDB()
-	//r, err := sumUpBySequence(24 * 60 * 60 * 1000)
-	//if err != nil{
-	//	log.Panic(err)
-	//}
-	//log.Infof("SUMS: %+v", r)
+	err := read1hFromDB()
+	if err != nil {
+		log.Criticalf("read1hFromDB: %v", err)
+		os.Exit(1)
+	}
 	go runUpdateDb()
 	go exposeMetrics()
 	testMetrics()

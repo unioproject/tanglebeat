@@ -37,10 +37,8 @@ type Confirmer struct {
 	iotaAPIgTTA           *giota.API
 	iotaAPIaTT            *giota.API
 	lastBundle            giota.Bundle
-	lastAttachmentTime    time.Time
 	nextForceReattachTime time.Time
 	numAttach             int
-	lastPromoTime         time.Time
 	nextPromoTime         time.Time
 	nextBundleToPromote   giota.Bundle
 	numPromote            int
@@ -176,24 +174,25 @@ func (conf *Confirmer) checkConsistency(tailHash giota.Trytes) (bool, error) {
 	return consistent, nil
 }
 
-func (conf *Confirmer) checkIfToPromote() (bool, *giota.Transaction, error) {
+func (conf *Confirmer) checkIfToPromote() (bool, error) {
 	conf.mutex.Lock()
 	defer conf.mutex.Unlock()
 
 	if conf.isNotPromotable || time.Now().Before(conf.nextPromoTime) {
-		return false, nil, nil
+		// if not promotable, routine will be idle until reattached
+		return false, nil
 	}
 	tail := lib.GetTail(conf.nextBundleToPromote)
 	if tail != nil {
 		txh := tail.Hash()
 		consistent, err := conf.checkConsistency(txh)
 		if err != nil {
-			return false, nil, err
+			return false, err
 		}
 		conf.isNotPromotable = !consistent
-		return consistent, tail, nil
+		return consistent, nil
 	}
-	return false, tail, errors.New("can't get tail")
+	return false, errors.New("can't get tail")
 }
 
 func (conf *Confirmer) runPromote() func() {
@@ -208,13 +207,14 @@ func (conf *Confirmer) runPromote() func() {
 		defer wg.Done()
 		var err error
 		var toPromote bool
-		var tail *giota.Transaction
 		for {
-			toPromote, tail, err = conf.checkIfToPromote()
+			toPromote, err = conf.checkIfToPromote()
 			if err == nil && toPromote {
+
 				conf.mutex.Lock()
-				err = conf.promote(tail)
+				err = conf.promote()
 				conf.mutex.Unlock()
+
 				if err != nil {
 					conf.sendConfirmerUpdate(UPD_NO_ACTION, err)
 				} else {
@@ -230,7 +230,7 @@ func (conf *Confirmer) runPromote() func() {
 			select {
 			case <-chCancel:
 				return
-			case <-time.After(100 * time.Millisecond):
+			case <-time.After(500 * time.Millisecond):
 			}
 		}
 	}()

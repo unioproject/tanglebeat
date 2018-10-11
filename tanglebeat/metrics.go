@@ -25,35 +25,30 @@ var sqlSelect = `select seqid,
 	 where last_update_msec >= ?
 	`
 
-func sumUpBySequence(lastMsec int64) (map[string]sums, error) {
-	ret := make(map[string]sums)
-	rows, err := dbconn.Query(sqlSelect, lib.UnixMs(time.Now())-lastMsec)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var seqid string
-	var count int64
-	var confDurationsMsec int64
-	var powDurationsMsec int64
-	var tipselDurationsMsec int64
-	var numTransactions int64
-
-	for rows.Next() {
-		err = rows.Scan(&seqid, &count, &confDurationsMsec, &powDurationsMsec, &tipselDurationsMsec, &numTransactions)
-		if err != nil {
-			return nil, err
-		}
-		ret[seqid] = sums{
-			count:              count,
-			confDurationsMsec:  confDurationsMsec,
-			powDurationsMsec:   powDurationsMsec,
-			tipselDurationMsec: tipselDurationsMsec,
-			numTransactions:    numTransactions,
+func sumUpBySequences(lastMsec int64) map[string]*sums {
+	ret := make(map[string]*sums)
+	oldest := lib.UnixMs(time.Now()) - lastMsec
+	for k, v := range dbCache1h {
+		if v.last_update_msec >= oldest {
+			_, ok := ret[k.seqid]
+			if ok {
+				ret[k.seqid].count += 1
+				ret[k.seqid].confDurationsMsec += v.last_update_msec - v.started_ts_msec
+				ret[k.seqid].powDurationsMsec += v.total_pow_duration_msec
+				ret[k.seqid].tipselDurationMsec += v.total_tipsel_duration_msec
+				ret[k.seqid].numTransactions += v.num_attaches*v.bundle_size + v.num_promotions*v.promo_bundle_size
+			} else {
+				ret[k.seqid] = &sums{
+					count:              1,
+					confDurationsMsec:  v.last_update_msec - v.started_ts_msec,
+					powDurationsMsec:   v.total_pow_duration_msec,
+					tipselDurationMsec: v.total_tipsel_duration_msec,
+					numTransactions:    v.num_attaches*v.bundle_size + v.num_promotions*v.promo_bundle_size,
+				}
+			}
 		}
 	}
-	return ret, nil
+	return ret
 }
 
 func toFloat64(data []int64) []float64 {
@@ -88,7 +83,7 @@ func stddev(data []float64) float64 {
 }
 
 // filters out sequence, which counts are less than mean by more tha 1 stddev
-func adjustToStddev(bySeq map[string]sums) map[string]sums {
+func adjustToStddev(bySeq map[string]*sums) map[string]sums {
 	if len(bySeq) == 0 {
 		return nil
 	}
@@ -103,13 +98,13 @@ func adjustToStddev(bySeq map[string]sums) map[string]sums {
 	ret := make(map[string]sums, len(bySeq))
 	for k, v := range bySeq {
 		if float64(v.count) >= vid-sdev {
-			ret[k] = bySeq[k]
+			ret[k] = *bySeq[k]
 		}
 	}
 	return ret
 }
 
-func transfersPerSequence(bySeq map[string]sums) float64 {
+func transfersPerSequence(bySeq map[string]*sums) float64 {
 	if len(bySeq) == 0 {
 		return 0
 	}
@@ -122,7 +117,7 @@ func transfersPerSequence(bySeq map[string]sums) float64 {
 }
 
 // TODO not include not confirmed records
-func avgPOWCostPerTransfer(bySeq map[string]sums) float64 {
+func avgPOWCostPerTransfer(bySeq map[string]*sums) float64 {
 	if len(bySeq) == 0 {
 		return 0
 	}
@@ -137,17 +132,13 @@ func avgPOWCostPerTransfer(bySeq map[string]sums) float64 {
 
 func testMetrics() {
 	for {
-		byseq, err := sumUpBySequence(1 * 60 * 60 * 1000)
-		if err != nil {
-			log.Errorf("sumUpBySequence: %v", err)
-		} else {
-			tfph := transfersPerSequence(byseq)
-			avgPOW := avgPOWCostPerTransfer(byseq)
-			log.Infof("tfphGauge = %v  avgPow = %v", tfph, avgPOW)
+		byseq := sumUpBySequences(1 * 60 * 60 * 1000)
+		tfph := transfersPerSequence(byseq)
+		avgPOW := avgPOWCostPerTransfer(byseq)
+		log.Infof("tfphGauge = %v  avgPow = %v", tfph, avgPOW)
 
-			tfphGauge.Set(tfph)
-			avgPOWGauge.Set(avgPOW)
-		}
+		tfphGauge.Set(tfph)
+		avgPOWGauge.Set(avgPOW)
 		time.Sleep(5 * time.Second)
 	}
 }

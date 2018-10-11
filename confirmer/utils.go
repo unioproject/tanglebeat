@@ -1,6 +1,7 @@
 package confirmer
 
 import (
+	"errors"
 	"github.com/lunfardo314/giota"
 	"github.com/lunfardo314/tanglebeat/lib"
 	"strings"
@@ -16,7 +17,7 @@ func (conf *Confirmer) attachToTangle(trunkHash, branchHash giota.Trytes, trytes
 	})
 }
 
-func (conf *Confirmer) promote(tx *giota.Transaction) error {
+func (conf *Confirmer) promote() error {
 	if conf.log != nil {
 		var m string
 		if conf.PromoteChain {
@@ -49,8 +50,12 @@ func (conf *Confirmer) promote(tx *giota.Transaction) error {
 	if err != nil {
 		return err
 	}
+	tail := lib.GetTail(conf.nextBundleToPromote)
+	if tail == nil {
+		return errors.New("can't get tail of the bundle")
+	}
 	conf.totalDurationGTTAMsec += lib.UnixMs(time.Now()) - st
-	trunkTxh := tx.Hash()
+	trunkTxh := tail.Hash()
 	branchTxh := gttaResp.BranchTransaction
 
 	st = lib.UnixMs(time.Now())
@@ -74,7 +79,6 @@ func (conf *Confirmer) promote(tx *giota.Transaction) error {
 	if conf.PromoteChain {
 		conf.nextBundleToPromote = bundle
 	}
-	conf.lastPromoTime = nowis
 	conf.nextPromoTime = nowis.Add(time.Duration(conf.PromoteEverySec) * time.Second)
 	return nil
 }
@@ -102,9 +106,9 @@ func (conf *Confirmer) reattach() error {
 	nowis := time.Now()
 	conf.numAttach += 1
 	conf.lastBundle = attResp.Trytes
-	conf.lastAttachmentTime = nowis
 	conf.nextForceReattachTime = nowis.Add(time.Duration(conf.ForceReattachAfterMin) * time.Minute)
-	conf.nextBundleToPromote = nil
-	conf.isNotPromotable = true
+	conf.nextBundleToPromote = conf.lastBundle
+	conf.nextPromoTime = nowis // start promoting immediately
+	conf.isNotPromotable = false
 	return nil
 }

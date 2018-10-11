@@ -156,7 +156,7 @@ func (seq *Sequence) processAddrWithIndex(index int) {
 		}
 		time.Sleep(5 * time.Second)
 	}
-	// wait for sending to stop. Sending ends upn confirmation. Loop ends with balance == 0 criterium
+	seq.log.Debugf("Waiting for sending routine to end: idx=%v balance == 0 and isSpent", index)
 	wg.Wait()
 	seq.log.Infof("Finished processing: idx=%v balance == 0 and isSpent", index)
 }
@@ -237,12 +237,17 @@ func (seq *Sequence) GetBalanceAddr(addresses []giota.Address) ([]int64, error) 
 	}
 }
 
-func (seq *Sequence) isConfirmed(txHash giota.Trytes) (bool, error) {
-	incl, err := seq.IotaAPI.GetLatestInclusion([]giota.Trytes{txHash})
+func (seq *Sequence) isAnyConfirmed(txHashes []giota.Trytes) (bool, error) {
+	incl, err := seq.IotaAPI.GetLatestInclusion(txHashes)
 	if err != nil {
 		return false, err
 	}
-	return incl[0], nil
+	for _, ok := range incl {
+		if ok {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (seq *Sequence) attachToTangle(trunkHash, branchHash giota.Trytes, trytes []giota.Transaction) (*giota.AttachToTangleResponse, error) {

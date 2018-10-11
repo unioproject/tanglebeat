@@ -51,7 +51,7 @@ type SenderUpdate struct {
 	BundleSize            int  `json:"bsiz"`  // size of the spending bundle in number of tx
 	PromoBundleSize       int  `json:"pbsiz"` // size of the promo bundle in number of tx
 	PromoteEveryNumSec    int  `json:"psec"`
-	ForceReattachAfterSec int  `json:"fre"`
+	ForceReattachAfterMin int  `json:"frm"`
 	PromoteChain          bool `json:"chn"` // promo strategy. false means 'blowball', true mean 'chain'
 }
 
