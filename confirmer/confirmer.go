@@ -4,14 +4,13 @@ import (
 	"errors"
 	"github.com/lunfardo314/giota"
 	"github.com/lunfardo314/tanglebeat/lib"
-	"github.com/lunfardo314/tanglebeat/pubsub"
 	"github.com/op/go-logging"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 )
-
+// TODO get rid dependency from lib
 type UpdateType int
 
 const (
@@ -36,28 +35,36 @@ type Confirmer struct {
 	iotaAPI               *giota.API
 	iotaAPIgTTA           *giota.API
 	iotaAPIaTT            *giota.API
+	log                   *logging.Logger
+	chanUpdate            chan *ConfirmerUpdate
+	mutex                 sync.Mutex         //task state access sync
+	// confirmer task state
 	lastBundle            giota.Bundle
 	nextForceReattachTime time.Time
 	numAttach             int
 	nextPromoTime         time.Time
 	nextBundleToPromote   giota.Bundle
 	numPromote            int
-	//
 	totalDurationATTMsec  int64
 	totalDurationGTTAMsec int64
-	//
-	chanUpdate      chan *ConfirmerUpdate
-	log             *logging.Logger
-	isNotPromotable bool
-	mutex           sync.Mutex //sync between promote and confirm go routines
-
+	isNotPromotable       bool
 }
 
 type ConfirmerUpdate struct {
-	Stats      pubsub.SendingStats
+	NumAttaches           int
+	NumPromotions         int
+	TotalDurationATTMsec  int64
+	TotalDurationGTTAMsec int64
 	UpdateTime time.Time
 	UpdateType UpdateType
 	Err        error
+}
+
+// TODO
+func (conf *Confirmer) debugf(f string, p ...interface{}){
+	if conf.log != nil {
+		conf.log.Debugf(f, p...)
+	}
 }
 
 func (conf *Confirmer) createIotaAPIs() {
@@ -89,8 +96,10 @@ func (conf *Confirmer) createIotaAPIs() {
 		conf.log.Debugf("CONFIRMER: IOTA node for ATT: %v, Timeout: %v sec", conf.IOTANodeATT, conf.TimeoutATT)
 	}
 }
+// TODO new or init confirmer method 
 
 func (conf *Confirmer) Run(bundle giota.Bundle, log *logging.Logger) (chan *ConfirmerUpdate, error) {
+	// TODO check validity of the bundle
 	if len(bundle) == 0 {
 		return nil, errors.New("attempt to run confirmer with empty bundle")
 	}
@@ -142,12 +151,10 @@ func (conf *Confirmer) Run(bundle giota.Bundle, log *logging.Logger) (chan *Conf
 func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, err error) {
 	conf.mutex.Lock()
 	upd := &ConfirmerUpdate{
-		Stats: pubsub.SendingStats{
-			NumAttaches:           conf.numAttach,
-			NumPromotions:         conf.numPromote,
-			TotalDurationATTMsec:  conf.totalDurationATTMsec,
-			TotalDurationGTTAMsec: conf.totalDurationATTMsec,
-		},
+		NumAttaches:           conf.numAttach,
+		NumPromotions:         conf.numPromote,
+		TotalDurationATTMsec:  conf.totalDurationATTMsec,
+		TotalDurationGTTAMsec: conf.totalDurationATTMsec,
 		UpdateTime: time.Now(),
 		UpdateType: updType,
 		Err:        err,
