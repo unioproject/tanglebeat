@@ -141,8 +141,6 @@ func (conf *Confirmer) Run(bundle giota.Bundle, log *logging.Logger) (chan *Conf
 
 func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, err error) {
 	conf.mutex.Lock()
-	defer conf.mutex.Unlock()
-
 	upd := &ConfirmerUpdate{
 		Stats: pubsub.SendingStats{
 			NumAttaches:           conf.numAttach,
@@ -154,6 +152,7 @@ func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, err error) {
 		UpdateType: updType,
 		Err:        err,
 	}
+	conf.mutex.Unlock()
 	conf.chanUpdate <- upd
 }
 
