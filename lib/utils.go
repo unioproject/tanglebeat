@@ -64,8 +64,51 @@ func StringInSlice(a string, list []string) bool {
 	return false
 }
 
+// check consistency of the indices of the set and return error if not consistent
+func CheckBundle(txSet []giota.Transaction) error {
+	if len(txSet) == 0 {
+		return errors.New("Bundle is empty")
+	}
+	filled := make([]bool, len(txSet))
+	lastIndex := txSet[0].LastIndex
+	bundleHash := txSet[0].Bundle
+	if lastIndex+1 != int64(len(txSet)) {
+		return errors.New(fmt.Sprintf("Inconsistent LastIndex %v in the bundle", lastIndex))
+	}
+	for _, tx := range txSet {
+		if tx.LastIndex != lastIndex {
+			return errors.New(fmt.Sprintf("Inconsistent LastIndex %v in the bundle (CurrentIndex=%v)",
+				tx.LastIndex, tx.CurrentIndex))
+		}
+		if tx.Bundle != bundleHash {
+			return errors.New(fmt.Sprintf("Inconsistent BundleHash %v in the bundle (CurrentIndex=%v)",
+				tx.Bundle, tx.CurrentIndex))
+		}
+		if tx.CurrentIndex != tx.LastIndex {
+			if _, inSet := FindTxByHash(tx.TrunkTransaction, txSet); !inSet {
+				return errors.New(fmt.Sprintf("Trunk chain is broken in CurrentIndex %v of the bundle",
+					tx.CurrentIndex))
+			}
+		}
+		if tx.CurrentIndex < 0 || tx.CurrentIndex > lastIndex {
+			return errors.New(fmt.Sprintf("Wrong CurrentIndex %v in the bundle", tx.CurrentIndex))
+		}
+		if filled[tx.CurrentIndex] {
+			return errors.New(fmt.Sprintf("Duplicated CurrentIndex %v in the bundle", tx.CurrentIndex))
+		}
+		filled[tx.CurrentIndex] = true
+	}
+	for _, f := range filled {
+		if !f {
+			return errors.New("Wrong index in the bundle")
+		}
+	}
+	return nil
+}
+
 // check consistency of the indices of the set and return sorted slice.
 // if finds inconsistency, returns same set and error
+//
 func CheckAndSortBundle(txSet []giota.Transaction) ([]giota.Transaction, error) {
 	if len(txSet) == 0 {
 		return nil, nil

@@ -9,7 +9,7 @@ import (
 )
 
 func (conf *Confirmer) attachToTangle(trunkHash, branchHash giota.Trytes, trytes []giota.Transaction) (*giota.AttachToTangleResponse, error) {
-	return conf.iotaAPIaTT.AttachToTangle(&giota.AttachToTangleRequest{
+	return conf.IotaAPIaTT.AttachToTangle(&giota.AttachToTangleRequest{
 		TrunkTransaction:   trunkHash,
 		BranchTransaction:  branchHash,
 		Trytes:             trytes,
@@ -18,14 +18,14 @@ func (conf *Confirmer) attachToTangle(trunkHash, branchHash giota.Trytes, trytes
 }
 
 func (conf *Confirmer) promote() error {
-	if conf.log != nil {
+	if conf.Log != nil {
 		var m string
 		if conf.PromoteChain {
 			m = "chain"
 		} else {
 			m = "blowball"
 		}
-		conf.log.Debugf("CONFIRMER: promoting '%v' every ~%v sec if bundle is consistent. Tag = '%v'",
+		conf.Log.Debugf("CONFIRMER: promoting '%v' every ~%v sec if bundle is consistent. Tag = '%v'",
 			m, conf.PromoteEverySec, conf.TxTagPromote)
 	}
 	transfers := []giota.Transfer{
@@ -35,7 +35,7 @@ func (conf *Confirmer) promote() error {
 		},
 	}
 	bundle, err := giota.PrepareTransfers(
-		conf.iotaAPI,
+		conf.IotaAPI,
 		"",
 		transfers,
 		nil,
@@ -46,7 +46,7 @@ func (conf *Confirmer) promote() error {
 		return err
 	}
 	st := lib.UnixMs(time.Now())
-	gttaResp, err := conf.iotaAPIgTTA.GetTransactionsToApprove(3, 100, giota.Trytes(""))
+	gttaResp, err := conf.IotaAPIgTTA.GetTransactionsToApprove(3, 100, giota.Trytes(""))
 	if err != nil {
 		return err
 	}
@@ -66,11 +66,11 @@ func (conf *Confirmer) promote() error {
 	conf.totalDurationATTMsec += lib.UnixMs(time.Now()) - st
 
 	bundle = attResp.Trytes
-	err = conf.iotaAPI.BroadcastTransactions(bundle)
+	err = conf.IotaAPI.BroadcastTransactions(bundle)
 	if err != nil {
 		return err
 	}
-	err = conf.iotaAPI.StoreTransactions(bundle)
+	err = conf.IotaAPI.StoreTransactions(bundle)
 	if err != nil {
 		return err
 	}
@@ -84,10 +84,10 @@ func (conf *Confirmer) promote() error {
 }
 
 func (conf *Confirmer) reattach() error {
-	if conf.log != nil {
-		conf.log.Debugf("CONFIRMER: reattaching")
+	if conf.Log != nil {
+		conf.Log.Debugf("CONFIRMER: reattaching")
 	}
-	gttaResp, err := conf.iotaAPIgTTA.GetTransactionsToApprove(3, 100, giota.Trytes(""))
+	gttaResp, err := conf.IotaAPIgTTA.GetTransactionsToApprove(3, 100, giota.Trytes(""))
 	if err != nil {
 		return err
 	}
@@ -95,11 +95,11 @@ func (conf *Confirmer) reattach() error {
 	if err != nil {
 		return err
 	}
-	err = conf.iotaAPI.BroadcastTransactions(attResp.Trytes)
+	err = conf.IotaAPI.BroadcastTransactions(attResp.Trytes)
 	if err != nil {
 		return err
 	}
-	err = conf.iotaAPI.StoreTransactions(attResp.Trytes)
+	err = conf.IotaAPI.StoreTransactions(attResp.Trytes)
 	if err != nil {
 		return err
 	}

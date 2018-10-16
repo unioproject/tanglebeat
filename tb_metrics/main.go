@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	readConfig("tanglebeat.yml")
+	readConfig("tb_metrics.yml")
 	log.Infof("Will be receiving transaction data from '%v'", Config.SenderURI)
 	initDB()
 	err := read1hFromDB()

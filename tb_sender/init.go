@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-const PREFIX_MODULE = "traviota"
+const PREFIX_MODULE = "tb_sender"
 
 var (
 	log                  *logging.Logger
@@ -44,6 +44,7 @@ type SenderYAML struct {
 }
 
 type SenderParams struct {
+	externalSource        bool
 	Disabled              bool     `yaml:"disabled"`
 	IOTANode              []string `yaml:"iotaNode"`
 	IOTANodeGTTA          []string `yaml:"iotaNodeTipsel"`
@@ -88,7 +89,20 @@ var Config = ConfigStructYAML{
 	},
 }
 
-var msgBeforeLog = []string{"----- TangleBeat project. Starting Traviota module"}
+var msgBeforeLog = []string{"----- TangleBeat project. Starting 'tb_sender' module"}
+
+func (params *SenderParams) GetUID() string {
+	seedT, err := giota.ToTrytes(params.Seed)
+	if err != nil {
+		panic("can't generate UID")
+	}
+	hash, err := lib.KerlTrytes(seedT)
+	if err != nil {
+		panic("can't generate UID")
+	}
+	ret := string(hash)
+	return ret[len(ret)-UID_LEN:]
+}
 
 func flushMsgBeforeLog() {
 	for _, msg := range msgBeforeLog {
@@ -214,10 +228,10 @@ func createChildLogger(name string, dir string, masterBackend *logging.LeveledBa
 	return logger, nil
 }
 
-func getSeqParams(name string) (SenderParams, error) {
+func getSeqParams(name string) (*SenderParams, error) {
 	stru, ok := Config.Sender.Sequences[name]
 	if !ok {
-		return SenderParams{}, errors.New(fmt.Sprintf("Sequence '%v' doesn't exist\n", name))
+		return &SenderParams{}, errors.New(fmt.Sprintf("Sequence '%v' doesn't exist\n", name))
 	}
 	// doing inheritance
 	ret := stru // a copy
@@ -225,7 +239,7 @@ func getSeqParams(name string) (SenderParams, error) {
 	if len(ret.IOTANode) == 0 {
 		ret.IOTANode = Config.Sender.Globals.IOTANode
 		if len(ret.IOTANode) == 0 {
-			return ret, errors.New(fmt.Sprintf("Default IOTA node is undefined in sequence '%v'\n", name))
+			return &ret, errors.New(fmt.Sprintf("Default IOTA node is undefined in sequence '%v'\n", name))
 		}
 	}
 	if len(ret.IOTANodeGTTA) == 0 {
@@ -247,13 +261,13 @@ func getSeqParams(name string) (SenderParams, error) {
 		ret.TxTagPromote = Config.Sender.Globals.TxTagPromote
 	}
 	if _, err := giota.ToTrytes(ret.Seed); err != nil || len(ret.Seed) != 81 {
-		return ret, errors.New(fmt.Sprintf("Wrong seed in sequence '%v'. Must be exactly 81 long trytes string\n", name))
+		return &ret, errors.New(fmt.Sprintf("Wrong seed in sequence '%v'. Must be exactly 81 long trytes string\n", name))
 	}
 	if _, err := giota.ToTrytes(ret.TxTag); err != nil || len(ret.TxTag) > 27 {
-		return ret, errors.New(fmt.Sprintf("Wrong tx tag in sequence '%v'. Must be no more than 27 long trytes string\n", name))
+		return &ret, errors.New(fmt.Sprintf("Wrong tx tag in sequence '%v'. Must be no more than 27 long trytes string\n", name))
 	}
 	if _, err := giota.ToTrytes(ret.TxTagPromote); err != nil || len(ret.TxTagPromote) > 27 {
-		return ret, errors.New(fmt.Sprintf("Wrong tx tag promote in sequence '%v'. Must be no more than 27 long trytes string\n", name))
+		return &ret, errors.New(fmt.Sprintf("Wrong tx tag promote in sequence '%v'. Must be no more than 27 long trytes string\n", name))
 	}
 	if ret.TimeoutAPI == 0 {
 		ret.TimeoutAPI = Config.Sender.Globals.TimeoutAPI
@@ -272,7 +286,7 @@ func getSeqParams(name string) (SenderParams, error) {
 		ret.PromoteEverySec = Config.Sender.Globals.PromoteEverySec
 	}
 	// other remaining are not inherited or doesn't make sense on sequence level
-	return ret, nil
+	return &ret, nil
 }
 
 func getEnabledSeqNames() []string {

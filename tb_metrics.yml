@@ -17,6 +17,6 @@ logConsoleOnly: false
 logFormat: "%{time:2006-01-02 15:04:05.000} %{level:.4s} [%{module:.6s}|%{shortfunc:.12s}] %{message}"
 # logFormat: "%{time:06-01-02 15:04:05.000} %{level:.4s} [%{module:.6s}] %{message}"
 
-dbFile: tanglebeat.db
+dbFile: tb_metrics.db
 traviotaURI: tcp://localhost:3000
 

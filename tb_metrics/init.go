@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-const PREFIX_MODULE = "tanglebeat"
+const PREFIX_MODULE = "tb_metrics"
 
 var (
 	log            *logging.Logger
@@ -39,8 +39,8 @@ var Config = ConfigStructYAML{
 	SiteDataDir:    ".\\",
 	LogConsoleOnly: true,
 	LogFormat:      "%{time:2006-01-02 15:04:05.000} [%{shortfunc}] %{level:.4s} %{message}",
-	DbFile:         "tanglebeat.db",
-	SenderURI:      "tcp://traviota.iotalt.com:3000",
+	DbFile:         "tb_metrics.db",
+	SenderURI:      "tcp://tb_sender.iotalt.com:3000",
 }
 
 var msgBeforeLog = []string{"----- Starting Tanglebeat module"}

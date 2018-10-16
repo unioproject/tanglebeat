@@ -41,8 +41,8 @@ type SenderUpdate struct {
 	Addr             giota.Address `json:"adr"`
 	SendingStartedTs int64         `json:"str"`  // time when sending started in this session. Not correct after restart
 	UpdateTs         int64         `json:"now"`  // time when the update created. Based on the same clock as sendingStarted
-	NumAttaches      int           `json:"rea"`  // number of out bundles in tha tangle
-	NumPromotions    int           `json:"prom"` // number of promotions in the current session (starts with 0 after restart)
+	NumAttaches      int64         `json:"rea"`  // number of out bundles in tha tangle
+	NumPromotions    int64         `json:"prom"` // number of promotions in the current session (starts with 0 after restart)
 	TotalPoWMsec     int64         `json:"pow"`  // total millisec spent on attachToTangle calls
 	TotalTipselMsec  int64         `json:"gtta"` // total millisec spent on getTransactionsToApproves calls
 	NodeATT          string        `json:"natt"`

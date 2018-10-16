@@ -83,7 +83,7 @@ package main
 //}
 //
 //func (seq *Sequence) readNewTx(addr giota.Address, currentTxHashes []giota.Trytes, filterFlags int) ([]giota.Trytes, []giota.Transaction) {
-//	ftResp, err := seq.IotaAPI.FindTransactions(
+//	ftResp, err := seq.iotaAPI.FindTransactions(
 //		&giota.FindTransactionsRequest{
 //			Addresses: []giota.Address{addr},
 //		},
@@ -102,7 +102,7 @@ package main
 //	if len(newTxh) == 0 {
 //		return currentTxHashes, nil
 //	}
-//	gtResp, err := seq.IotaAPI.GetTrytes(newTxh)
+//	gtResp, err := seq.iotaAPI.GetTrytes(newTxh)
 //	if err != nil {
 //		seq.log.Error(err)
 //		return currentTxHashes, nil
@@ -195,7 +195,7 @@ package main
 //		}
 //	}
 //	// find ALL tx with those bundle hashes
-//	ftResp, err := seq.IotaAPI.FindTransactions(
+//	ftResp, err := seq.iotaAPI.FindTransactions(
 //		&giota.FindTransactionsRequest{
 //			Bundles: bundleHashes,
 //		},
@@ -206,7 +206,7 @@ package main
 //	}
 //	// load tx objects of all transactions
 //	// TODO caching GetTrytes, optimize
-//	gtResp, err := seq.IotaAPI.GetTrytes(ftResp.Hashes)
+//	gtResp, err := seq.iotaAPI.GetTrytes(ftResp.Hashes)
 //	if err != nil {
 //		seq.log.Error(err)
 //		return nil
