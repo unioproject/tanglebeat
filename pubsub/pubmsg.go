@@ -16,12 +16,13 @@ var log *logging.Logger
 type UpdateType string
 
 const (
-	UPD_UNDEF     UpdateType = "undef"
-	UPD_NO_ACTION UpdateType = "no action"
-	UPD_SEND      UpdateType = "send"
-	UPD_REATTACH  UpdateType = "reattach"
-	UPD_PROMOTE   UpdateType = "promote"
-	UPD_CONFIRM   UpdateType = "confirm"
+	UPD_UNDEF          UpdateType = "undef"
+	UPD_NO_ACTION      UpdateType = "no action"
+	UPD_START_SEND     UpdateType = "start_send"
+	UPD_START_CONTINUE UpdateType = "start_continue"
+	UPD_REATTACH       UpdateType = "reattach"
+	UPD_PROMOTE        UpdateType = "promote"
+	UPD_CONFIRM        UpdateType = "confirm"
 )
 
 const SEQUENCE_UID_LEN = 12

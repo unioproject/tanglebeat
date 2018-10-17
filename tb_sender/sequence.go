@@ -3,6 +3,8 @@ package main
 import (
 	"github.com/lunfardo314/giota"
 	"github.com/lunfardo314/tanglebeat/confirmer"
+	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/lunfardo314/tanglebeat/pubsub"
 	"github.com/op/go-logging"
 	"net/http"
 	"path"
@@ -104,6 +106,8 @@ func (seq *Sequence) Run() {
 	var bundleHash giota.Trytes
 
 	for bundleData := range seq.bundleSource {
+		seq.publishStart(bundleData)
+
 		bundleHash = bundleData.bundle.Hash()
 		if chUpdate, err := seq.confirmer.RunConfirm(bundleData.bundle); err != nil {
 			seq.log.Errorf("RunConfirm returned: %v", err)
@@ -124,4 +128,63 @@ func (seq *Sequence) Run() {
 
 		}
 	}
+}
+
+const securityLevel = 2
+
+func (seq *Sequence) publishStart(bundleData *firstBundleData) {
+	var updType pubsub.UpdateType
+	if bundleData.isNew {
+		updType = pubsub.UPD_START_SEND
+	} else {
+		updType = pubsub.UPD_START_CONTINUE
+	}
+	publishUpdate(
+		&pubsub.SenderUpdate{
+			SeqUID:                seq.params.GetUID(),
+			SeqName:               seq.name,
+			UpdType:               updType,
+			Index:                 bundleData.index,
+			Addr:                  bundleData.addr,
+			Bundle:                bundleData.bundle.Hash(),
+			SendingStartedTs:      lib.UnixMs(bundleData.startTime),
+			UpdateTs:              lib.UnixMs(bundleData.startTime),
+			NumAttaches:           bundleData.numAttach,
+			NumPromotions:         0,
+			NodeATT:               seq.params.IOTANodeATT[0],
+			NodeGTTA:              seq.params.IOTANodeGTTA[0],
+			PromoteEveryNumSec:    seq.params.PromoteEverySec,
+			ForceReattachAfterMin: seq.params.ForceReattachAfterMin,
+			PromoteChain:          seq.params.PromoteChain,
+			BundleSize:            securityLevel + 1,
+			PromoBundleSize:       1,
+			TotalPoWMsec:          bundleData.totalDurationATTMsec,
+			TotalTipselMsec:       bundleData.totalDurationGTTAMsec,
+		})
+}
+
+func (seq *Sequence) confirmerUpdateToPub(updConf *confirmer.ConfirmerUpdate,
+	addr giota.Address, index int, bundleHash giota.Trytes, sendingStarted time.Time) {
+	publishUpdate(
+		&pubsub.SenderUpdate{
+			SeqUID:                seq.params.GetUID(),
+			SeqName:               seq.name,
+			UpdType:               confirmerUpdType2Sender(updConf.UpdateType),
+			Index:                 index,
+			Addr:                  addr,
+			Bundle:                bundleHash,
+			SendingStartedTs:      lib.UnixMs(sendingStarted),
+			UpdateTs:              lib.UnixMs(updConf.UpdateTime),
+			NumAttaches:           updConf.NumAttaches,
+			NumPromotions:         updConf.NumPromotions,
+			NodeATT:               seq.params.IOTANodeATT[0],
+			NodeGTTA:              seq.params.IOTANodeGTTA[0],
+			PromoteEveryNumSec:    seq.params.PromoteEverySec,
+			ForceReattachAfterMin: seq.params.ForceReattachAfterMin,
+			PromoteChain:          seq.params.PromoteChain,
+			BundleSize:            securityLevel + 1,
+			PromoBundleSize:       1,
+			TotalPoWMsec:          updConf.TotalDurationATTMsec,
+			TotalTipselMsec:       updConf.TotalDurationGTTAMsec,
+		})
 }

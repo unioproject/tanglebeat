@@ -12,6 +12,7 @@ type firstBundleData struct {
 	addr      giota.Address
 	index     int
 	bundle    giota.Bundle // bundle to confirm
+	isNew     bool         // new bundle created or existing one found
 	startTime time.Time    // 	for new bundle, when bundle attach,
 	// 	for old bundle timestamp of oldest of all tails
 	totalDurationATTMsec  int64 // > 0 if new bundle, ==0 if existing bundle

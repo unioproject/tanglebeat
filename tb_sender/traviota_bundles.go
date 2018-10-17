@@ -93,7 +93,7 @@ func initTraviotaGenerator(params *SenderParams, logger *logging.Logger) (*travi
 	ret.index = lib.Max(idx, params.Index0)
 
 	ret.log.Debugf("Last idx %v have been read from %v", ret.index, fname)
-	ret.log.Infof("Created transfer generator instance with UID = %v", params.GetUID())
+	ret.log.Infof("Created traviota ('traveling iota') transfer generator instance with UID = %v", params.GetUID())
 	return &ret, nil
 }
 
@@ -104,6 +104,7 @@ func (gen *traviotaGenerator) runGenerator() {
 	var balance int64
 	var err error
 	var bundleData *firstBundleData
+	var isNew bool
 
 	addr = ""
 	for {
@@ -156,9 +157,11 @@ func (gen *traviotaGenerator) runGenerator() {
 					time.Sleep(5 * time.Second)
 					continue
 				}
+				isNew = true
 				gen.log.Debugf("Traviota Bundles: Initialized new transfer idx=%v->%v, %v->",
 					gen.index, gen.index+1, addr)
 			} else {
+				isNew = false
 				gen.log.Debugf("Traviota Bundles: Found existing transfer to confirm idx=%v->%v, %v->",
 					gen.index, gen.index+1, addr)
 			}
@@ -170,6 +173,7 @@ func (gen *traviotaGenerator) runGenerator() {
 			// ---------------------- send bundle to confirm
 			bundleData.addr = addr
 			bundleData.index = gen.index
+			bundleData.isNew = isNew
 			gen.chanOut <- bundleData /// here blocks until picked up in the sequence
 			// ---------------------- send bundle to confirm
 
