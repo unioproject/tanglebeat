@@ -39,6 +39,7 @@ func createTables() {
 			seqid char(%d) not null,
 			idx integer not null,
 	        addr char(81) not null unique,
+	        bundle char(81) not null unique,
 			seqname char(40),
 			lastState char(10) not null,
 			started_ts_msec integer,
@@ -69,7 +70,7 @@ func createTables() {
 }
 
 var allColumns = []string{
-	"seqid", "idx", "addr", "seqname", "lastState", "started_ts_msec", "last_update_msec",
+	"seqid", "idx", "addr", "bundle", "seqname", "lastState", "started_ts_msec", "last_update_msec",
 	"num_attaches", "num_promotions", "total_pow_duration_msec", "total_tipsel_duration_msec",
 	"node_att", "node_gtta", "bundle_size", "promo_bundle_size", "promote_every_sec",
 	"force_reattach_every_min", "promote_chain_yn",
@@ -77,6 +78,7 @@ var allColumns = []string{
 
 type transferRecordWOPK struct {
 	addr                       string
+	bundle                     string
 	seqname                    string
 	lastState                  string
 	started_ts_msec            int64
@@ -97,6 +99,7 @@ type transferRecordWOPK struct {
 func transferRecWOPKFromUpdate(upd *pubsub.SenderUpdate) *transferRecordWOPK {
 	return &transferRecordWOPK{
 		addr:                       string(upd.Addr),
+		bundle:                     string(upd.Bundle),
 		seqname:                    upd.SeqName,
 		lastState:                  string(upd.UpdType),
 		started_ts_msec:            upd.SendingStartedTs,
@@ -146,15 +149,36 @@ func runUpdateDb() {
 	}
 }
 
+func adjustRec(pk *pkey, prec *transferRecordWOPK) bool {
+	if cachedRec, inCache := dbCache1h[*pk]; inCache {
+		if cachedRec.lastState == string(pubsub.UPD_CONFIRM) ||
+			prec.lastState == string(pubsub.UPD_START_SEND) ||
+			prec.lastState == string(pubsub.UPD_START_CONTINUE) {
+			return true //skip update, no update needed
+		}
+	} else {
+		if prec.lastState == string(pubsub.UPD_START_CONTINUE) {
+			prec.lastState = string(pubsub.UPD_START_SEND) // if there's no record, assume it is 'send'
+		}
+	}
+	if prec.started_ts_msec > prec.last_update_msec {
+		// correct start and update times if necessary
+		prec.started_ts_msec = prec.last_update_msec
+	}
+	return false
+}
+
 func writeDbAndCache(pk *pkey, prec *transferRecordWOPK) error {
 	dbmutext.Lock()
 	defer dbmutext.Unlock()
-
-	err := writeRecordToDB(pk, prec)
-	if err == nil {
+	doNotUpdate := adjustRec(pk, prec)
+	if !doNotUpdate {
+		if err := writeRecordToDB(pk, prec); err != nil {
+			return err
+		}
 		dbCache1h[*pk] = prec
 	}
-	return err
+	return nil
 }
 
 var sqlSelect1h = "select * from transfers where last_update_msec >= ?"
@@ -173,7 +197,7 @@ func read1hFromDB() error {
 	for rows.Next() {
 		ptr = &transferRecordWOPK{}
 		err = rows.Scan(&pk.seqid, &pk.idx,
-			&ptr.addr, &ptr.seqname, &ptr.lastState, &ptr.started_ts_msec, &ptr.last_update_msec,
+			&ptr.addr, &ptr.bundle, &ptr.seqname, &ptr.lastState, &ptr.started_ts_msec, &ptr.last_update_msec,
 			&ptr.num_attaches, &ptr.num_promotions,
 			&ptr.total_pow_duration_msec, &ptr.total_tipsel_duration_msec,
 			&ptr.node_att, &ptr.node_gtta, &ptr.bundle_size, &ptr.promo_bundle_size, &ptr.promote_every_sec,
@@ -276,7 +300,7 @@ func writeRecordToDB(pk *pkey, pbody *transferRecordWOPK) error {
 		}
 		defer stmt.Close()
 		_, errRet = stmt.Exec(
-			pbody.seqname, pbody.lastState, pbody.last_update_msec,
+			pbody.bundle, pbody.seqname, pbody.lastState, pbody.last_update_msec,
 			pbody.num_attaches, pbody.num_promotions,
 			pbody.total_pow_duration_msec, pbody.total_tipsel_duration_msec,
 			pbody.node_att, pbody.node_gtta, pbody.bundle_size, pbody.promo_bundle_size, pbody.promote_every_sec,
@@ -295,7 +319,7 @@ func writeRecordToDB(pk *pkey, pbody *transferRecordWOPK) error {
 		defer stmt.Close()
 
 		_, errRet = stmt.Exec(
-			pk.seqid, pk.idx, pbody.addr, pbody.seqname, pbody.lastState, pbody.started_ts_msec, pbody.last_update_msec,
+			pk.seqid, pk.idx, pbody.addr, pbody.bundle, pbody.seqname, pbody.lastState, pbody.started_ts_msec, pbody.last_update_msec,
 			pbody.num_attaches, pbody.num_promotions,
 			pbody.total_pow_duration_msec, pbody.total_tipsel_duration_msec,
 			pbody.node_att, pbody.node_gtta, pbody.bundle_size, pbody.promo_bundle_size, pbody.promote_every_sec,
