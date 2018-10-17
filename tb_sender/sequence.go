@@ -101,25 +101,24 @@ func createConfirmer(params *SenderParams, logger *logging.Logger) (*confirmer.C
 
 func (seq *Sequence) Run() {
 	seq.log.Info("Start running sequence")
+	var bundleHash giota.Trytes
 
 	for bundleData := range seq.bundleSource {
+		bundleHash = bundleData.bundle.Hash()
 		if chUpdate, err := seq.confirmer.RunConfirm(bundleData.bundle); err != nil {
 			seq.log.Errorf("RunConfirm returned: %v", err)
 		} else {
 			for updConf := range chUpdate {
 				// summing up with stats collected during findOrCreateBundleToConfirm
 				if updConf.Err != nil {
-					seq.log.Errorf("Received error from confirmer: %v", updConf.Err)
+					seq.log.Errorf("Sequence: confirmer reported an error: %v", updConf.Err)
 				} else {
-					if updConf.Err == nil {
-						updConf.NumAttaches += bundleData.numAttach
-						updConf.TotalDurationATTMsec += bundleData.totalDurationATTMsec
-						updConf.TotalDurationGTTAMsec += bundleData.totalDurationGTTAMsec
+					updConf.NumAttaches += bundleData.numAttach
+					updConf.TotalDurationATTMsec += bundleData.totalDurationATTMsec
+					updConf.TotalDurationGTTAMsec += bundleData.totalDurationGTTAMsec
 
-						seq.confirmerUpdateToPub(updConf, "addr", 0, bundleData.started)
-					} else {
-						log.Errorf("Confirmer reported an error: %v", updConf.Err)
-					}
+					seq.confirmerUpdateToPub(
+						updConf, bundleData.addr, bundleData.index, bundleHash, bundleData.startTime)
 				}
 			}
 

@@ -39,6 +39,7 @@ type SenderUpdate struct {
 	UpdType          UpdateType    `json:"typ"`
 	Index            int           `json:"idx"`
 	Addr             giota.Address `json:"adr"`
+	Bundle           giota.Trytes  `json:"bun"`  // bundle hash
 	SendingStartedTs int64         `json:"str"`  // time when sending started in this session. Not correct after restart
 	UpdateTs         int64         `json:"now"`  // time when the update created. Based on the same clock as sendingStarted
 	NumAttaches      int64         `json:"rea"`  // number of out bundles in tha tangle

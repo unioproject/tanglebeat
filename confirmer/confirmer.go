@@ -66,9 +66,9 @@ func (conf *Confirmer) errorf(f string, p ...interface{}) {
 	}
 }
 
-func (conf *Confirmer) RunConfirm(bundle giota.Bundle) (chan *ConfirmerUpdate, error) {
+func (conf *Confirmer) StartConfirmerTask(bundle giota.Bundle) (chan *ConfirmerUpdate, func(), error) {
 	if err := lib.CheckBundle(bundle); err != nil {
-		return nil, errors.New(fmt.Sprintf("Attempt to run confirmer with wrong bundle: %v", err))
+		return nil, nil, errors.New(fmt.Sprintf("Attempt to run confirmer with wrong bundle: %v", err))
 	}
 	nowis := time.Now()
 	conf.lastBundle = bundle
@@ -78,35 +78,66 @@ func (conf *Confirmer) RunConfirm(bundle giota.Bundle) (chan *ConfirmerUpdate, e
 	conf.isNotPromotable = false
 	conf.chanUpdate = make(chan *ConfirmerUpdate)
 
-	go func() {
-		defer close(conf.chanUpdate)
-		defer conf.debugf("CONFIRMER: confirmer routine ended")
+	cancelPromo := conf.goPromote()
+	cancelReattach := conf.goReattach()
 
-		cancelPromo := conf.goPromote()
-		cancelReattach := conf.goReattach()
+	return conf.chanUpdate, func() {
+		cancelPromo()
+		cancelReattach()
+		close(conf.chanUpdate)
+	}, nil
+
+}
+
+func (conf *Confirmer) RunConfirm(bundle giota.Bundle) (chan *ConfirmerUpdate, error) {
+	chUpd, cancelFun, err := conf.StartConfirmerTask(bundle)
+	if err != nil {
+		return nil, err
+	}
+
+	bundleHash := bundle.Hash()
+	go func() {
+		defer conf.debugf("CONFIRMER: confirmer task ended")
 
 		for {
-			conf.mutex.Lock()
-			tail := lib.GetTail(conf.lastBundle)
-			conf.mutex.Unlock()
+			defer cancelFun()
 
-			if tail == nil {
-				conf.errorf("can't get tail")
+			if confirmed, err := conf.isBundleHashConfirmed(bundleHash); err != nil {
+				conf.errorf("CONFIRMER:isBundleHashConfirmed: %v", err)
+				time.Sleep(5 * time.Second)
+			} else {
+				if confirmed {
+					conf.sendConfirmerUpdate(UPD_CONFIRM, nil)
+					return
+				}
 			}
-			incl, err := conf.IotaAPI.GetLatestInclusion(
-				[]giota.Trytes{tail.Hash()})
-			confirmed := err == nil && incl[0]
-
-			if confirmed {
-				cancelPromo()
-				cancelReattach()
-				conf.sendConfirmerUpdate(UPD_CONFIRM, nil)
-				return
-			}
-			time.Sleep(5 * time.Second)
+			time.Sleep(1 * time.Second)
 		}
 	}()
-	return conf.chanUpdate, nil
+	return chUpd, nil
+}
+
+func (conf *Confirmer) isBundleHashConfirmed(bundleHash giota.Trytes) (bool, error) {
+	for {
+		time.Sleep(2 * time.Second)
+
+		ftResp, err := conf.IotaAPI.FindTransactions(&giota.FindTransactionsRequest{
+			Bundles: []giota.Trytes{bundleHash},
+		})
+		if err != nil {
+			return false, err
+		}
+
+		states, err := conf.IotaAPI.GetLatestInclusion(ftResp.Hashes)
+		if err != nil {
+			return false, err
+		}
+		for _, conf := range states {
+			if conf {
+				return true, nil
+			}
+		}
+	}
 }
 
 func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, err error) {
@@ -164,8 +195,8 @@ func (conf *Confirmer) goPromote() func() {
 	chCancel := make(chan struct{})
 	var wg sync.WaitGroup
 	go func() {
-		conf.debugf("Started promoter routine")
-		defer conf.debugf("Ended promoter routine")
+		conf.debugf("CONFIRMER: started promoter routine")
+		defer conf.debugf("CONFIRMER: ended promoter routine")
 		wg.Add(1)
 		defer wg.Done()
 		var err error
@@ -207,8 +238,8 @@ func (conf *Confirmer) goReattach() func() {
 	chCancel := make(chan struct{})
 	var wg sync.WaitGroup
 	go func() {
-		conf.debugf("Started reattacher routine")
-		defer conf.debugf("Ended reattacher routine")
+		conf.debugf("CONFIRMER: started reattacher routine")
+		defer conf.debugf("CONFIRMER: ended reattacher routine")
 		wg.Add(1)
 		defer wg.Done()
 		var err error

@@ -167,7 +167,11 @@ func (gen *traviotaGenerator) runGenerator() {
 				time.Sleep(5 * time.Second)
 				continue
 			}
+			// ---------------------- send bundle to confirm
+			bundleData.addr = addr
+			bundleData.index = gen.index
 			gen.chanOut <- bundleData /// here blocks until picked up in the sequence
+			// ---------------------- send bundle to confirm
 
 			bhash := bundleData.bundle.Hash()
 			gen.log.Debugf("Traviota Bundles: send bundle to confirmer and wait until bundle hash %v confirmed. idx = %v", bhash, gen.index)
@@ -179,6 +183,7 @@ func (gen *traviotaGenerator) runGenerator() {
 				time.Sleep(5 * time.Second)
 				continue
 			}
+
 			gen.log.Debugf("Traviota Bundles: bundle confirmed. idx = %v", gen.index)
 			err = gen.saveIndex()
 			if err != nil {
@@ -259,7 +264,7 @@ func (gen *traviotaGenerator) sendBalance(fromAddr, toAddr giota.Address, balanc
 	// fromIndex is required to calculate inputs, cant specifiy inputs explicitely to PrepareTransfers
 	ret := &firstBundleData{
 		numAttach: 1,
-		started:   time.Now(),
+		startTime: time.Now(),
 	}
 	transfers := []giota.Transfer{
 		{Address: toAddr,
@@ -421,7 +426,7 @@ func (gen *traviotaGenerator) findBundleToConfirm(addr giota.Address) (*firstBun
 	ret := &firstBundleData{
 		bundle:    bundleTx,
 		numAttach: int64(len(tails)),
-		started:   minTime,
+		startTime: minTime,
 	}
 	return ret, nil
 }

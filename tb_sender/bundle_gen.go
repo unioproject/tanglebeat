@@ -9,11 +9,14 @@ import (
 
 // structure produced by bundle generator
 type firstBundleData struct {
-	bundle                giota.Bundle // bundle to confirm
-	totalDurationATTMsec  int64        // > 0 if new bundle, ==0 if existing bundle
-	totalDurationGTTAMsec int64        // ...
-	numAttach             int64        // number of tails with the same bundle hash
-	started               time.Time    // if new bundle, whe started attach, otherwise		// timestamp of oldest of all tails
+	addr      giota.Address
+	index     int
+	bundle    giota.Bundle // bundle to confirm
+	startTime time.Time    // 	for new bundle, when bundle attach,
+	// 	for old bundle timestamp of oldest of all tails
+	totalDurationATTMsec  int64 // > 0 if new bundle, ==0 if existing bundle
+	totalDurationGTTAMsec int64 // > 0 if new bundle, ==0 if existing bundle
+	numAttach             int64 // number of tails with the same bundle hash at the start
 }
 
 func NewBundleSource(params *SenderParams, logger *logging.Logger) (chan *firstBundleData, error) {

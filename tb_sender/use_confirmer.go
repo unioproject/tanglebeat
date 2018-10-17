@@ -8,13 +8,15 @@ import (
 	"time"
 )
 
-func (seq *Sequence) confirmerUpdateToPub(updConf *confirmer.ConfirmerUpdate, addr giota.Address, index int, sendingStarted time.Time) {
+func (seq *Sequence) confirmerUpdateToPub(updConf *confirmer.ConfirmerUpdate,
+	addr giota.Address, index int, bundleHash giota.Trytes, sendingStarted time.Time) {
 	upd := pubsub.SenderUpdate{
 		SeqUID:                seq.params.GetUID(),
 		SeqName:               seq.name,
 		UpdType:               confirmerUpdType2Sender(updConf.UpdateType),
 		Index:                 index,
 		Addr:                  addr,
+		Bundle:                bundleHash,
 		SendingStartedTs:      lib.UnixMs(sendingStarted),
 		NumAttaches:           updConf.NumAttaches,
 		NumPromotions:         updConf.NumPromotions,
@@ -26,9 +28,9 @@ func (seq *Sequence) confirmerUpdateToPub(updConf *confirmer.ConfirmerUpdate, ad
 		TotalPoWMsec:          updConf.TotalDurationATTMsec,
 		TotalTipselMsec:       updConf.TotalDurationGTTAMsec,
 	}
-	upd.UpdateTs = lib.UnixMs(time.Now())
+	upd.UpdateTs = lib.UnixMs(updConf.UpdateTime)
 	securityLevel := 2
-	upd.BundleSize = securityLevel + 2
+	upd.BundleSize = securityLevel + 1
 	upd.PromoBundleSize = 1
 	publishUpdate(&upd)
 }
