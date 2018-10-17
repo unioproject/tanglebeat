@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/lunfardo314/tanglebeat/pubsub"
 	"github.com/prometheus/client_golang/prometheus"
@@ -46,7 +47,8 @@ func init() {
 }
 func exposeMetrics() {
 	http.Handle("/metrics", promhttp.Handler())
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	addr := fmt.Sprintf(":%d", Config.ListenAndServePort)
+	log.Fatal(http.ListenAndServe(addr, nil))
 }
 
 func refreshMetrics(sec int) {

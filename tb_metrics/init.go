@@ -22,25 +22,27 @@ var (
 )
 
 type ConfigStructYAML struct {
-	SiteDataDir      string
-	LogDir           string `yaml:"logDir"`
-	LogConsoleOnly   bool   `yaml:"logConsoleOnly"`
-	LogFormat        string `yaml:"logFormat"`
-	Debug            bool   `yaml:"debug"`
-	MemStats         bool   `yaml:"memStats"`
-	MemStatsInterval int    `yaml:"memStatsInterval"`
-	DbFile           string `yaml:"dbfile"`
-	SenderURI        string `yaml:"senderURI"`
+	SiteDataDir        string
+	LogDir             string `yaml:"logDir"`
+	LogConsoleOnly     bool   `yaml:"logConsoleOnly"`
+	LogFormat          string `yaml:"logFormat"`
+	Debug              bool   `yaml:"debug"`
+	MemStats           bool   `yaml:"memStats"`
+	MemStatsInterval   int    `yaml:"memStatsInterval"`
+	DbFile             string `yaml:"dbfile"`
+	SenderURI          string `yaml:"senderURI"`
+	ListenAndServePort int    `yaml:"listenAndServePort"`
 }
 
 //  create config structure with default values
 //  other default values are nil values
 var Config = ConfigStructYAML{
-	SiteDataDir:    ".\\",
-	LogConsoleOnly: true,
-	LogFormat:      "%{time:2006-01-02 15:04:05.000} [%{shortfunc}] %{level:.4s} %{message}",
-	DbFile:         "tb_metrics.db",
-	SenderURI:      "tcp://tb_sender.iotalt.com:3000",
+	SiteDataDir:        ".\\",
+	LogConsoleOnly:     true,
+	LogFormat:          "%{time:2006-01-02 15:04:05.000} [%{shortfunc}] %{level:.4s} %{message}",
+	DbFile:             "tb_metrics.db",
+	SenderURI:          "tcp://localhost:3000",
+	ListenAndServePort: 8080,
 }
 
 var msgBeforeLog = []string{"----- Starting Tanglebeat module"}
