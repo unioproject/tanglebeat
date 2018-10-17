@@ -77,6 +77,10 @@ func (conf *Confirmer) StartConfirmerTask(bundle giota.Bundle) (chan *ConfirmerU
 	conf.nextBundleToPromote = bundle
 	conf.isNotPromotable = false
 	conf.chanUpdate = make(chan *ConfirmerUpdate)
+	conf.numAttach = 0
+	conf.numPromote = 0
+	conf.totalDurationGTTAMsec = 0
+	conf.totalDurationATTMsec = 0
 
 	cancelPromo := conf.goPromote()
 	cancelReattach := conf.goReattach()
