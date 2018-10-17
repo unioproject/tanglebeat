@@ -132,6 +132,9 @@ func runUpdateDb() {
 	log.Info("Started listening to data stream from sender")
 	var pk pkey
 	for upd := range chanUpdate {
+		if upd.UpdType == pubsub.UPD_CONFIRM {
+			confirmCounter.Inc()
+		}
 		if upd.UpdateTs >= lib.UnixMs(time.Now())-60*60*1000 {
 			// just in case filter older updates
 			pk.seqid = upd.SeqUID
@@ -145,6 +148,7 @@ func runUpdateDb() {
 				log.Infof("Update '%v' seq = %v(%v), index = %v", upd.UpdType, upd.SeqUID, upd.SeqName, upd.Index)
 			}
 			ensureLast1h()
+
 		}
 	}
 }

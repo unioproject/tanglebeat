@@ -36,6 +36,10 @@ var (
 		Name: "tanglebeat_num_seq_adjusted",
 		Help: "Number of active senders last hour less those with big deviation from average",
 	})
+	confirmCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "tanglebeat_confirm_counter",
+		Help: "Counters of confirmed transfers",
+	})
 )
 
 func init() {
@@ -44,6 +48,7 @@ func init() {
 	prometheus.MustRegister(tfphMetricsAdjusted)
 	prometheus.MustRegister(numberOfSequences1h)
 	prometheus.MustRegister(numberOfSequencesAdjusted1h)
+	prometheus.MustRegister(confirmCounter)
 }
 func exposeMetrics() {
 	http.Handle("/metrics", promhttp.Handler())
@@ -56,7 +61,7 @@ func refreshMetrics(sec int) {
 		dbCacheMutex.Lock()
 		calcMetrics()
 		dbCacheMutex.Unlock()
-		log.Debug("----- set metrics")
+		//log.Debug("----- set metrics")
 		time.Sleep(time.Duration(sec) * time.Second)
 	}
 }
@@ -114,16 +119,16 @@ func calcMetrics() {
 	}
 
 	numberOfSequences1h.Set(metricsNumSequences1h)
-	log.Debugf("num_seq = %v", metricsNumSequences1h)
+	//log.Debugf("num_seq = %v", metricsNumSequences1h)
 
 	numberOfSequencesAdjusted1h.Set(metricsNumSequencesAdjusted1h)
-	log.Debugf("num_seq_adjusted = %v", metricsNumSequencesAdjusted1h)
+	//log.Debugf("num_seq_adjusted = %v", metricsNumSequencesAdjusted1h)
 
 	tfphMetrics.Set(metricsTFpH)
-	log.Debugf("tfph = %v", metricsTFpH)
+	//log.Debugf("tfph = %v", metricsTFpH)
 
 	tfphMetricsAdjusted.Set(metricsTFpHAdjusted)
-	log.Debugf("tfph_adjusted = %v", metricsTFpHAdjusted)
+	//log.Debugf("tfph_adjusted = %v", metricsTFpHAdjusted)
 
 	//metricsNumSequencesAdjusted10min := len(sumsBySeqAdjusted10min)
 	//metricsNumSequencesAdjusted10min := len(sumsBySeqAdjusted10min)
