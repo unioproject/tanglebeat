@@ -14,8 +14,8 @@ import (
 )
 
 var dbconn *sql.DB
-var dbCache1h map[pkey]*transferRecordWOPK
-var dbmutext sync.Mutex
+var dbCache1hConfirmed map[pkey]*transferRecordWOPK
+var dbCacheMutex sync.Mutex
 
 func initDB() {
 	log.Infof("Database file: '%v'", Config.DbFile)
@@ -41,7 +41,7 @@ func createTables() {
 	        addr char(81) not null unique,
 	        bundle char(81) not null unique,
 			seqname char(40),
-			lastState char(10) not null,
+			last_state char(10) not null,
 			started_ts_msec integer,
 			last_update_msec integer,
 			num_attaches integer,
@@ -70,7 +70,7 @@ func createTables() {
 }
 
 var allColumns = []string{
-	"seqid", "idx", "addr", "bundle", "seqname", "lastState", "started_ts_msec", "last_update_msec",
+	"seqid", "idx", "addr", "bundle", "seqname", "last_state", "started_ts_msec", "last_update_msec",
 	"num_attaches", "num_promotions", "total_pow_duration_msec", "total_tipsel_duration_msec",
 	"node_att", "node_gtta", "bundle_size", "promo_bundle_size", "promote_every_sec",
 	"force_reattach_every_min", "promote_chain_yn",
@@ -80,7 +80,7 @@ type transferRecordWOPK struct {
 	addr                       string
 	bundle                     string
 	seqname                    string
-	lastState                  string
+	last_state                 string
 	started_ts_msec            int64
 	last_update_msec           int64
 	num_attaches               int64
@@ -101,7 +101,7 @@ func transferRecWOPKFromUpdate(upd *pubsub.SenderUpdate) *transferRecordWOPK {
 		addr:                       string(upd.Addr),
 		bundle:                     string(upd.Bundle),
 		seqname:                    upd.SeqName,
-		lastState:                  string(upd.UpdType),
+		last_state:                 string(upd.UpdType),
 		started_ts_msec:            upd.SendingStartedTs,
 		last_update_msec:           upd.UpdateTs,
 		num_attaches:               int64(upd.NumAttaches),
@@ -137,7 +137,7 @@ func runUpdateDb() {
 			pk.seqid = upd.SeqUID
 			pk.idx = int64(upd.Index)
 			prec := transferRecWOPKFromUpdate(upd)
-			// TODO deal with started_ts_msec
+
 			err = writeDbAndCache(&pk, prec)
 			if err != nil {
 				log.Errorf("Error from updateRecord: %v", err)
@@ -150,15 +150,15 @@ func runUpdateDb() {
 }
 
 func adjustRec(pk *pkey, prec *transferRecordWOPK) bool {
-	if cachedRec, inCache := dbCache1h[*pk]; inCache {
-		if cachedRec.lastState == string(pubsub.UPD_CONFIRM) ||
-			prec.lastState == string(pubsub.UPD_START_SEND) ||
-			prec.lastState == string(pubsub.UPD_START_CONTINUE) {
+	if cachedRec, inCache := dbCache1hConfirmed[*pk]; inCache {
+		if cachedRec.last_state == string(pubsub.UPD_CONFIRM) ||
+			prec.last_state == string(pubsub.UPD_START_SEND) ||
+			prec.last_state == string(pubsub.UPD_START_CONTINUE) {
 			return true //skip update, no update needed
 		}
 	} else {
-		if prec.lastState == string(pubsub.UPD_START_CONTINUE) {
-			prec.lastState = string(pubsub.UPD_START_SEND) // if there's no record, assume it is 'send'
+		if prec.last_state == string(pubsub.UPD_START_CONTINUE) {
+			prec.last_state = string(pubsub.UPD_START_SEND) // if there's no record, assume it is 'send'
 		}
 	}
 	if prec.started_ts_msec > prec.last_update_msec {
@@ -169,22 +169,25 @@ func adjustRec(pk *pkey, prec *transferRecordWOPK) bool {
 }
 
 func writeDbAndCache(pk *pkey, prec *transferRecordWOPK) error {
-	dbmutext.Lock()
-	defer dbmutext.Unlock()
+	dbCacheMutex.Lock()
+	defer dbCacheMutex.Unlock()
 	doNotUpdate := adjustRec(pk, prec)
 	if !doNotUpdate {
 		if err := writeRecordToDB(pk, prec); err != nil {
 			return err
 		}
-		dbCache1h[*pk] = prec
+		if prec.last_state == string(pubsub.UPD_CONFIRM) {
+			// caching only confirmed
+			dbCache1hConfirmed[*pk] = prec
+		}
 	}
 	return nil
 }
 
-var sqlSelect1h = "select * from transfers where last_update_msec >= ?"
+var sqlSelect1h = "select * from transfers where last_update_msec >= ? and last_state='confirm'"
 
-func read1hFromDB() error {
-	dbCache1h = make(map[pkey]*transferRecordWOPK)
+func read1hConfirmedFromDB() error {
+	dbCache1hConfirmed = make(map[pkey]*transferRecordWOPK)
 	rows, err := dbconn.Query(sqlSelect1h, lib.UnixMs(time.Now())-60*60*1000)
 	if err != nil {
 		return err
@@ -197,7 +200,7 @@ func read1hFromDB() error {
 	for rows.Next() {
 		ptr = &transferRecordWOPK{}
 		err = rows.Scan(&pk.seqid, &pk.idx,
-			&ptr.addr, &ptr.bundle, &ptr.seqname, &ptr.lastState, &ptr.started_ts_msec, &ptr.last_update_msec,
+			&ptr.addr, &ptr.bundle, &ptr.seqname, &ptr.last_state, &ptr.started_ts_msec, &ptr.last_update_msec,
 			&ptr.num_attaches, &ptr.num_promotions,
 			&ptr.total_pow_duration_msec, &ptr.total_tipsel_duration_msec,
 			&ptr.node_att, &ptr.node_gtta, &ptr.bundle_size, &ptr.promo_bundle_size, &ptr.promote_every_sec,
@@ -205,16 +208,16 @@ func read1hFromDB() error {
 		if err != nil {
 			return err
 		}
-		dbCache1h[pk] = ptr
+		dbCache1hConfirmed[pk] = ptr
 	}
 	return nil
 }
 
 func ensureLast1h() {
 	oldest := lib.UnixMs(time.Now()) - 60*60*1000
-	for k, v := range dbCache1h {
+	for k, v := range dbCache1hConfirmed {
 		if v.last_update_msec < oldest {
-			delete(dbCache1h, k)
+			delete(dbCache1hConfirmed, k)
 		}
 	}
 }
@@ -300,7 +303,7 @@ func writeRecordToDB(pk *pkey, pbody *transferRecordWOPK) error {
 		}
 		defer stmt.Close()
 		_, errRet = stmt.Exec(
-			pbody.bundle, pbody.seqname, pbody.lastState, pbody.last_update_msec,
+			pbody.bundle, pbody.seqname, pbody.last_state, pbody.last_update_msec,
 			pbody.num_attaches, pbody.num_promotions,
 			pbody.total_pow_duration_msec, pbody.total_tipsel_duration_msec,
 			pbody.node_att, pbody.node_gtta, pbody.bundle_size, pbody.promo_bundle_size, pbody.promote_every_sec,
@@ -319,7 +322,7 @@ func writeRecordToDB(pk *pkey, pbody *transferRecordWOPK) error {
 		defer stmt.Close()
 
 		_, errRet = stmt.Exec(
-			pk.seqid, pk.idx, pbody.addr, pbody.bundle, pbody.seqname, pbody.lastState, pbody.started_ts_msec, pbody.last_update_msec,
+			pk.seqid, pk.idx, pbody.addr, pbody.bundle, pbody.seqname, pbody.last_state, pbody.started_ts_msec, pbody.last_update_msec,
 			pbody.num_attaches, pbody.num_promotions,
 			pbody.total_pow_duration_msec, pbody.total_tipsel_duration_msec,
 			pbody.node_att, pbody.node_gtta, pbody.bundle_size, pbody.promo_bundle_size, pbody.promote_every_sec,

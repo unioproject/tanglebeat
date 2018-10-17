@@ -9,12 +9,12 @@ func main() {
 	readConfig("tb_metrics.yml")
 	log.Infof("Will be receiving transaction data from '%v'", Config.SenderURI)
 	initDB()
-	err := read1hFromDB()
+	err := read1hConfirmedFromDB()
 	if err != nil {
-		log.Criticalf("read1hFromDB: %v", err)
+		log.Criticalf("read1hConfirmedFromDB: %v", err)
 		os.Exit(1)
 	}
 	go runUpdateDb()
 	go exposeMetrics()
-	testMetrics()
+	refreshMetrics(5)
 }
