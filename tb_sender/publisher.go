@@ -43,7 +43,7 @@ func configPublisherLogging() {
 
 func publishUpdate(upd *pubsub.SenderUpdate) error {
 	if !Config.Publisher.Disabled {
-		logPub.Infof("Publish '%v' for %v(%v), index = %v",
+		logPub.Debugf("Publish '%v' for %v(%v), index = %v",
 			upd.UpdType, upd.SeqUID, upd.SeqName, upd.Index)
 		if err := pubsub.SendUpdate(upd); err != nil {
 			return err
