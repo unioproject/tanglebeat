@@ -220,11 +220,15 @@ func createChildLogger(name string, dir string, masterBackend *logging.LeveledBa
 		logBackend := logging.NewLogBackend(logWriter, "", 0)
 		logBackendFormatter := logging.NewBackendFormatter(logBackend, *formatter)
 		childBackend := logging.AddModuleLevel(logBackendFormatter)
-		childBackend.SetLevel(level, name)
+		childBackend.SetLevel(level, name) // not needed
 		logger = logging.MustGetLogger(name)
-		logger.SetBackend(logging.MultiLogger(*masterBackend, childBackend))
+		mlogger := logging.MultiLogger(*masterBackend, childBackend)
+		mlogger.SetLevel(level, name)
+		logger.SetBackend(mlogger)
 	}
-	logger.Infof("Created child logger '%v' -> %v", name, logFname)
+
+	ln := lib.Iff(level == logging.INFO, "INFO", "DEBUG")
+	logger.Infof("Created child logger '%v' -> %v, level: '%v'", name, logFname, ln)
 	return logger, nil
 }
 
