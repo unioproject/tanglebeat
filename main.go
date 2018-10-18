@@ -18,7 +18,7 @@ func runSender() {
 }
 
 func main() {
-	masterConfig("tb_sender.yml")
+	masterConfig("tanglebeat.yml")
 	if !Config.Publisher.Disabled {
 		log.Infof("Starting publisher")
 		initAndRunPublisher()

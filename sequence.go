@@ -4,7 +4,6 @@ import (
 	"github.com/lunfardo314/giota"
 	"github.com/lunfardo314/tanglebeat/confirmer"
 	"github.com/lunfardo314/tanglebeat/lib"
-	"github.com/lunfardo314/tanglebeat/pubsub"
 	"github.com/op/go-logging"
 	"net/http"
 	"path"
@@ -133,17 +132,17 @@ func (seq *Sequence) Run() {
 const securityLevel = 2
 
 func (seq *Sequence) publishStart(bundleData *firstBundleData) {
-	var updType pubsub.UpdateType
+	var updType SenderUpdateType
 	if bundleData.isNew {
-		updType = pubsub.UPD_START_SEND
+		updType = SENDER_UPD_START_SEND
 	} else {
-		updType = pubsub.UPD_START_CONTINUE
+		updType = SENDER_UPD_START_CONTINUE
 	}
 	seq.log.Infof("Publish '%v' for %v index = %v",
 		updType, seq.params.GetUID(), bundleData.index)
 
 	publishUpdate(
-		&pubsub.SenderUpdate{
+		&SenderUpdate{
 			SeqUID:                seq.params.GetUID(),
 			SeqName:               seq.name,
 			UpdType:               updType,
@@ -173,7 +172,7 @@ func (seq *Sequence) confirmerUpdateToPub(updConf *confirmer.ConfirmerUpdate,
 	seq.log.Infof("Publish '%v' for %v index = %v",
 		updType, seq.params.GetUID(), index)
 	publishUpdate(
-		&pubsub.SenderUpdate{
+		&SenderUpdate{
 			SeqUID:                seq.params.GetUID(),
 			SeqName:               seq.name,
 			UpdType:               updType,

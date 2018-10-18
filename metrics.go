@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/pubsub"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
@@ -24,8 +23,8 @@ func exposeMetrics(port int) {
 	panic(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }
 
-func updateMetrics(upd *pubsub.SenderUpdate) {
-	if upd.UpdType != pubsub.UPD_CONFIRM {
+func updateMetrics(upd *SenderUpdate) {
+	if upd.UpdType != SENDER_UPD_CONFIRM {
 		return
 	}
 	confirmationDurationSecGauge.

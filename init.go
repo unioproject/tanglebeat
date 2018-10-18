@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-const PREFIX_MODULE = "tb_sender"
+const PREFIX_MODULE = "tanglebeat"
 
 var (
 	log                  *logging.Logger
