@@ -8,6 +8,12 @@ import (
 	"net/http"
 )
 
+// TODO restart metrics
+// TODO att and gtta duration metrics
+// pow/min quota metrics
+// TPS/CTPS/con rate metrics
+// milestone metrics
+
 var (
 	confirmationDurationSecGauge *prometheus.GaugeVec
 	confirmationPoWCostGauge     *prometheus.GaugeVec
