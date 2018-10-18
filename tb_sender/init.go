@@ -27,11 +27,12 @@ var (
 
 type ConfigStructYAML struct {
 	SiteDataDir      string
-	Sender           SenderYAML      `yaml:"sender"`
-	Publisher        PublisherParams `yaml:"publisher"`
-	Debug            bool            `yaml:"debug"`
-	MemStats         bool            `yaml:"memStats"`
-	MemStatsInterval int             `yaml:"memStatsInterval"`
+	Sender           SenderYAML           `yaml:"sender"`
+	Publisher        PublisherParams      `yaml:"publisher"`
+	MetricsUpdater   MetricsUpdaterParams `yaml:"metricsUpdater"`
+	Debug            bool                 `yaml:"debug"`
+	MemStats         bool                 `yaml:"memStats"`
+	MemStatsInterval int                  `yaml:"memStatsInterval"`
 }
 
 type SenderYAML struct {
@@ -69,6 +70,11 @@ type PublisherParams struct {
 	OutPort        int    `yaml:"outPort"`
 }
 
+type MetricsUpdaterParams struct {
+	Disabled             bool `yaml:"disabled"`
+	PrometheusTargetPort int  `yaml:"prometheusTargetPort"`
+}
+
 //  create config structure with default values
 //  other default values are nil values
 //	`%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
@@ -86,6 +92,10 @@ var Config = ConfigStructYAML{
 		LogConsoleOnly: true,
 		LogFormat:      "%{time:2006-01-02 15:04:05.000} [%{shortfunc}] %{level:.4s} %{message}",
 		OutPort:        3000,
+	},
+	MetricsUpdater: MetricsUpdaterParams{
+		Disabled:             false,
+		PrometheusTargetPort: 8080,
 	},
 }
 

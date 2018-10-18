@@ -40,6 +40,10 @@ var (
 		Name: "tanglebeat_confirm_counter",
 		Help: "Counters of confirmed transfers",
 	})
+	confTimeGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "tanglebeat_conf_time",
+		Help: "Confirmatio time of the last transfer.",
+	}, []string{"seqid"})
 )
 
 func init() {
@@ -49,6 +53,7 @@ func init() {
 	prometheus.MustRegister(numberOfSequences1h)
 	prometheus.MustRegister(numberOfSequencesAdjusted1h)
 	prometheus.MustRegister(confirmCounter)
+	prometheus.MustRegister(confTimeGauge)
 }
 func exposeMetrics() {
 	http.Handle("/metrics", promhttp.Handler())

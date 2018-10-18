@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/lunfardo314/tanglebeat/confirmer"
+	"github.com/lunfardo314/tanglebeat/metrics"
 	"github.com/lunfardo314/tanglebeat/pubsub"
 	"github.com/op/go-logging"
 	"path"
@@ -42,6 +43,11 @@ func configPublisherLogging() {
 }
 
 func publishUpdate(upd *pubsub.SenderUpdate) error {
+	if !Config.MetricsUpdater.Disabled {
+		logPub.Debugf("Update metrics '%v' for %v(%v), index = %v",
+			upd.UpdType, upd.SeqUID, upd.SeqName, upd.Index)
+		metrics.UpdateMetrics(upd)
+	}
 	if !Config.Publisher.Disabled {
 		logPub.Debugf("Publish '%v' for %v(%v), index = %v",
 			upd.UpdType, upd.SeqUID, upd.SeqName, upd.Index)

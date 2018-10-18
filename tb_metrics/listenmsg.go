@@ -7,6 +7,8 @@ import (
 	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/lunfardo314/tanglebeat/pubsub"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/prometheus/client_golang/prometheus"
+	"math/rand"
 	"path"
 	"strings"
 	"sync"
@@ -123,18 +125,48 @@ type pkey struct {
 	idx   int64
 }
 
+func ttt() (string, float64) {
+	rnd := rand.Float64()
+	switch {
+	case rnd < 0.33:
+		return "k33", float64(180) * rnd
+	case rnd < 0.67:
+		return "k67", float64(180) * rnd
+	default:
+		return "k1", float64(180) * rnd
+	}
+}
+
 func runUpdateDb() {
 	chanUpdate, err := pubsub.OpenSenderUpdateChan(Config.SenderURI, log)
 	if err != nil {
 		log.Criticalf("can't get new sub socket: %v", err)
 	}
 
+	go func() {
+		for {
+			l, v := ttt()
+			confTimeGauge.With(prometheus.Labels{"seqid": l}).Set(v)
+			rnd := rand.Float64()
+			switch {
+			case rnd < 0.33:
+				time.Sleep(15 * time.Second)
+			case rnd < 0.67:
+				time.Sleep(30 * time.Second)
+			default:
+				time.Sleep(45 * time.Second)
+			}
+		}
+	}()
+
 	log.Info("Started listening to data stream from sender")
 	var pk pkey
 	for upd := range chanUpdate {
 		if upd.UpdType == pubsub.UPD_CONFIRM {
 			confirmCounter.Inc()
+			confTimeGauge.With(prometheus.Labels{"seqid": upd.SeqUID}).Set(float64(upd.UpdateTs-upd.SendingStartedTs) / 1000)
 		}
+
 		if upd.UpdateTs >= lib.UnixMs(time.Now())-60*60*1000 {
 			// just in case filter older updates
 			pk.seqid = upd.SeqUID
