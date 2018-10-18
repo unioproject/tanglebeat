@@ -1,4 +1,4 @@
-package metrics
+package main
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ func exposeMetrics(port int) {
 	panic(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }
 
-func UpdateMetrics(upd *pubsub.SenderUpdate) {
+func updateMetrics(upd *pubsub.SenderUpdate) {
 	if upd.UpdType != pubsub.UPD_CONFIRM {
 		return
 	}
@@ -30,7 +30,7 @@ func UpdateMetrics(upd *pubsub.SenderUpdate) {
 		With(prometheus.Labels{"seqid": upd.SeqUID}).Set(powCost)
 }
 
-func InitAndRunMetricsUpdater(port int) {
+func initAndRunMetricsUpdater(port int) {
 	confirmationDurationSecGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "tanglebeat_confirmation_duration_sec",
 		Help: "Confirmation duration of the transfer.",

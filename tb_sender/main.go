@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/lunfardo314/tanglebeat/metrics"
 	"os"
 	"time"
 )
@@ -26,7 +25,7 @@ func main() {
 	}
 	if !Config.MetricsUpdater.Disabled {
 		log.Infof("Starting Prometheus metrics updater")
-		metrics.InitAndRunMetricsUpdater(Config.MetricsUpdater.PrometheusTargetPort)
+		initAndRunMetricsUpdater(Config.MetricsUpdater.PrometheusTargetPort)
 	}
 	if !Config.Sender.Disabled {
 		log.Infof("Starting sender. Enabled sequences: %v", getEnabledSeqNames())
