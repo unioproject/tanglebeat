@@ -23,7 +23,7 @@ var (
 func exposeMetrics(port int) {
 	http.Handle("/metrics", promhttp.Handler())
 	listenAndServeOn := fmt.Sprintf(":%d", port)
-	log.Infof("Exposing Prometheus metrics on ", listenAndServeOn)
+	log.Infof("Exposing Prometheus metrics on %v", listenAndServeOn)
 	panic(http.ListenAndServe(listenAndServeOn, nil))
 }
 
