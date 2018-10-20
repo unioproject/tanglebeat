@@ -85,7 +85,10 @@ func (conf *Confirmer) StartConfirmerTask(bundle giota.Bundle) (chan *ConfirmerU
 	cancelPromo := conf.goPromote()
 	cancelReattach := conf.goReattach()
 
+	h := bundle.Hash()
+
 	return conf.chanUpdate, func() {
+		conf.Log.Debugf("CONFIRMER: canceling confirmer task for %v", h)
 		cancelPromo()
 		cancelReattach()
 		close(conf.chanUpdate)
@@ -102,10 +105,9 @@ func (conf *Confirmer) RunConfirm(bundle giota.Bundle) (chan *ConfirmerUpdate, e
 	bundleHash := bundle.Hash()
 	go func() {
 		defer conf.debugf("CONFIRMER: confirmer task ended")
+		defer cancelFun()
 
 		for {
-			defer cancelFun()
-
 			if confirmed, err := conf.isBundleHashConfirmed(bundleHash); err != nil {
 				conf.errorf("CONFIRMER:isBundleHashConfirmed: %v", err)
 				time.Sleep(5 * time.Second)
@@ -197,12 +199,16 @@ func (conf *Confirmer) checkIfToPromote() (bool, error) {
 
 func (conf *Confirmer) goPromote() func() {
 	chCancel := make(chan struct{})
+	h := conf.lastBundle.Hash()
+
 	var wg sync.WaitGroup
 	go func() {
-		conf.debugf("CONFIRMER: started promoter routine")
-		defer conf.debugf("CONFIRMER: ended promoter routine")
+		conf.debugf("CONFIRMER: started promoter routine for bundle hash%v", h)
+		defer conf.debugf("CONFIRMER: ended promoter routine for bundle hash %v", h)
+
 		wg.Add(1)
 		defer wg.Done()
+
 		var err error
 		var toPromote bool
 		for {
@@ -220,7 +226,7 @@ func (conf *Confirmer) goPromote() func() {
 				}
 			}
 			if err != nil {
-				conf.errorf("promotion routine: %v", err)
+				conf.errorf("CONFIRMER: promotion routine: %v", err)
 			}
 			if err != nil {
 				time.Sleep(5 * time.Second)
@@ -240,12 +246,16 @@ func (conf *Confirmer) goPromote() func() {
 
 func (conf *Confirmer) goReattach() func() {
 	chCancel := make(chan struct{})
+	h := conf.lastBundle.Hash()
+
 	var wg sync.WaitGroup
 	go func() {
-		conf.debugf("CONFIRMER: started reattacher routine")
-		defer conf.debugf("CONFIRMER: ended reattacher routine")
+		conf.debugf("CONFIRMER: started reattacher routine for bundle hash %v", h)
+		defer conf.debugf("CONFIRMER: ended reattacher routine bundle hash %v", h)
+
 		wg.Add(1)
 		defer wg.Done()
+
 		var err error
 		var sendUpdate bool
 		for {
