@@ -137,7 +137,7 @@ func (gen *traviotaGenerator) runGenerator() {
 		case balance == 0 && !spent:
 			// nogo
 			// loops until balance != 0
-			gen.log.Infof("Traviota Bundles: index = %v. Balance == 0 and !spent. Sleep 2 sec", gen.index)
+			gen.log.Infof("Traviota Bundles: index = %v, balance == 0, not spent. Wait 2 sec for balance to become non zero", gen.index)
 			time.Sleep(2 * time.Second)
 
 		case balance != 0:
