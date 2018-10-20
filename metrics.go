@@ -39,12 +39,12 @@ func initAndRunMetricsUpdater(port int) {
 	confirmationPoWDurationMsecGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "tanglebeat_pow_duration_msec",
 		Help: "Total duration it took to do PoW for confirmation.",
-	}, []string{"node_pow"})
+	}, []string{"seqid", "node_pow"})
 
 	confirmationTipselDurationMsecGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "tanglebeat_tipsel_duration_msec",
 		Help: "Total duration it took to do tip selection for confirmation.",
-	}, []string{"node_tipsel"})
+	}, []string{"seqid", "node_tipsel"})
 
 	prometheus.MustRegister(confirmationDurationSecGauge)
 	prometheus.MustRegister(confirmationPoWCostGauge)
@@ -66,8 +66,14 @@ func updateMetrics(upd *SenderUpdate) {
 		With(prometheus.Labels{"seqid": upd.SeqUID}).Set(powCost)
 
 	confirmationPoWDurationMsecGauge.
-		With(prometheus.Labels{"node_pow": upd.NodeATT}).Set(float64(upd.TotalPoWMsec))
+		With(prometheus.Labels{
+			"seqid":    upd.SeqUID,
+			"node_pow": upd.NodeATT,
+		}).Set(float64(upd.TotalPoWMsec))
 
 	confirmationTipselDurationMsecGauge.
-		With(prometheus.Labels{"node_tipsel": upd.NodeGTTA}).Set(float64(upd.TotalTipselMsec))
+		With(prometheus.Labels{
+			"seqid":       upd.SeqUID,
+			"node_tipsel": upd.NodeGTTA,
+		}).Set(float64(upd.TotalTipselMsec))
 }

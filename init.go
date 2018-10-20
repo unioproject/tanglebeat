@@ -245,7 +245,7 @@ func createChildLogger(name string, dir string, masterBackend *logging.LeveledBa
 func getSeqParams(name string) (*SenderParams, error) {
 	stru, ok := Config.Sender.Sequences[name]
 	if !ok {
-		return &SenderParams{}, errors.New(fmt.Sprintf("Sequence '%v' doesn't exist\n", name))
+		return &SenderParams{}, errors.New(fmt.Sprintf("Sequence '%v' doesn't exist in config file\n", name))
 	}
 	// doing inheritance
 	ret := stru // a copy

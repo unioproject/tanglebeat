@@ -81,13 +81,11 @@ func initTraviotaGenerator(params *SenderParams, logger *logging.Logger) (*travi
 	}
 	// load index0
 	fname := ret.getLastIndexFname()
-	b, err := ioutil.ReadFile(fname)
+	var idx int
+	b, _ := ioutil.ReadFile(fname)
+	idx, err = strconv.Atoi(string(b))
 	if err != nil {
-		return nil, err
-	}
-	idx, err := strconv.Atoi(string(b))
-	if err != nil {
-		return nil, err
+		idx = 0
 	}
 
 	ret.index = lib.Max(idx, params.Index0)
