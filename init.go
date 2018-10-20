@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"path/filepath"
 	"runtime"
 	"time"
 )
@@ -99,7 +98,7 @@ var Config = ConfigStructYAML{
 	},
 }
 
-var msgBeforeLog = []string{"----- TangleBeat project. Starting 'tb_sender' module"}
+var msgBeforeLog = []string{"----- Starting TangleBeat "}
 
 func (params *SenderParams) GetUID() string {
 	seedT, err := giota.ToTrytes(params.Seed)
@@ -125,7 +124,8 @@ func flushMsgBeforeLog() {
 }
 
 func masterConfig(configFilename string) {
-	currentDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	currentDir, err := os.Getwd()
+	// currentDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
 		panic(fmt.Sprintf("Can't get current current dir. Error: %v", err))
 	}
