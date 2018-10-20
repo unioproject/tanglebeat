@@ -27,7 +27,7 @@ var (
 type ConfigStructYAML struct {
 	SiteDataDir      string
 	Sender           SenderYAML           `yaml:"sender"`
-	Publisher        PublisherParams      `yaml:"publisher"`
+	Publisher        PublisherYAML        `yaml:"publisher"`
 	MetricsUpdater   MetricsUpdaterParams `yaml:"metricsUpdater"`
 	Debug            bool                 `yaml:"debug"`
 	MemStats         bool                 `yaml:"memStats"`
@@ -61,12 +61,19 @@ type SenderParams struct {
 	PromoteEverySec       int      `yaml:"promoteEverySec"`
 }
 
-type PublisherParams struct {
-	Disabled       bool   `yaml:"disabled"`
-	LogDir         string `yaml:"logDir"`
-	LogConsoleOnly bool   `yaml:"logConsoleOnly"`
-	LogFormat      string `yaml:"logFormat"`
-	OutPort        int    `yaml:"outPort"`
+type PublisherYAML struct {
+	Disabled        bool                       `yaml:"disabled"`
+	LogDir          string                     `yaml:"logDir"`
+	LogConsoleOnly  bool                       `yaml:"logConsoleOnly"`
+	LogFormat       string                     `yaml:"logFormat"`
+	OutPort         int                        `yaml:"outPort"`
+	LocalDisabled   bool                       `yaml:"localDisabled"`
+	ExternalSources map[string]PublisherSource `yaml:"externalSources"`
+}
+
+type PublisherSource struct {
+	Disabled bool   `yaml:"disabled"`
+	Target   string `yaml:"target"`
 }
 
 type MetricsUpdaterParams struct {
@@ -87,7 +94,7 @@ var Config = ConfigStructYAML{
 			IOTANode: []string{"https://field.deviota.com:443"},
 		},
 	},
-	Publisher: PublisherParams{
+	Publisher: PublisherYAML{
 		LogConsoleOnly: true,
 		LogFormat:      "%{time:2006-01-02 15:04:05.000} [%{shortfunc}] %{level:.4s} %{message}",
 		OutPort:        3000,
