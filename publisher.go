@@ -90,8 +90,8 @@ func configPublisherLogging() {
 
 func publishUpdate(upd *SenderUpdate) error {
 	if !Config.MetricsUpdater.Disabled {
-		logPub.Debugf("Update metrics '%v' for %v(%v), index = %v",
-			upd.UpdType, upd.SeqUID, upd.SeqName, upd.Index)
+		logPub.Debugf("Update metrics for %v(%v), index = %v",
+			upd.SeqUID, upd.SeqName, upd.Index)
 		updateMetrics(upd)
 	}
 	if !Config.Publisher.Disabled {
