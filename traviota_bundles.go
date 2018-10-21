@@ -179,12 +179,8 @@ func (gen *traviotaGenerator) runGenerator() {
 			gen.log.Debugf("Traviota Bundles: send bundle to confirmer and wait until bundle hash %v confirmed. idx = %v", bhash, gen.index)
 
 			// wait until any transaction with the bundle hash becomes confirmed
-			err = gen.waitUntilBundleConfirmed(bhash)
-			if err != nil {
-				gen.log.Errorf("Traviota Bundles: waitUntilBundleConfirmed: %v", err)
-				time.Sleep(5 * time.Second)
-				continue
-			}
+			// blocks even in case of errors
+			gen.waitUntilBundleConfirmed(bhash)
 
 			gen.log.Debugf("Traviota Bundles: bundle confirmed. idx = %v", gen.index)
 			err = gen.saveIndex()
@@ -201,24 +197,37 @@ func (gen *traviotaGenerator) runGenerator() {
 	}
 }
 
-func (gen *traviotaGenerator) waitUntilBundleConfirmed(bundleHash giota.Trytes) error {
-	for {
-		time.Sleep(2 * time.Second)
+func (gen *traviotaGenerator) waitUntilBundleConfirmed(bundleHash giota.Trytes) {
+	gen.log.Debugf("waitUntilBundleConfirmed: start waiting for the bundle to be confirmed")
 
+	startWaiting := time.Now()
+	count := 0
+	var sinceWaiting time.Duration
+
+	for confirmed := false; !confirmed; count++ {
+		time.Sleep(2 * time.Second)
+		sinceWaiting = time.Since(startWaiting)
+		if count%5 == 0 {
+			gen.log.Debugf("waitUntilBundleConfirmed: time since waiting: %v", sinceWaiting)
+		}
 		ftResp, err := gen.iotaAPI.FindTransactions(&giota.FindTransactionsRequest{
 			Bundles: []giota.Trytes{bundleHash},
 		})
 		if err != nil {
-			return err
+			gen.log.Errorf("waitUntilBundleConfirmed: FindTransactions returned: %v. Time since waiting: %v",
+				err, sinceWaiting)
+			continue
 		}
 
 		states, err := gen.iotaAPI.GetLatestInclusion(ftResp.Hashes)
 		if err != nil {
-			return err
+			gen.log.Errorf("waitUntilBundleConfirmed: GetLatestInclusion returned: %v. Time since waiting: %v",
+				err, sinceWaiting)
+			continue
 		}
 		for _, conf := range states {
 			if conf {
-				return nil
+				confirmed = true
 			}
 		}
 	}
