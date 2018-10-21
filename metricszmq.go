@@ -88,7 +88,7 @@ func startReadingIRIZmq(uri string) error {
 			}
 			if time.Now().After(nexUpdate) {
 				zmqMetricsTxcountGauge.Set(float64(txcount))
-				zmqMetricsTxcountGauge.Set(float64(ctxcount))
+				zmqMetricsCtxcountGauge.Set(float64(ctxcount))
 				nexUpdate = nexUpdate.Add(1 * time.Minute)
 				log.Debugf("ZMQ metrics updater: in 1 min: tx = %v ctx = %v", txcount, ctxcount)
 				txcount = 0
