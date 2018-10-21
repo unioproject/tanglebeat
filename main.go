@@ -24,8 +24,12 @@ func main() {
 		initAndRunPublisher()
 	}
 	if !Config.MetricsUpdater.Disabled {
-		log.Infof("Starting Prometheus metrics updater")
-		initAndRunMetricsUpdater(Config.MetricsUpdater.PrometheusTargetPort)
+		log.Infof("Starting metrics updater")
+		initAndRunMetricsUpdater()
+	}
+	if !Config.MetricsUpdater.Disabled && !Config.MetricsUpdater.ZMQMetricsDisabled {
+		log.Infof("Starting ZMQ metrics updater")
+		initMetricsZMQ()
 	}
 	if !Config.Sender.Disabled {
 		log.Infof("Starting sender. Enabled sequences: %v", getEnabledSeqNames())

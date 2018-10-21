@@ -27,7 +27,7 @@ func exposeMetrics(port int) {
 	panic(http.ListenAndServe(listenAndServeOn, nil))
 }
 
-func initAndRunMetricsUpdater(port int) {
+func initAndRunMetricsUpdater() {
 	confirmationDurationSecGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "tanglebeat_confirmation_duration_sec",
 		Help: "Confirmation duration of the transfer.",
@@ -53,7 +53,7 @@ func initAndRunMetricsUpdater(port int) {
 	prometheus.MustRegister(confirmationPoWDurationMsecGauge)
 	prometheus.MustRegister(confirmationTipselDurationMsecGauge)
 
-	go exposeMetrics(port)
+	go exposeMetrics(Config.MetricsUpdater.PrometheusTargetPort)
 }
 
 func updateMetrics(upd *SenderUpdate) {

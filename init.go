@@ -77,8 +77,10 @@ type PublisherSource struct {
 }
 
 type MetricsUpdaterParams struct {
-	Disabled             bool `yaml:"disabled"`
-	PrometheusTargetPort int  `yaml:"prometheusTargetPort"`
+	Disabled             bool   `yaml:"disabled"`
+	PrometheusTargetPort int    `yaml:"prometheusTargetPort"`
+	ZMQMetricsDisabled   bool   `yaml:"zmqMetricsDisabled"`
+	ZMQUri               string `yaml:"zmqUri"`
 }
 
 //  create config structure with default values
