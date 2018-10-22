@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"github.com/lunfardo314/giota"
 	"github.com/lunfardo314/tanglebeat/confirmer"
-	"github.com/op/go-logging"
 	"nanomsg.org/go-mangos"
 	"nanomsg.org/go-mangos/protocol/pub"
 	"nanomsg.org/go-mangos/transport/tcp"
-	"path"
 )
 
 // TODO routing
@@ -67,27 +65,29 @@ type SenderUpdateType string
 var chanDataToPub chan []byte
 
 func configPublisherLogging() {
-	if Config.Publisher.LogConsoleOnly {
-		logPub = log
-		return
-	}
-	var err error
-	var level logging.Level
-	if Config.Debug {
-		level = logging.DEBUG
-	} else {
-		level = logging.INFO
-	}
-	formatter := logging.MustStringFormatter(Config.Publisher.LogFormat)
-	logPub, err = createChildLogger(
-		"publisher",
-		path.Join(Config.SiteDataDir, Config.Sender.LogDir),
-		&masterLoggingBackend,
-		&formatter,
-		level)
-	if err != nil {
-		log.Panicf("Can't create publisher log")
-	}
+	// temporary solution for publisher logging TODO
+	logPub = log
+	//if Config.Publisher.LogConsoleOnly {
+	//	logPub = log
+	//	return
+	//}
+	//var err error
+	//var level logging.Level
+	//if Config.Debug {
+	//	level = logging.DEBUG
+	//} else {
+	//	level = logging.INFO
+	//}
+	//formatter := logging.MustStringFormatter(Config.Publisher.LogFormat)
+	//logPub, err = createChildLogger(
+	//	"publisher",
+	//	path.Join(Config.SiteDataDir, Config.Sender.LogDir),
+	//	&masterLoggingBackend,
+	//	&formatter,
+	//	level)
+	//if err != nil {
+	//	log.Panicf("Can't create publisher log")
+	//}
 }
 
 func publishUpdate(upd *SenderUpdate) error {
@@ -107,7 +107,6 @@ func publishUpdate(upd *SenderUpdate) error {
 }
 
 func initAndRunPublisher() {
-	configPublisherLogging()
 	err := runPublisher(Config.Publisher.OutPort)
 	if err != nil {
 		logPub.Errorf("Failed to create publishing channel. Publisher is disabled: %v", err)

@@ -167,6 +167,7 @@ func masterConfig(configFilename string) {
 	configMasterLogging()
 	flushMsgBeforeLog()
 	configDebugging()
+	configPublisherLogging()
 }
 
 func configDebugging() {
