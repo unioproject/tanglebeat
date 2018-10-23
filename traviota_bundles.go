@@ -15,9 +15,7 @@ import (
 )
 
 // generates sequence of transfers of full balance from address idx N to idx+1
-// next bundle os generated upon current becoming zero balance
-
-// 'tb_sender' stands for TRAveling IOTA
+// next bundle os generated upon current becoming confirmed
 // it is sequence of transfers along addresses with 0,1,2,3 ..indices of the same seed
 
 type traviotaGenerator struct {
