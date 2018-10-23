@@ -64,42 +64,16 @@ type SenderUpdateType string
 
 var chanDataToPub chan []byte
 
-func configPublisherLogging() {
-	// temporary solution for publisher logging TODO
-	logPub = log
-	//if Config.Publisher.LogConsoleOnly {
-	//	logPub = log
-	//	return
-	//}
-	//var err error
-	//var level logging.Level
-	//if Config.Debug {
-	//	level = logging.DEBUG
-	//} else {
-	//	level = logging.INFO
-	//}
-	//formatter := logging.MustStringFormatter(Config.Publisher.LogFormat)
-	//logPub, err = createChildLogger(
-	//	"publisher",
-	//	path.Join(Config.SiteDataDir, Config.Sender.LogDir),
-	//	&masterLoggingBackend,
-	//	&formatter,
-	//	level)
-	//if err != nil {
-	//	log.Panicf("Can't create publisher log")
-	//}
-}
-
-func publishUpdate(upd *SenderUpdate) error {
-	if !Config.MetricsUpdater.Disabled {
-		logPub.Debugf("Update metrics for %v(%v), index = %v",
+func processUpdate(upd *SenderUpdate) error {
+	if Config.Sender.MetricsEnabled && Config.Prometheus.Enabled {
+		log.Debugf("Update metrics for %v(%v), index = %v",
 			upd.SeqUID, upd.SeqName, upd.Index)
-		updateMetrics(upd)
+		updateSenderMetrics(upd)
 	}
-	if !Config.Publisher.Disabled {
-		logPub.Debugf("Publish '%v' for %v(%v), index = %v",
+	if Config.Publisher.Enabled {
+		log.Debugf("Publish '%v' for %v(%v), index = %v",
 			upd.UpdType, upd.SeqUID, upd.SeqName, upd.Index)
-		if err := sendUpdate(upd); err != nil {
+		if err := publishUpdate(upd); err != nil {
 			return err
 		}
 	}
@@ -109,8 +83,8 @@ func publishUpdate(upd *SenderUpdate) error {
 func initAndRunPublisher() {
 	err := runPublisher(Config.Publisher.OutPort)
 	if err != nil {
-		logPub.Errorf("Failed to create publishing channel. Publisher is disabled: %v", err)
-		Config.Publisher.Disabled = true
+		log.Errorf("Failed to create publishing channel. Publisher is disabled: %v", err)
+		Config.Publisher.Enabled = false
 		return
 	}
 }
@@ -146,7 +120,7 @@ func publishData(data []byte) {
 	chanDataToPub <- data
 }
 
-func sendUpdate(upd *SenderUpdate) error {
+func publishUpdate(upd *SenderUpdate) error {
 	data, err := json.Marshal(upd)
 	if err != nil {
 		return err

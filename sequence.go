@@ -6,13 +6,12 @@ import (
 	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/op/go-logging"
 	"net/http"
-	"path"
 	"time"
 )
 
 type Sequence struct {
 	name         string
-	params       *SenderParams
+	params       *senderParamsYAML
 	bundleSource chan *firstBundleData
 	confirmer    *confirmer.Confirmer
 	log          *logging.Logger
@@ -24,23 +23,14 @@ func NewSequence(name string) (*Sequence, error) {
 		return nil, err
 	}
 	var logger *logging.Logger
-	if Config.Sender.LogConsoleOnly {
+	if Config.Logging.LogConsoleOnly || !Config.Logging.LogSequencesSeparately {
 		logger = log
 		log.Infof("Separate logger for the sequence won't be created")
 	} else {
-		var level logging.Level
-		if Config.Debug {
-			level = logging.DEBUG
-		} else {
-			level = logging.INFO
-		}
-		formatter := logging.MustStringFormatter(Config.Publisher.LogFormat)
 		logger, err = createChildLogger(
 			name,
-			path.Join(Config.SiteDataDir, Config.Sender.LogDir),
-			&masterLoggingBackend,
-			&formatter,
-			level)
+			Config.Logging.WorkingSubdir,
+			&masterLoggingBackend)
 		if err != nil {
 			return nil, err
 		}
@@ -64,7 +54,7 @@ func NewSequence(name string) (*Sequence, error) {
 	return &ret, nil
 }
 
-func createConfirmer(params *SenderParams, logger *logging.Logger) (*confirmer.Confirmer, error) {
+func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirmer.Confirmer, error) {
 	iotaAPI := giota.NewAPI(
 		params.IOTANode[0],
 		&http.Client{
@@ -141,7 +131,7 @@ func (seq *Sequence) publishStart(bundleData *firstBundleData) {
 	seq.log.Infof("Publish '%v' for %v index = %v",
 		updType, seq.params.GetUID(), bundleData.index)
 
-	publishUpdate(
+	processUpdate(
 		&SenderUpdate{
 			SeqUID:                seq.params.GetUID(),
 			SeqName:               seq.name,
@@ -171,7 +161,7 @@ func (seq *Sequence) confirmerUpdateToPub(updConf *confirmer.ConfirmerUpdate,
 	updType := confirmerUpdType2Sender(updConf.UpdateType)
 	seq.log.Infof("Publish '%v' for %v index = %v",
 		updType, seq.params.GetUID(), index)
-	publishUpdate(
+	processUpdate(
 		&SenderUpdate{
 			SeqUID:                seq.params.GetUID(),
 			SeqName:               seq.name,

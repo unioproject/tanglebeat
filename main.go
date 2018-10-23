@@ -5,36 +5,49 @@ import (
 	"time"
 )
 
-func runSender() {
+func runSender() int {
+	var ret int
 	for _, name := range getEnabledSeqNames() {
 		if seq, err := NewSequence(name); err == nil {
 			go seq.Run()
+			ret += 1
 		} else {
 			log.Error(err)
 			log.Info("Ciao")
 			os.Exit(1)
 		}
 	}
+	return ret
 }
 
 func main() {
 	masterConfig("tanglebeat.yml")
-	if !Config.Publisher.Disabled {
+	var en bool
+	if Config.Publisher.Enabled {
 		log.Infof("Starting publisher")
 		initAndRunPublisher()
+		en = true
 	}
-	if !Config.MetricsUpdater.Disabled {
-		log.Infof("Starting metrics updater")
-		initAndRunMetricsUpdater()
+	if Config.Prometheus.Enabled {
+		log.Infof("Exposing metrics to Prometheus")
+		initExposeToPometheus()
+		en = true
 	}
-	if !Config.MetricsUpdater.Disabled && !Config.MetricsUpdater.ZMQMetricsDisabled {
+	if Config.ZmqMetrics.Enabled && Config.Prometheus.Enabled {
 		log.Infof("Starting ZMQ metrics updater")
 		initMetricsZMQ()
+		en = true
 	}
-	if !Config.Sender.Disabled {
+	if Config.Sender.Enabled {
 		log.Infof("Starting sender. Enabled sequences: %v", getEnabledSeqNames())
-		runSender()
+		numSeq := runSender()
+		en = en || numSeq > 0
 	}
+	if !en {
+		log.Errorf("Nothing is enabled. Leaving...")
+		os.Exit(0)
+	}
+
 	for {
 		time.Sleep(5 * time.Second)
 	}

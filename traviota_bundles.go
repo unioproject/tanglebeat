@@ -21,7 +21,7 @@ import (
 // it is sequence of transfers along addresses with 0,1,2,3 ..indices of the same seed
 
 type traviotaGenerator struct {
-	params        *SenderParams
+	params        *senderParamsYAML
 	seed          giota.Trytes
 	securityLevel int
 	txTag         giota.Trytes
@@ -35,7 +35,7 @@ type traviotaGenerator struct {
 
 const UID_LEN = 12
 
-func NewTraviotaGenerator(params *SenderParams, logger *logging.Logger) (chan *firstBundleData, error) {
+func NewTraviotaGenerator(params *senderParamsYAML, logger *logging.Logger) (chan *firstBundleData, error) {
 	state, err := initTraviotaGenerator(params, logger)
 	if err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func NewTraviotaGenerator(params *SenderParams, logger *logging.Logger) (chan *f
 	return state.chanOut, nil
 }
 
-func initTraviotaGenerator(params *SenderParams, logger *logging.Logger) (*traviotaGenerator, error) {
+func initTraviotaGenerator(params *senderParamsYAML, logger *logging.Logger) (*traviotaGenerator, error) {
 	var err error
 	var ret = traviotaGenerator{
 		params:        params,
@@ -254,7 +254,7 @@ func (gen *traviotaGenerator) getAddress(index int) (giota.Address, error) {
 }
 
 func (gen *traviotaGenerator) getLastIndexFname() string {
-	return path.Join(Config.SiteDataDir, gen.params.GetUID())
+	return path.Join(Config.siteDataDir, Config.Logging.WorkingSubdir, gen.params.GetUID())
 }
 
 func (gen *traviotaGenerator) saveIndex() error {

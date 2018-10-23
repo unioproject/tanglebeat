@@ -131,7 +131,7 @@ func initMetricsZMQ() error {
 	prometheus.MustRegister(zmqMetricsTxcountGauge)
 	prometheus.MustRegister(zmqMetricsCtxcountGauge)
 
-	err := startReadingIRIZmq(Config.MetricsUpdater.ZMQUri)
+	err := startReadingIRIZmq(Config.ZmqMetrics.ZMQUri)
 	if err != nil {
 		log.Errorf("cant't initialize zmq metrics uodater: %v", err)
 	}

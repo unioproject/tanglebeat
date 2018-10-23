@@ -19,33 +19,43 @@ const PREFIX_MODULE = "tanglebeat"
 
 var (
 	log                  *logging.Logger
-	logPub               *logging.Logger
+	logLevel             logging.Level
+	logLevelName         string
 	masterLoggingBackend logging.LeveledBackend
-	logInitialized       = false
+	logFormatter         logging.Formatter
+	logInitialized       bool
 )
 
 type ConfigStructYAML struct {
-	SiteDataDir      string
-	Sender           SenderYAML           `yaml:"sender"`
-	Publisher        PublisherYAML        `yaml:"publisher"`
-	MetricsUpdater   MetricsUpdaterParams `yaml:"metricsUpdater"`
-	Debug            bool                 `yaml:"debug"`
-	MemStats         bool                 `yaml:"memStats"`
-	MemStatsInterval int                  `yaml:"memStatsInterval"`
+	siteDataDir string
+	Logging     loggingConfigYAML `yaml:"logging"`
+	Sender      senderYAML        `yaml:"sender"`
+	Publisher   publisherYAML     `yaml:"publisher"`
+	Prometheus  prometheusYAML    `yaml:"prometheus"`
+	ZmqMetrics  zmqMetricsYAML    `yaml:"zmqMetrics"`
 }
 
-type SenderYAML struct {
-	Disabled       bool                    `yaml:"disabled"`
-	LogDir         string                  `yaml:"logDir"`
-	LogConsoleOnly bool                    `yaml:"logConsoleOnly"`
-	LogFormat      string                  `yaml:"logFormat"`
-	Globals        SenderParams            `yaml:"globals"`
-	Sequences      map[string]SenderParams `yaml:"sequences"`
+type loggingConfigYAML struct {
+	Debug                  bool   `yaml:"debug"`
+	WorkingSubdir          string `yaml:"workingSubdir"`
+	LogConsoleOnly         bool   `yaml:"logConsoleOnly"`
+	LogSequencesSeparately bool   `yaml:"logSequencesSeparately"`
+	LogFormat              string `yaml:"logFormat"`
+	LogFormatDebug         string `yaml:"logFormatDebug"`
+	MemStats               bool   `yaml:"memStats"`
+	MemStatsInterval       int    `yaml:"memStatsInterval"`
 }
 
-type SenderParams struct {
-	externalSource        bool
-	Disabled              bool     `yaml:"disabled"`
+type senderYAML struct {
+	Enabled        bool                        `yaml:"enabled"`
+	Globals        senderParamsYAML            `yaml:"globals"`
+	Sequences      map[string]senderParamsYAML `yaml:"sequences"`
+	MetricsEnabled bool                        `yaml:"metricsEnabled"`
+}
+
+type senderParamsYAML struct {
+	externalSource        bool     // tmp TODO
+	Enabled               bool     `yaml:"enabled"`
 	IOTANode              []string `yaml:"iotaNode"`
 	IOTANodeGTTA          []string `yaml:"iotaNodeTipsel"`
 	IOTANodeATT           []string `yaml:"iotaNodePOW"`
@@ -61,55 +71,34 @@ type SenderParams struct {
 	PromoteEverySec       int      `yaml:"promoteEverySec"`
 }
 
-type PublisherYAML struct {
-	Disabled        bool                       `yaml:"disabled"`
-	LogDir          string                     `yaml:"logDir"`
-	LogConsoleOnly  bool                       `yaml:"logConsoleOnly"`
-	LogFormat       string                     `yaml:"logFormat"`
-	OutPort         int                        `yaml:"outPort"`
-	LocalDisabled   bool                       `yaml:"localDisabled"`
-	ExternalSources map[string]PublisherSource `yaml:"externalSources"`
+type publisherYAML struct {
+	Enabled         bool                           `yaml:"enabled"`
+	OutPort         int                            `yaml:"outPort"`
+	LocalDisabled   bool                           `yaml:"localDisabled"`
+	ExternalSources map[string]publisherSourceYAML `yaml:"externalSources"`
 }
 
-type PublisherSource struct {
-	Disabled bool   `yaml:"disabled"`
-	Target   string `yaml:"target"`
+type publisherSourceYAML struct {
+	Enabled bool   `yaml:"enabled"`
+	Target  string `yaml:"target"`
 }
 
-type MetricsUpdaterParams struct {
-	Disabled             bool   `yaml:"disabled"`
-	PrometheusTargetPort int    `yaml:"prometheusTargetPort"`
-	ZMQMetricsDisabled   bool   `yaml:"zmqMetricsDisabled"`
-	ZMQUri               string `yaml:"zmqUri"`
+type prometheusYAML struct {
+	Enabled    bool `yaml:"enabled"`
+	ScrapePort int  `yaml:"prometheusScrapePort"`
 }
 
-//  create config structure with default values
-//  other default values are nil values
-//	`%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
-
-var Config = ConfigStructYAML{
-	SiteDataDir: ".\\",
-	Sender: SenderYAML{
-		LogConsoleOnly: true,
-		LogFormat:      "%{time:2006-01-02 15:04:05.000} [%{shortfunc}] %{level:.4s} %{message}",
-		Globals: SenderParams{
-			IOTANode: []string{"https://field.deviota.com:443"},
-		},
-	},
-	Publisher: PublisherYAML{
-		LogConsoleOnly: true,
-		LogFormat:      "%{time:2006-01-02 15:04:05.000} [%{shortfunc}] %{level:.4s} %{message}",
-		OutPort:        3000,
-	},
-	MetricsUpdater: MetricsUpdaterParams{
-		Disabled:             false,
-		PrometheusTargetPort: 8080,
-	},
+type zmqMetricsYAML struct {
+	Enabled bool   `yaml:"enabled"`
+	ZMQUri  string `yaml:"zmqUri"`
 }
+
+// main config structure
+var Config = ConfigStructYAML{}
 
 var msgBeforeLog = []string{"----- Starting TangleBeat "}
 
-func (params *SenderParams) GetUID() string {
+func (params *senderParamsYAML) GetUID() string {
 	seedT, err := giota.ToTrytes(params.Seed)
 	if err != nil {
 		panic("can't generate UID")
@@ -140,19 +129,19 @@ func masterConfig(configFilename string) {
 	}
 	msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Current directory is %v", currentDir))
 
-	Config.SiteDataDir = os.Getenv("SITE_DATA_DIR")
-	if Config.SiteDataDir == "" {
-		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Environment variable SITE_DATA_DIR is undefined. Taking current directory: %v", currentDir))
-		Config.SiteDataDir = currentDir
+	Config.siteDataDir = os.Getenv("SITE_DATA_DIR")
+	if Config.siteDataDir == "" {
+		Config.siteDataDir = currentDir
 	} else {
-		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("SITE_DATA_DIR = %v", Config.SiteDataDir))
+		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("SITE_DATA_DIR = %v", Config.siteDataDir))
 	}
-	configFilePath := path.Join(Config.SiteDataDir, configFilename)
+	configFilePath := path.Join(Config.siteDataDir, configFilename)
+
 	msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Reading config values from %v", configFilePath))
 
 	yamlFile, err := os.Open(configFilePath)
 	if err != nil {
-		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Failed init logging %v:\nExit", err))
+		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Failed init %v:\nExit", err))
 		flushMsgBeforeLog()
 		os.Exit(1)
 	}
@@ -167,12 +156,11 @@ func masterConfig(configFilename string) {
 	configMasterLogging()
 	flushMsgBeforeLog()
 	configDebugging()
-	configPublisherLogging()
 }
 
 func configDebugging() {
-	if Config.MemStats {
-		sl := lib.Max(5, Config.MemStatsInterval)
+	if Config.Logging.Debug && Config.Logging.MemStats {
+		sl := lib.Max(5, Config.Logging.MemStatsInterval)
 		go func() {
 			for {
 				logMemStats()
@@ -187,38 +175,37 @@ func configDebugging() {
 
 func configMasterLogging() {
 	var logWriter io.Writer
-	var level logging.Level
-	var levelName string
 
-	if Config.Debug {
-		level = logging.DEBUG
-		levelName = "DEBUG"
+	if Config.Logging.Debug {
+		logLevel = logging.DEBUG
+		logLevelName = "DEBUG"
+		logFormatter = logging.MustStringFormatter(Config.Logging.LogFormatDebug)
 	} else {
-		level = logging.INFO
-		levelName = "INFO"
+		logLevel = logging.INFO
+		logLevelName = "INFO"
+		logFormatter = logging.MustStringFormatter(Config.Logging.LogFormat)
 	}
 
 	// opening log file if necessary
-	if Config.Sender.LogConsoleOnly {
+	if Config.Logging.LogConsoleOnly {
 		logWriter = os.Stderr
-		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Will be logging at %v level to stderr only", levelName))
+		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Will be logging at %v level to stderr only", logLevelName))
 	} else {
-		logFname := path.Join(Config.SiteDataDir, Config.Sender.LogDir, PREFIX_MODULE+".log")
+		logFname := path.Join(Config.siteDataDir, Config.Logging.WorkingSubdir, PREFIX_MODULE+".log")
 		fout, err := os.OpenFile(logFname, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 		if err != nil {
 			panic(fmt.Sprintf("Failed to open logfile %v: %v", logFname, err))
 		}
 		logWriter = io.MultiWriter(os.Stderr, fout)
-		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Will be logging at %v level to stderr and %v\n", levelName, logFname))
+		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Will be logging at %v level to stderr and %v\n", logLevelName, logFname))
 	}
 	// creating master logger 'log'
 	log = logging.MustGetLogger("main")
 
 	logBackend := logging.NewLogBackend(logWriter, "", 0)
-	formatter := logging.MustStringFormatter(Config.Sender.LogFormat)
-	logBackendFormatter := logging.NewBackendFormatter(logBackend, formatter)
+	logBackendFormatter := logging.NewBackendFormatter(logBackend, logFormatter)
 	masterLoggingBackend = logging.AddModuleLevel(logBackendFormatter)
-	masterLoggingBackend.SetLevel(level, "main")
+	masterLoggingBackend.SetLevel(logLevel, "main")
 
 	log.SetBackend(masterLoggingBackend)
 	logInitialized = true
@@ -226,11 +213,10 @@ func configMasterLogging() {
 
 // creates child logger with the given name. It always writes to the file
 // everything with is logged to this logger, will go to the master logger as well
-func createChildLogger(name string, dir string, masterBackend *logging.LeveledBackend,
-	formatter *logging.Formatter, level logging.Level) (*logging.Logger, error) {
+func createChildLogger(name string, subdir string, masterBackend *logging.LeveledBackend) (*logging.Logger, error) {
 	var logger *logging.Logger
 
-	logFname := path.Join(dir, PREFIX_MODULE+"."+name+".log")
+	logFname := path.Join(Config.siteDataDir, subdir, PREFIX_MODULE+"."+name+".log")
 	fout, err := os.OpenFile(logFname, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if err != nil {
 		return nil, err
@@ -238,28 +224,27 @@ func createChildLogger(name string, dir string, masterBackend *logging.LeveledBa
 		logWriter := io.Writer(fout)
 
 		logBackend := logging.NewLogBackend(logWriter, "", 0)
-		logBackendFormatter := logging.NewBackendFormatter(logBackend, *formatter)
+		logBackendFormatter := logging.NewBackendFormatter(logBackend, logFormatter)
 		childBackend := logging.AddModuleLevel(logBackendFormatter)
-		childBackend.SetLevel(level, name) // not needed
+		childBackend.SetLevel(logLevel, name) // not needed ?
 		logger = logging.MustGetLogger(name)
 		mlogger := logging.MultiLogger(*masterBackend, childBackend)
-		mlogger.SetLevel(level, name)
+		mlogger.SetLevel(logLevel, name)
 		logger.SetBackend(mlogger)
 	}
 
-	ln := lib.Iff(level == logging.INFO, "INFO", "DEBUG")
-	logger.Infof("Created child logger '%v' -> %v, level: '%v'", name, logFname, ln)
+	logger.Infof("Created child logger '%v' -> %v, level: '%v'", name, logFname, logLevelName)
 	return logger, nil
 }
 
-func getSeqParams(name string) (*SenderParams, error) {
+func getSeqParams(name string) (*senderParamsYAML, error) {
 	stru, ok := Config.Sender.Sequences[name]
 	if !ok {
-		return &SenderParams{}, errors.New(fmt.Sprintf("Sequence '%v' doesn't exist in config file\n", name))
+		return &senderParamsYAML{}, errors.New(fmt.Sprintf("Sequence '%v' doesn't exist in config file\n", name))
 	}
 	// doing inheritance
 	ret := stru // a copy
-	ret.Disabled = Config.Sender.Globals.Disabled || ret.Disabled
+	ret.Enabled = Config.Sender.Globals.Enabled && ret.Enabled
 	if len(ret.IOTANode) == 0 {
 		ret.IOTANode = Config.Sender.Globals.IOTANode
 		if len(ret.IOTANode) == 0 {
@@ -305,18 +290,16 @@ func getSeqParams(name string) (*SenderParams, error) {
 	if ret.ForceReattachAfterMin == 0 {
 		ret.ForceReattachAfterMin = Config.Sender.Globals.ForceReattachAfterMin
 	}
-	// not inherited
 	if ret.PromoteEverySec == 0 {
 		ret.PromoteEverySec = Config.Sender.Globals.PromoteEverySec
 	}
-	// other remaining are not inherited or doesn't make sense on sequence level
 	return &ret, nil
 }
 
 func getEnabledSeqNames() []string {
 	ret := make([]string, 0)
 	for name, params := range Config.Sender.Sequences {
-		if !params.Disabled {
+		if params.Enabled {
 			ret = append(ret, name)
 		}
 	}
