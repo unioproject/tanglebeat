@@ -53,7 +53,7 @@ func initExposeToPometheus() {
 	prometheus.MustRegister(confirmationPoWDurationMsecGauge)
 	prometheus.MustRegister(confirmationTipselDurationMsecGauge)
 
-	go exposeMetrics(Config.Prometheus.ScrapePort)
+	go exposeMetrics(Config.Prometheus.ScrapeTargetPort)
 }
 
 func updateSenderMetrics(upd *SenderUpdate) {

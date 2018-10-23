@@ -84,8 +84,8 @@ type publisherSourceYAML struct {
 }
 
 type prometheusYAML struct {
-	Enabled    bool `yaml:"enabled"`
-	ScrapePort int  `yaml:"prometheusScrapePort"`
+	Enabled          bool `yaml:"enabled"`
+	ScrapeTargetPort int  `yaml:"scrapeTargetPort"`
 }
 
 type zmqMetricsYAML struct {
