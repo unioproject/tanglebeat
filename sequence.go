@@ -128,7 +128,7 @@ func (seq *Sequence) publishStart(bundleData *firstBundleData) {
 	} else {
 		updType = SENDER_UPD_START_CONTINUE
 	}
-	seq.log.Infof("Publish '%v' for %v index = %v",
+	seq.log.Infof("Update '%v' for %v index = %v",
 		updType, seq.params.GetUID(), bundleData.index)
 
 	processUpdate(
@@ -159,7 +159,7 @@ func (seq *Sequence) confirmerUpdateToPub(updConf *confirmer.ConfirmerUpdate,
 	addr giota.Address, index int, bundleHash giota.Trytes, sendingStarted time.Time) {
 
 	updType := confirmerUpdType2Sender(updConf.UpdateType)
-	seq.log.Infof("Publish '%v' for %v index = %v",
+	seq.log.Infof("Update '%v' for %v index = %v",
 		updType, seq.params.GetUID(), index)
 	processUpdate(
 		&SenderUpdate{
