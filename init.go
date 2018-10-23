@@ -27,11 +27,11 @@ var (
 )
 
 type ConfigStructYAML struct {
-	siteDataDir string
-	Logging     loggingConfigYAML `yaml:"logging"`
-	Sender      senderYAML        `yaml:"sender"`
-	Publisher   publisherYAML     `yaml:"publisher"`
-	Prometheus  prometheusYAML    `yaml:"prometheus"`
+	siteDataDir         string
+	Logging             loggingConfigYAML       `yaml:"logging"`
+	Sender              senderYAML              `yaml:"sender"`
+	Prometheus          prometheusYAML          `yaml:"prometheus"`
+	SenderDataCollector senderDataCollectorYAML `yaml:"senderDataCollector"`
 }
 
 type loggingConfigYAML struct {
@@ -69,14 +69,13 @@ type senderParamsYAML struct {
 	PromoteEverySec       int      `yaml:"promoteEverySec"`
 }
 
-type publisherYAML struct {
-	Enabled         bool                           `yaml:"enabled"`
-	OutPort         int                            `yaml:"outPort"`
-	LocalDisabled   bool                           `yaml:"localDisabled"`
-	ExternalSources map[string]publisherSourceYAML `yaml:"externalSources"`
+type senderDataCollectorYAML struct {
+	Publish bool                           `yaml:"publish"`
+	OutPort int                            `yaml:"outPort"`
+	Sources map[string]collectorSourceYAML `yaml:"sources"`
 }
 
-type publisherSourceYAML struct {
+type collectorSourceYAML struct {
 	Enabled bool   `yaml:"enabled"`
 	Target  string `yaml:"target"`
 }

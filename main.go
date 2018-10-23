@@ -23,7 +23,9 @@ func runSender() int {
 func main() {
 	masterConfig("tanglebeat.yml")
 	var en bool
-	if Config.Publisher.Enabled {
+	initSenderDataCollector()
+
+	if Config.SenderDataCollector.Publish {
 		log.Infof("Starting publisher")
 		initAndRunPublisher()
 		en = true

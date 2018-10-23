@@ -95,7 +95,7 @@ func (seq *Sequence) Run() {
 	var bundleHash giota.Trytes
 
 	for bundleData := range seq.bundleSource {
-		seq.publishStart(bundleData)
+		seq.processStartUpdate(bundleData)
 
 		bundleHash = bundleData.bundle.Hash()
 		if chUpdate, err := seq.confirmer.RunConfirm(bundleData.bundle); err != nil {
@@ -110,7 +110,7 @@ func (seq *Sequence) Run() {
 					updConf.TotalDurationATTMsec += bundleData.totalDurationATTMsec
 					updConf.TotalDurationGTTAMsec += bundleData.totalDurationGTTAMsec
 
-					seq.confirmerUpdateToPub(
+					seq.processConfirmerUpdate(
 						updConf, bundleData.addr, bundleData.index, bundleHash, bundleData.startTime)
 				}
 			}
@@ -121,7 +121,7 @@ func (seq *Sequence) Run() {
 
 const securityLevel = 2
 
-func (seq *Sequence) publishStart(bundleData *firstBundleData) {
+func (seq *Sequence) processStartUpdate(bundleData *firstBundleData) {
 	var updType SenderUpdateType
 	if bundleData.isNew {
 		updType = SENDER_UPD_START_SEND
@@ -132,6 +132,7 @@ func (seq *Sequence) publishStart(bundleData *firstBundleData) {
 		updType, seq.params.GetUID(), bundleData.index)
 
 	processUpdate(
+		"local",
 		&SenderUpdate{
 			SeqUID:                seq.params.GetUID(),
 			SeqName:               seq.name,
@@ -155,13 +156,14 @@ func (seq *Sequence) publishStart(bundleData *firstBundleData) {
 		})
 }
 
-func (seq *Sequence) confirmerUpdateToPub(updConf *confirmer.ConfirmerUpdate,
+func (seq *Sequence) processConfirmerUpdate(updConf *confirmer.ConfirmerUpdate,
 	addr giota.Address, index int, bundleHash giota.Trytes, sendingStarted time.Time) {
 
 	updType := confirmerUpdType2Sender(updConf.UpdateType)
 	seq.log.Infof("Update '%v' for %v index = %v",
 		updType, seq.params.GetUID(), index)
 	processUpdate(
+		"local",
 		&SenderUpdate{
 			SeqUID:                seq.params.GetUID(),
 			SeqName:               seq.name,
