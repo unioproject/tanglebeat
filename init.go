@@ -32,7 +32,6 @@ type ConfigStructYAML struct {
 	Sender      senderYAML        `yaml:"sender"`
 	Publisher   publisherYAML     `yaml:"publisher"`
 	Prometheus  prometheusYAML    `yaml:"prometheus"`
-	ZmqMetrics  zmqMetricsYAML    `yaml:"zmqMetrics"`
 }
 
 type loggingConfigYAML struct {
@@ -47,10 +46,9 @@ type loggingConfigYAML struct {
 }
 
 type senderYAML struct {
-	Enabled        bool                        `yaml:"enabled"`
-	Globals        senderParamsYAML            `yaml:"globals"`
-	Sequences      map[string]senderParamsYAML `yaml:"sequences"`
-	MetricsEnabled bool                        `yaml:"metricsEnabled"`
+	Enabled   bool                        `yaml:"enabled"`
+	Globals   senderParamsYAML            `yaml:"globals"`
+	Sequences map[string]senderParamsYAML `yaml:"sequences"`
 }
 
 type senderParamsYAML struct {
@@ -84,8 +82,10 @@ type publisherSourceYAML struct {
 }
 
 type prometheusYAML struct {
-	Enabled          bool `yaml:"enabled"`
-	ScrapeTargetPort int  `yaml:"scrapeTargetPort"`
+	Enabled              bool           `yaml:"enabled"`
+	ScrapeTargetPort     int            `yaml:"scrapeTargetPort"`
+	ZmqMetrics           zmqMetricsYAML `yaml:"zmqMetrics"`
+	SenderMetricsEnabled bool           `yaml:"senderMetricsEnabled"`
 }
 
 type zmqMetricsYAML struct {

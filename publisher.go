@@ -65,7 +65,7 @@ type SenderUpdateType string
 var chanDataToPub chan []byte
 
 func processUpdate(upd *SenderUpdate) error {
-	if Config.Sender.MetricsEnabled && Config.Prometheus.Enabled {
+	if Config.Prometheus.Enabled && Config.Prometheus.SenderMetricsEnabled {
 		log.Debugf("Update metrics for %v(%v), index = %v",
 			upd.SeqUID, upd.SeqName, upd.Index)
 		updateSenderMetrics(upd)
