@@ -89,9 +89,9 @@ func startReadingIRIZmq(uri string) error {
 					nowis := lib.UnixMs(time.Now())
 					if lastMilestoneUnixTs != 0 {
 						zmqMetricsSecBetweenMilestones.Set(float64(nowis-lastMilestoneUnixTs) / 1000)
+						log.Debugf("ZMQ metrics updater: milestone changed: %v --> %v", message[1], message[2])
 					}
 					lastMilestoneUnixTs = nowis
-					log.Debugf("ZMQ metrics updater: milestone changed: %v --> %v", message[1], message[2])
 				}
 			}
 			if time.Now().After(nexUpdate) {

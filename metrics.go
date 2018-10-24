@@ -14,6 +14,7 @@ import (
 // milestone metrics
 
 var (
+	confirmationCounter                 *prometheus.CounterVec
 	confirmationDurationSecGauge        *prometheus.GaugeVec
 	confirmationPoWCostGauge            *prometheus.GaugeVec
 	confirmationPoWDurationMsecGauge    *prometheus.GaugeVec
@@ -28,6 +29,11 @@ func exposeMetrics(port int) {
 }
 
 func initExposeToPometheus() {
+	confirmationCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "tanglebeat_confirmation_counter",
+		Help: "Increases every time sender confirms a transfer",
+	}, []string{"seqid"})
+
 	confirmationDurationSecGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "tanglebeat_confirmation_duration_sec",
 		Help: "Confirmation duration of the transfer.",
@@ -48,6 +54,7 @@ func initExposeToPometheus() {
 		Help: "Total duration it took to do tip selection for confirmation.",
 	}, []string{"seqid", "node_tipsel"})
 
+	prometheus.MustRegister(confirmationCounter)
 	prometheus.MustRegister(confirmationDurationSecGauge)
 	prometheus.MustRegister(confirmationPoWCostGauge)
 	prometheus.MustRegister(confirmationPoWDurationMsecGauge)
@@ -60,6 +67,8 @@ func updateSenderMetrics(upd *SenderUpdate) {
 	if upd.UpdType != SENDER_UPD_CONFIRM {
 		return
 	}
+	confirmationCounter.With(prometheus.Labels{"seqid": upd.SeqUID}).Inc()
+
 	confirmationDurationSecGauge.
 		With(prometheus.Labels{"seqid": upd.SeqUID}).Set(float64(upd.UpdateTs-upd.SendingStartedTs) / 1000)
 
