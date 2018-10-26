@@ -103,6 +103,7 @@ func (gen *traviotaGenerator) runGenerator() {
 	var isNew bool
 
 	addr = ""
+	balanceZeroWaitSec := 2
 	for {
 		if addr == "" {
 			addr, err = gen.getAddress(gen.index)
@@ -135,8 +136,10 @@ func (gen *traviotaGenerator) runGenerator() {
 		case balance == 0 && !spent:
 			// nogo
 			// loops until balance != 0
-			gen.log.Infof("Traviota Bundles: index = %v, balance == 0, not spent. Wait 2 sec for balance to become non zero", gen.index)
-			time.Sleep(2 * time.Second)
+			gen.log.Infof("Traviota Bundles: index = %v, balance == 0, not spent. Wait %v sec for balance to become non zero",
+				gen.index, balanceZeroWaitSec)
+			time.Sleep(time.Duration(balanceZeroWaitSec) * time.Second)
+			balanceZeroWaitSec = lib.Min(balanceZeroWaitSec+2, 15)
 
 		case balance != 0:
 			bundleData, err = gen.findBundleToConfirm(addr)
