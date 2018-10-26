@@ -15,8 +15,8 @@ import (
 var (
 	zmqMetricsCurrentMilestone     prometheus.Gauge
 	zmqMetricsSecBetweenMilestones prometheus.Gauge
-	zmqMetricsTxcountGauge         prometheus.Gauge
-	zmqMetricsCtxcountGauge        prometheus.Gauge
+	zmqMetricsTxcountGauge         prometheus.Counter
+	zmqMetricsCtxcountGauge        prometheus.Counter
 )
 
 func openSocket(uri string, timeoutSec int) (zmq4.Socket, error) {
@@ -95,8 +95,8 @@ func startReadingIRIZmq(uri string) error {
 				}
 			}
 			if time.Now().After(nexUpdate) {
-				zmqMetricsTxcountGauge.Set(float64(txcount))
-				zmqMetricsCtxcountGauge.Set(float64(ctxcount))
+				zmqMetricsTxcountGauge.Add(float64(txcount))
+				zmqMetricsCtxcountGauge.Add(float64(ctxcount))
 				nexUpdate = nexUpdate.Add(1 * time.Minute)
 				log.Debugf("ZMQ metrics updater: in 1 min: tx = %v ctx = %v", txcount, ctxcount)
 				txcount = 0
@@ -117,12 +117,12 @@ func initMetricsZMQ() error {
 		Help: "Duration is seconds between last and the previous milestone in seconds",
 	})
 
-	zmqMetricsTxcountGauge = prometheus.NewGauge(prometheus.GaugeOpts{
+	zmqMetricsTxcountGauge = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "tanglebeat_tx_count_1_minute",
 		Help: "Transaction count in one minute",
 	})
 
-	zmqMetricsCtxcountGauge = prometheus.NewGauge(prometheus.GaugeOpts{
+	zmqMetricsCtxcountGauge = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "tanglebeat_ctx_count_1_minute",
 		Help: "Confirmed transaction count in one minute",
 	})
