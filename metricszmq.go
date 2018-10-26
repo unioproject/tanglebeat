@@ -107,13 +107,13 @@ func initMetricsZMQ() error {
 	})
 
 	zmqMetricsTxCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "tanglebeat_tx_count_1_minute",
-		Help: "Transaction count in one minute",
+		Name: "tanglebeat_tx_counter",
+		Help: "Transaction counter",
 	})
 
 	zmqMetricsCtxCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "tanglebeat_ctx_count_1_minute",
-		Help: "Confirmed transaction count in one minute",
+		Name: "tanglebeat_ctx_counter",
+		Help: "Confirmed transaction counter",
 	})
 	prometheus.MustRegister(zmqMetricsCurrentMilestone)
 	prometheus.MustRegister(zmqMetricsSecBetweenMilestones)
