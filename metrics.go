@@ -16,7 +16,7 @@ import (
 var (
 	confirmationCounter                 *prometheus.CounterVec
 	confirmationDurationSecGauge        *prometheus.GaugeVec
-	confirmationPoWCostGauge            *prometheus.GaugeVec
+	confirmationPoWCostCounter          *prometheus.CounterVec
 	confirmationPoWDurationMsecGauge    *prometheus.GaugeVec
 	confirmationTipselDurationMsecGauge *prometheus.GaugeVec
 )
@@ -39,9 +39,9 @@ func initExposeToPometheus() {
 		Help: "Confirmation duration of the transfer.",
 	}, []string{"seqid"})
 
-	confirmationPoWCostGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	confirmationPoWCostCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "tanglebeat_pow_cost",
-		Help: "Number of tx attached for the confirmation = num. attachments * bundle size + num. promotions * promo bundle size",
+		Help: "Counter for number of tx attached during the confirmation = num. attachments * bundle size + num. promotions * promo bundle size",
 	}, []string{"seqid"})
 
 	confirmationPoWDurationMsecGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -56,7 +56,7 @@ func initExposeToPometheus() {
 
 	prometheus.MustRegister(confirmationCounter)
 	prometheus.MustRegister(confirmationDurationSecGauge)
-	prometheus.MustRegister(confirmationPoWCostGauge)
+	prometheus.MustRegister(confirmationPoWCostCounter)
 	prometheus.MustRegister(confirmationPoWDurationMsecGauge)
 	prometheus.MustRegister(confirmationTipselDurationMsecGauge)
 
@@ -73,8 +73,8 @@ func updateSenderMetrics(upd *SenderUpdate) {
 		With(prometheus.Labels{"seqid": upd.SeqUID}).Set(float64(upd.UpdateTs-upd.SendingStartedTs) / 1000)
 
 	powCost := float64(upd.NumAttaches*int64(upd.BundleSize) + upd.NumPromotions*int64(upd.PromoBundleSize))
-	confirmationPoWCostGauge.
-		With(prometheus.Labels{"seqid": upd.SeqUID}).Set(powCost)
+	confirmationPoWCostCounter.
+		With(prometheus.Labels{"seqid": upd.SeqUID}).Add(powCost)
 
 	confirmationPoWDurationMsecGauge.
 		With(prometheus.Labels{
