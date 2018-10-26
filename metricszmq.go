@@ -56,8 +56,6 @@ func startReadingIRIZmq(uri string) error {
 
 	go func() {
 		log.Debugf("ZMQ listener created succesfully")
-		txcount := 0
-		ctxcount := 0
 		var lastMilestoneUnixTs int64
 
 		for {
@@ -74,9 +72,9 @@ func startReadingIRIZmq(uri string) error {
 			}
 			switch messageType {
 			case "tx":
-				txcount += 1
+				zmqMetricsTxCounter.Inc()
 			case "sn":
-				ctxcount += 1
+				zmqMetricsCtxCounter.Inc()
 			case "lmi":
 				if len(message) < 3 {
 					log.Errorf("reading ZMQ socket: unexpected 'lmi' message format")
@@ -93,8 +91,6 @@ func startReadingIRIZmq(uri string) error {
 					lastMilestoneUnixTs = nowis
 				}
 			}
-			zmqMetricsTxCounter.Inc()
-			zmqMetricsCtxCounter.Inc()
 		}
 	}()
 	return nil
