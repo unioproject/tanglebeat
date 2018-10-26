@@ -15,8 +15,8 @@ import (
 var (
 	zmqMetricsCurrentMilestone     prometheus.Gauge
 	zmqMetricsSecBetweenMilestones prometheus.Gauge
-	zmqMetricsTxcountGauge         prometheus.Counter
-	zmqMetricsCtxcountGauge        prometheus.Counter
+	zmqMetricsTxCounter            prometheus.Counter
+	zmqMetricsCtxCounter           prometheus.Counter
 )
 
 func openSocket(uri string, timeoutSec int) (zmq4.Socket, error) {
@@ -60,7 +60,6 @@ func startReadingIRIZmq(uri string) error {
 		ctxcount := 0
 		var lastMilestoneUnixTs int64
 
-		nexUpdate := time.Now().Add(1 * time.Minute)
 		for {
 			msg, err := socket.Recv()
 			if err != nil {
@@ -94,14 +93,8 @@ func startReadingIRIZmq(uri string) error {
 					lastMilestoneUnixTs = nowis
 				}
 			}
-			if time.Now().After(nexUpdate) {
-				zmqMetricsTxcountGauge.Add(float64(txcount))
-				zmqMetricsCtxcountGauge.Add(float64(ctxcount))
-				nexUpdate = nexUpdate.Add(1 * time.Minute)
-				log.Debugf("ZMQ metrics updater: in 1 min: tx = %v ctx = %v", txcount, ctxcount)
-				txcount = 0
-				ctxcount = 0
-			}
+			zmqMetricsTxCounter.Inc()
+			zmqMetricsCtxCounter.Inc()
 		}
 	}()
 	return nil
@@ -117,19 +110,19 @@ func initMetricsZMQ() error {
 		Help: "Duration is seconds between last and the previous milestone in seconds",
 	})
 
-	zmqMetricsTxcountGauge = prometheus.NewCounter(prometheus.CounterOpts{
+	zmqMetricsTxCounter = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "tanglebeat_tx_count_1_minute",
 		Help: "Transaction count in one minute",
 	})
 
-	zmqMetricsCtxcountGauge = prometheus.NewCounter(prometheus.CounterOpts{
+	zmqMetricsCtxCounter = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "tanglebeat_ctx_count_1_minute",
 		Help: "Confirmed transaction count in one minute",
 	})
 	prometheus.MustRegister(zmqMetricsCurrentMilestone)
 	prometheus.MustRegister(zmqMetricsSecBetweenMilestones)
-	prometheus.MustRegister(zmqMetricsTxcountGauge)
-	prometheus.MustRegister(zmqMetricsCtxcountGauge)
+	prometheus.MustRegister(zmqMetricsTxCounter)
+	prometheus.MustRegister(zmqMetricsCtxCounter)
 
 	err := startReadingIRIZmq(Config.Prometheus.ZmqMetrics.ZMQUri)
 	if err != nil {
