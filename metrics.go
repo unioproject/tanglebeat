@@ -40,7 +40,7 @@ func initExposeToPometheus() {
 	}, []string{"seqid"})
 
 	confirmationPoWCostCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "tanglebeat_pow_cost",
+		Name: "tanglebeat_pow_cost_counter",
 		Help: "Counter for number of tx attached during the confirmation = num. attachments * bundle size + num. promotions * promo bundle size",
 	}, []string{"seqid"})
 
