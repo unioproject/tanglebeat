@@ -338,7 +338,7 @@ func (gen *traviotaGenerator) sendToNext(addr giota.Address) (*firstBundleData, 
 	if err != nil {
 		return nil, err
 	}
-	gen.log.Infof("Send with tag = '%v'. idx=%v. %v --> %v", gen.txTag, gen.index, addr, nextAddr)
+	gen.log.Debugf("Inside sendToNext with tag = '%v'. idx=%v. %v --> %v", gen.txTag, gen.index, addr, nextAddr)
 
 	gbResp, err := gen.iotaAPI.GetBalances([]giota.Address{addr}, 100)
 	if err != nil {
@@ -347,6 +347,9 @@ func (gen *traviotaGenerator) sendToNext(addr giota.Address) (*firstBundleData, 
 	balance := gbResp.Balances[0]
 	if balance == 0 {
 		return nil, errors.New(fmt.Sprintf("Address %v has 0 balance, can't sent to the next.", addr))
+	} else {
+		gen.log.Infof("Sending %v i, idx = %v. %v --> %v",
+			balance, gen.index, addr, nextAddr)
 	}
 	ret, err := gen.sendBalance(addr, nextAddr, balance, gen.seed, gen.index)
 	if err != nil {
