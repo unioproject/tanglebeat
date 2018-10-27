@@ -36,15 +36,11 @@ func (aec *apiErrorCount) getEndpoint(api *giota.API) string {
 	defer aec.apiEndpointsMutex.Unlock()
 	ret, ok := aec.apiEndpoints[api]
 	if !ok {
-		return ""
+		return "???"
 	}
 	return ret
 }
 
 func (aec *apiErrorCount) AccountError(api *giota.API) {
-	endp := aec.getEndpoint(api)
-	if endp == "" {
-		endp = "general"
-	}
-	aec.apiErrorCounter.With(prometheus.Labels{"endpoint": endp}).Inc()
+	aec.apiErrorCounter.With(prometheus.Labels{"endpoint": aec.getEndpoint(api)}).Inc()
 }

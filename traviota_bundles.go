@@ -56,18 +56,24 @@ func initTraviotaGenerator(params *senderParamsYAML, logger *logging.Logger) (*t
 			Timeout: time.Duration(params.TimeoutAPI) * time.Second,
 		},
 	)
+	AEC.registerAPI(ret.iotaAPI, params.IOTANode[0])
+
 	ret.iotaAPIgTTA = giota.NewAPI(
 		params.IOTANodeGTTA[0],
 		&http.Client{
 			Timeout: time.Duration(params.TimeoutGTTA) * time.Second,
 		},
 	)
+	AEC.registerAPI(ret.iotaAPIgTTA, params.IOTANodeGTTA[0])
+
 	ret.iotaAPIaTT = giota.NewAPI(
 		params.IOTANodeATT[0],
 		&http.Client{
 			Timeout: time.Duration(params.TimeoutATT) * time.Second,
 		},
 	)
+	AEC.registerAPI(ret.iotaAPIaTT, params.IOTANodeATT[0])
+
 	ret.seed, err = giota.ToTrytes(params.Seed)
 	if err != nil {
 		return nil, err
