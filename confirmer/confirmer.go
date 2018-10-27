@@ -226,9 +226,7 @@ func (conf *Confirmer) goPromote() func() {
 				}
 			}
 			if err != nil {
-				conf.errorf("CONFIRMER: promotion routine: %v", err)
-			}
-			if err != nil {
+				conf.errorf("CONFIRMER: promotion routine: %v. Sleep 5 sec", err)
 				time.Sleep(5 * time.Second)
 			}
 			select {
