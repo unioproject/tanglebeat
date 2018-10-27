@@ -12,18 +12,22 @@ type apiErrorCount struct {
 	apiErrorCounter   *prometheus.CounterVec
 }
 
-var AEC = &apiErrorCount{
-	apiEndpoints: make(map[*giota.API]string),
-	apiErrorCounter: prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "tanglebeat_iota_api_error_counter",
-		Help: "Increases every time IOTA (giota) API returns an error",
-	}, []string{"endpoint"}),
+var AEC *apiErrorCount
+
+func init() {
+	AEC = &apiErrorCount{
+		apiEndpoints: make(map[*giota.API]string),
+		apiErrorCounter: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "tanglebeat_iota_api_error_counter",
+			Help: "Increases every time IOTA (giota) API returns an error",
+		}, []string{"endpoint"}),
+	}
+	prometheus.MustRegister(AEC.apiErrorCounter)
 }
 
 func (aec *apiErrorCount) registerAPI(api *giota.API, endpoint string) {
 	aec.apiEndpointsMutex.Lock()
 	defer aec.apiEndpointsMutex.Unlock()
-
 	aec.apiEndpoints[api] = endpoint
 }
 
