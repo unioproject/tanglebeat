@@ -203,7 +203,7 @@ func (conf *Confirmer) goPromote() func() {
 
 	var wg sync.WaitGroup
 	go func() {
-		conf.debugf("CONFIRMER: started promoter routine for bundle hash%v", h)
+		conf.debugf("CONFIRMER: started promoter routine for bundle hash %v", h)
 		defer conf.debugf("CONFIRMER: ended promoter routine for bundle hash %v", h)
 
 		wg.Add(1)
