@@ -103,7 +103,7 @@ func initMetricsZMQ() error {
 	})
 	zmqMetricsSecBetweenMilestones = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "tanglebeat_sec_between_milestones",
-		Help: "Duration is seconds between last and the previous milestone in seconds",
+		Help: "Duration between last and previous milestone in seconds",
 	})
 
 	zmqMetricsTxCounter = prometheus.NewCounter(prometheus.CounterOpts{

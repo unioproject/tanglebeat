@@ -14,11 +14,11 @@ import (
 // milestone metrics
 
 var (
-	confirmationCounter                 *prometheus.CounterVec
-	confirmationDurationSecGauge        *prometheus.GaugeVec
-	confirmationPoWCostCounter          *prometheus.CounterVec
-	confirmationPoWDurationMsecGauge    *prometheus.GaugeVec
-	confirmationTipselDurationMsecGauge *prometheus.GaugeVec
+	confirmationCounter                  *prometheus.CounterVec
+	confirmationPoWCostCounter           *prometheus.CounterVec
+	confirmationDurationSecCounter       *prometheus.CounterVec
+	confirmationPoWDurationSecCounter    *prometheus.CounterVec
+	confirmationTipselDurationSecCounter *prometheus.CounterVec
 )
 
 func exposeMetrics(port int) {
@@ -34,31 +34,31 @@ func initExposeToPometheus() {
 		Help: "Increases every time sender confirms a transfer",
 	}, []string{"seqid"})
 
-	confirmationDurationSecGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "tanglebeat_confirmation_duration_sec",
-		Help: "Confirmation duration of the transfer.",
-	}, []string{"seqid"})
-
 	confirmationPoWCostCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "tanglebeat_pow_cost_counter",
 		Help: "Counter for number of tx attached during the confirmation = num. attachments * bundle size + num. promotions * promo bundle size",
 	}, []string{"seqid"})
 
-	confirmationPoWDurationMsecGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "tanglebeat_pow_duration_msec",
-		Help: "Total duration it took to do PoW for confirmation.",
+	confirmationDurationSecCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "tanglebeat_confirmation_duration_counter",
+		Help: "Sums up confirmation durations of the transfer.",
+	}, []string{"seqid"})
+
+	confirmationPoWDurationSecCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "tanglebeat_pow_duration_counter",
+		Help: "Sums up total duration it took to do PoW for confirmation.",
 	}, []string{"seqid", "node_pow"})
 
-	confirmationTipselDurationMsecGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "tanglebeat_tipsel_duration_msec",
-		Help: "Total duration it took to do tip selection for confirmation.",
+	confirmationTipselDurationSecCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "tanglebeat_tipsel_duration_counter",
+		Help: "Sums up total duration it took to do tip selection for confirmation.",
 	}, []string{"seqid", "node_tipsel"})
 
 	prometheus.MustRegister(confirmationCounter)
-	prometheus.MustRegister(confirmationDurationSecGauge)
+	prometheus.MustRegister(confirmationDurationSecCounter)
 	prometheus.MustRegister(confirmationPoWCostCounter)
-	prometheus.MustRegister(confirmationPoWDurationMsecGauge)
-	prometheus.MustRegister(confirmationTipselDurationMsecGauge)
+	prometheus.MustRegister(confirmationPoWDurationSecCounter)
+	prometheus.MustRegister(confirmationTipselDurationSecCounter)
 
 	go exposeMetrics(Config.Prometheus.ScrapeTargetPort)
 }
@@ -69,22 +69,22 @@ func updateSenderMetrics(upd *SenderUpdate) {
 	}
 	confirmationCounter.With(prometheus.Labels{"seqid": upd.SeqUID}).Inc()
 
-	confirmationDurationSecGauge.
-		With(prometheus.Labels{"seqid": upd.SeqUID}).Set(float64(upd.UpdateTs-upd.SendingStartedTs) / 1000)
+	confirmationDurationSecCounter.
+		With(prometheus.Labels{"seqid": upd.SeqUID}).Add(float64(upd.UpdateTs-upd.SendingStartedTs) / 1000)
 
 	powCost := float64(upd.NumAttaches*int64(upd.BundleSize) + upd.NumPromotions*int64(upd.PromoBundleSize))
 	confirmationPoWCostCounter.
 		With(prometheus.Labels{"seqid": upd.SeqUID}).Add(powCost)
 
-	confirmationPoWDurationMsecGauge.
+	confirmationPoWDurationSecCounter.
 		With(prometheus.Labels{
 			"seqid":    upd.SeqUID,
 			"node_pow": upd.NodeATT,
-		}).Set(float64(upd.TotalPoWMsec))
+		}).Add(float64(upd.TotalPoWMsec) / 1000)
 
-	confirmationTipselDurationMsecGauge.
+	confirmationTipselDurationSecCounter.
 		With(prometheus.Labels{
 			"seqid":       upd.SeqUID,
 			"node_tipsel": upd.NodeGTTA,
-		}).Set(float64(upd.TotalTipselMsec))
+		}).Add(float64(upd.TotalTipselMsec) / 1000)
 }
