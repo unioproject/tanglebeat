@@ -107,18 +107,21 @@ func (gen *traviotaGenerator) runGenerator() {
 	for {
 		if addr == "" {
 			addr, err = gen.getAddress(gen.index)
+			if err != nil {
+				gen.log.Errorf("Can't get address index = %v: %v", gen.index, err)
+				time.Sleep(5 * time.Second)
+				continue
+			}
 		}
-		if err == nil {
-			if spent, err = gen.isSpentAddr(addr); err == nil {
-				var b []int64
-				if b, err = gen.getBalanceAddr([]giota.Address{addr}); err == nil {
-					balance = b[0]
-				}
+		if spent, err = gen.isSpentAddr(addr); err == nil {
+			var b []int64
+			if b, err = gen.getBalanceAddr([]giota.Address{addr}); err == nil {
+				balance = b[0]
 			}
 		}
 		if err != nil {
 			gen.log.Errorf("idx = %v: %v", gen.index, err)
-			err = nil
+			time.Sleep(5 * time.Second)
 			continue
 		}
 		switch {
