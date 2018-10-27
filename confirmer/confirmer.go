@@ -29,6 +29,7 @@ type Confirmer struct {
 	PromoteChain          bool
 	PromoteEverySec       int64
 	Log                   *logging.Logger
+	AEC                   lib.ErrorCounter
 	// internal
 	chanUpdate chan *ConfirmerUpdate
 	mutex      sync.Mutex //task state access sync
@@ -66,6 +67,10 @@ func (conf *Confirmer) errorf(f string, p ...interface{}) {
 	}
 }
 
+type dummy struct{}
+
+func (*dummy) AccountError(api *giota.API) {}
+
 func (conf *Confirmer) StartConfirmerTask(bundle giota.Bundle) (chan *ConfirmerUpdate, func(), error) {
 	if err := lib.CheckBundle(bundle); err != nil {
 		return nil, nil, errors.New(fmt.Sprintf("Attempt to run confirmer with wrong bundle: %v", err))
@@ -81,7 +86,9 @@ func (conf *Confirmer) StartConfirmerTask(bundle giota.Bundle) (chan *ConfirmerU
 	conf.numPromote = 0
 	conf.totalDurationGTTAMsec = 0
 	conf.totalDurationATTMsec = 0
-
+	if conf.AEC == nil {
+		conf.AEC = &dummy{}
+	}
 	cancelPromo := conf.goPromote()
 	cancelReattach := conf.goReattach()
 
@@ -131,11 +138,13 @@ func (conf *Confirmer) isBundleHashConfirmed(bundleHash giota.Trytes) (bool, err
 			Bundles: []giota.Trytes{bundleHash},
 		})
 		if err != nil {
+			conf.AEC.AccountError(conf.IotaAPI)
 			return false, err
 		}
 
 		states, err := conf.IotaAPI.GetLatestInclusion(ftResp.Hashes)
 		if err != nil {
+			conf.AEC.AccountError(conf.IotaAPI)
 			return false, err
 		}
 		for _, conf := range states {
@@ -164,6 +173,7 @@ func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, err error) {
 func (conf *Confirmer) checkConsistency(tailHash giota.Trytes) (bool, error) {
 	ccResp, err := conf.IotaAPI.CheckConsistency([]giota.Trytes{tailHash})
 	if err != nil {
+		conf.AEC.AccountError(conf.IotaAPI)
 		return false, err
 	}
 	consistent := ccResp.State

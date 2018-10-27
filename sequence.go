@@ -61,18 +61,24 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 			Timeout: time.Duration(params.TimeoutAPI) * time.Second,
 		},
 	)
+	AEC.registerAPI(iotaAPI, params.IOTANode[0])
+
 	iotaAPIgTTA := giota.NewAPI(
 		params.IOTANodeGTTA[0],
 		&http.Client{
 			Timeout: time.Duration(params.TimeoutGTTA) * time.Second,
 		},
 	)
+	AEC.registerAPI(iotaAPIgTTA, params.IOTANodeGTTA[0])
+
 	iotaAPIaTT := giota.NewAPI(
 		params.IOTANodeATT[0],
 		&http.Client{
 			Timeout: time.Duration(params.TimeoutATT) * time.Second,
 		},
 	)
+	AEC.registerAPI(iotaAPIaTT, params.IOTANodeATT[0])
+
 	txTagPromote, err := giota.ToTrytes(params.TxTagPromote)
 	if err != nil {
 		return nil, err
@@ -86,6 +92,7 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 		PromoteChain:          params.PromoteChain,
 		PromoteEverySec:       int64(params.PromoteEverySec),
 		Log:                   logger,
+		AEC:                   AEC,
 	}
 	return &ret, nil
 }
