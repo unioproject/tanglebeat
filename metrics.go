@@ -69,7 +69,7 @@ func initExposeToPometheus() {
 	prometheus.MustRegister(confPoWCostCounter)
 	prometheus.MustRegister(confPoWDurationSecCounter)
 	prometheus.MustRegister(confTipselDurationSecCounter)
-	//prometheus.MustRegister(confDurationHistogram)
+	prometheus.MustRegister(confDurationHistogram)
 
 	go exposeMetrics(Config.Prometheus.ScrapeTargetPort)
 }
