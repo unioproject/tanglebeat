@@ -1,3 +1,5 @@
+// module implements API error counter and exposes it as metrics to Prometheus
+
 package main
 
 import (
