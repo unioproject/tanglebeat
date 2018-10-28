@@ -57,7 +57,7 @@ func initExposeToPometheus() {
 
 	buck := make([]float64, 30)
 	for i := range buck {
-		buck[i] = float64(0.5) * float64(i)
+		buck[i] = float64(0.5*60) * float64(i)
 	}
 	confDurationHistogram = prometheus.NewHistogram(prometheus.HistogramOpts{
 		Name:    "tanglebeat_conf_duration_histogram",
