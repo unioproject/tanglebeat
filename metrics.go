@@ -57,10 +57,10 @@ func initExposeToPometheus() {
 
 	buck := make([]float64, 30)
 	for i := range buck {
-		buck[i] = float64(0.5*60) * float64(i)
+		buck[i] = float64(0.5) * float64(i) // 30 buckets every 0.5 min
 	}
 	confDurationHistogram = prometheus.NewHistogram(prometheus.HistogramOpts{
-		Name:    "tanglebeat_conf_duration_histogram",
+		Name:    "tanglebeat_conf_duration",
 		Help:    "Conf. duration histogram",
 		Buckets: buck,
 	})
@@ -80,11 +80,11 @@ func updateSenderMetrics(upd *SenderUpdate) {
 	}
 	confCounter.With(prometheus.Labels{"seqid": upd.SeqUID}).Inc()
 
-	dur := float64(upd.UpdateTs-upd.SendingStartedTs) / 1000
+	durSec := float64(upd.UpdateTs-upd.SendingStartedTs) / 1000
 	confDurationSecCounter.
-		With(prometheus.Labels{"seqid": upd.SeqUID}).Add(dur)
+		With(prometheus.Labels{"seqid": upd.SeqUID}).Add(durSec)
 
-	confDurationHistogram.Observe(dur)
+	confDurationHistogram.Observe(durSec / 60)
 
 	powCost := float64(upd.NumAttaches*int64(upd.BundleSize) + upd.NumPromotions*int64(upd.PromoBundleSize))
 	confPoWCostCounter.
