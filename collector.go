@@ -76,7 +76,7 @@ func processUpdate(sourceName string, upd *SenderUpdate) error {
 		// source is disabled, do nothing
 		return nil
 	}
-	log.Infof("Processing update '%v' from source '%v':  seq = %v(%v), index = %v",
+	log.Infof("Processing update '%v' source: '%v', seq: %v(%v), index: %v",
 		upd.UpdType, sourceName, upd.SeqUID, upd.SeqName, upd.Index)
 
 	ts, ok := alreadyPublished[upd.SeqUID]
