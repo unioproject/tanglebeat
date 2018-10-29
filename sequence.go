@@ -135,7 +135,7 @@ func (seq *Sequence) processStartUpdate(bundleData *firstBundleData) {
 	} else {
 		updType = SENDER_UPD_START_CONTINUE
 	}
-	seq.log.Infof("Update '%v' for %v index = %v",
+	seq.log.Debugf("Update '%v' for %v index = %v",
 		updType, seq.params.GetUID(), bundleData.index)
 
 	processUpdate(
@@ -167,7 +167,7 @@ func (seq *Sequence) processConfirmerUpdate(updConf *confirmer.ConfirmerUpdate,
 	addr giota.Address, index int, bundleHash giota.Trytes, sendingStarted time.Time) {
 
 	updType := confirmerUpdType2Sender(updConf.UpdateType)
-	seq.log.Infof("Update '%v' for %v index = %v",
+	seq.log.Debugf("Update '%v' for %v index = %v",
 		updType, seq.params.GetUID(), index)
 	processUpdate(
 		"local",
