@@ -76,7 +76,7 @@ func processUpdate(sourceName string, upd *SenderUpdate) error {
 		// source is disabled, do nothing
 		return nil
 	}
-	log.Infof("Processing update '%v' source: '%v', seq: %v(%v), index: %v",
+	log.Infof("Processing update '%v', source: '%v', seq: %v(%v), index: %v",
 		upd.UpdType, sourceName, upd.SeqUID, upd.SeqName, upd.Index)
 
 	ts, ok := alreadyPublished[upd.SeqUID]
@@ -91,8 +91,8 @@ func processUpdate(sourceName string, upd *SenderUpdate) error {
 		updateSenderMetrics(upd)
 	}
 	if Config.SenderDataCollector.Publish {
-		log.Infof("Publish update '%v' for %v(%v) from '%v', index = %v",
-			upd.UpdType, upd.SeqUID, upd.SeqName, sourceName, upd.Index)
+		log.Infof("Publish update '%v' received from '%v', seq: %v(%v), index: %v",
+			upd.UpdType, sourceName, upd.SeqUID, upd.SeqName, upd.Index)
 		if err := publishUpdate(upd); err != nil {
 			return err
 		}
@@ -151,7 +151,7 @@ func runDataCollectorSource(sourceName string, uri string) error {
 				upd = &SenderUpdate{}
 				err = json.Unmarshal(msg, &upd)
 				if err == nil {
-					log.Infof("Received '%v' update from source '%v': seq = %v(%v)",
+					log.Debugf("Received '%v' update from source '%v': seq = %v(%v)",
 						upd.UpdType, sourceName, upd.SeqUID, upd.SeqName)
 					processUpdate(sourceName, upd)
 				} else {
