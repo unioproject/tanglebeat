@@ -31,7 +31,7 @@ func runPublisher() error {
 	chanDataToPub = make(chan []byte)
 	// sock.AddTransport(ipc.NewTransport())
 	sock.AddTransport(tcp.NewTransport())
-	url := fmt.Sprintf("tcp://localhost:%v", Config.SenderDataCollector.OutPort)
+	url := fmt.Sprintf("tcp://:%v", Config.SenderDataCollector.OutPort)
 	if err = sock.Listen(url); err != nil {
 		return errors.New(fmt.Sprintf("can't listen new pub socket: %v", err))
 	}
@@ -50,6 +50,7 @@ func runPublisher() error {
 func publishUpdate(upd *SenderUpdate) error {
 	data, err := json.Marshal(upd)
 	if err != nil {
+		log.Errorf("Publisher:publishUpdate %v", err)
 		return err
 	}
 	chanDataToPub <- data

@@ -94,6 +94,7 @@ func processUpdate(sourceName string, upd *SenderUpdate) error {
 		log.Infof("Publish update '%v' received from '%v', seq: %v(%v), index: %v",
 			upd.UpdType, sourceName, upd.SeqUID, upd.SeqName, upd.Index)
 		if err := publishUpdate(upd); err != nil {
+			log.Errorf("Process update: %v", err)
 			return err
 		}
 	}
