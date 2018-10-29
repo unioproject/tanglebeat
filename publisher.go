@@ -35,6 +35,7 @@ func runPublisher() error {
 	if err = sock.Listen(url); err != nil {
 		return errors.New(fmt.Sprintf("can't listen new pub socket: %v", err))
 	}
+	log.Infof("Publisher: PUB socket listening on %v", url)
 	go func() {
 		defer sock.Close()
 		for data := range chanDataToPub {
