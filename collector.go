@@ -76,6 +76,8 @@ func processUpdate(sourceName string, upd *SenderUpdate) error {
 		// source is disabled, do nothing
 		return nil
 	}
+	log.Infof("Processing update '%v' from source '%v':  seq = %v(%v), index = %v",
+		upd.UpdType, sourceName, upd.SeqUID, upd.SeqName, upd.Index)
 
 	ts, ok := alreadyPublished[upd.SeqUID]
 	if ok && upd.UpdateTs <= ts {
@@ -89,7 +91,7 @@ func processUpdate(sourceName string, upd *SenderUpdate) error {
 		updateSenderMetrics(upd)
 	}
 	if Config.SenderDataCollector.Publish {
-		log.Infof("Publish update '%v' for %v(%v) from '%v', index = %v",
+		log.Debugf("Publish update '%v' for %v(%v) from '%v', index = %v",
 			upd.UpdType, upd.SeqUID, upd.SeqName, sourceName, upd.Index)
 		if err := publishUpdate(upd); err != nil {
 			return err
