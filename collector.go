@@ -70,7 +70,7 @@ var alreadyPublished map[string]int64 = make(map[string]int64)
 
 // this is called by collector or local sender every time update arrives
 // Updates are used to calculate sender metrics.
-// Update are published is enabled
+// Updates are published if publisher is enabled
 func processUpdate(sourceName string, upd *SenderUpdate) error {
 	if src, ok := Config.SenderDataCollector.Sources[sourceName]; !ok || !src.Enabled {
 		// source is disabled, do nothing
