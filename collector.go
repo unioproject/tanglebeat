@@ -141,7 +141,7 @@ func runDataCollectorSource(sourceName string, uri string) error {
 	var msg []byte
 	var upd *SenderUpdate
 	go func() {
-		log.Debugf("Start running sender update source '%v'", sourceName)
+		log.Infof("Start listening external sender update source '%v'", sourceName)
 		defer sock.Close()
 		for {
 			msg, err = sock.Recv()
