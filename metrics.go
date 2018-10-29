@@ -5,6 +5,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
+	"time"
 )
 
 // TODO restart metrics
@@ -66,6 +67,7 @@ func initExposeToPometheus() {
 		Name:       "tanglebeat_conf_duration_summary",
 		Help:       "Used to calculate fixed quantiles of confirm duration",
 		Objectives: buck,
+		MaxAge:     1 * time.Hour,
 	})
 
 	prometheus.MustRegister(confCounter)
