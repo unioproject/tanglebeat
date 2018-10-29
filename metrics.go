@@ -5,7 +5,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
-	"time"
 )
 
 // TODO restart metrics
@@ -20,7 +19,7 @@ var (
 	confDurationSecCounter       *prometheus.CounterVec
 	confPoWDurationSecCounter    *prometheus.CounterVec
 	confTipselDurationSecCounter *prometheus.CounterVec
-	confDurationSummary          prometheus.Summary
+	//confDurationSummary          prometheus.Summary
 )
 
 func exposeMetrics(port int) {
@@ -56,26 +55,26 @@ func initExposeToPometheus() {
 		Help: "Sums up total duration it took to do tip selection for confirmation.",
 	}, []string{"seqid", "node_tipsel"})
 
-	buck := map[float64]float64{
-		0.2:  0.015,
-		0.25: 0.015,
-		0.5:  0.015,
-		0.75: 0.015,
-		0.8:  0.015,
-	}
-	confDurationSummary = prometheus.NewSummary(prometheus.SummaryOpts{
-		Name:       "tanglebeat_conf_duration_summary",
-		Help:       "Used to calculate fixed quantiles of confirm duration",
-		Objectives: buck,
-		MaxAge:     1 * time.Hour,
-	})
+	//buck := map[float64]float64{
+	//	0.2:  0.015,
+	//	0.25: 0.015,
+	//	0.5:  0.015,
+	//	0.75: 0.015,
+	//	0.8:  0.015,
+	//}
+	//confDurationSummary = prometheus.NewSummary(prometheus.SummaryOpts{
+	//	Name:       "tanglebeat_conf_duration_summary",
+	//	Help:       "Used to calculate fixed quantiles of confirm duration",
+	//	Objectives: buck,
+	//	MaxAge:     1 * time.Hour,
+	//})
 
 	prometheus.MustRegister(confCounter)
 	prometheus.MustRegister(confDurationSecCounter)
 	prometheus.MustRegister(confPoWCostCounter)
 	prometheus.MustRegister(confPoWDurationSecCounter)
 	prometheus.MustRegister(confTipselDurationSecCounter)
-	prometheus.MustRegister(confDurationSummary)
+	//prometheus.MustRegister(confDurationSummary)
 
 	go exposeMetrics(Config.Prometheus.ScrapeTargetPort)
 }
@@ -90,7 +89,7 @@ func updateSenderMetrics(upd *SenderUpdate) {
 	confDurationSecCounter.
 		With(prometheus.Labels{"seqid": upd.SeqUID}).Add(durSec)
 
-	confDurationSummary.Observe(durSec)
+	//confDurationSummary.Observe(durSec)
 
 	powCost := float64(upd.NumAttaches*int64(upd.BundleSize) + upd.NumPromotions*int64(upd.PromoBundleSize))
 	confPoWCostCounter.
