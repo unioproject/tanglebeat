@@ -149,6 +149,8 @@ func runDataCollectorSource(sourceName string, uri string) error {
 				upd = &SenderUpdate{}
 				err = json.Unmarshal(msg, &upd)
 				if err == nil {
+					log.Infof("Received '%v' update from source '%v': seq = %v(%v)",
+						upd.UpdType, sourceName, upd.SeqUID, upd.SeqName)
 					processUpdate(sourceName, upd)
 				} else {
 					log.Errorf("Error while receiving sender update from source %v(%v): %v", sourceName, uri, err)
