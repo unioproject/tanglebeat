@@ -89,8 +89,8 @@ func processUpdate(sourceName string, upd *SenderUpdate) error {
 		updateSenderMetrics(upd)
 	}
 	if Config.SenderDataCollector.Publish {
-		log.Debugf("Publish '%v' for %v(%v), index = %v",
-			upd.UpdType, upd.SeqUID, upd.SeqName, upd.Index)
+		log.Infof("Publish update '%v' for %v(%v) from '%v', index = %v",
+			upd.UpdType, upd.SeqUID, upd.SeqName, sourceName, upd.Index)
 		if err := publishUpdate(upd); err != nil {
 			return err
 		}
