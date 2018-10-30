@@ -15,7 +15,11 @@ import (
 	"time"
 )
 
-const PREFIX_MODULE = "tanglebeat"
+const (
+	PREFIX_MODULE           = "tanglebeat"
+	ROTATE_LOG_HOURS        = 6
+	ROTATE_LOG_RETAIN_HOURS = 36
+)
 
 var (
 	log                  *logging.Logger
@@ -38,6 +42,7 @@ type loggingConfigYAML struct {
 	Debug                  bool   `yaml:"debug"`
 	WorkingSubdir          string `yaml:"workingSubdir"`
 	LogConsoleOnly         bool   `yaml:"logConsoleOnly"`
+	RotateLogs             bool   `yaml:"rotateLogs"`
 	LogSequencesSeparately bool   `yaml:"logSequencesSeparately"`
 	LogFormat              string `yaml:"logFormat"`
 	LogFormatDebug         string `yaml:"logFormatDebug"`
@@ -190,8 +195,19 @@ func configMasterLogging() {
 		logWriter = os.Stderr
 		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Will be logging at %v level to stderr only", logLevelName))
 	} else {
+		var fout io.Writer
+		var err error
 		logFname := path.Join(Config.siteDataDir, Config.Logging.WorkingSubdir, PREFIX_MODULE+".log")
-		fout, err := os.OpenFile(logFname, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+
+		if Config.Logging.RotateLogs {
+			msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Creating rotating log: %v", logFname))
+			dir := path.Join(Config.siteDataDir, Config.Logging.WorkingSubdir)
+			fout, err = lib.NewRotateWriter(dir, PREFIX_MODULE+".log",
+				time.Duration(ROTATE_LOG_HOURS)*time.Hour,
+				time.Duration(ROTATE_LOG_RETAIN_HOURS)*time.Hour)
+		} else {
+			fout, err = os.OpenFile(logFname, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+		}
 		if err != nil {
 			panic(fmt.Sprintf("Failed to open logfile %v: %v", logFname, err))
 		}
@@ -214,23 +230,31 @@ func configMasterLogging() {
 // everything with is logged to this logger, will go to the master logger as well
 func createChildLogger(name string, subdir string, masterBackend *logging.LeveledBackend) (*logging.Logger, error) {
 	var logger *logging.Logger
-
+	var logWriter io.Writer
+	var err error
 	logFname := path.Join(Config.siteDataDir, subdir, PREFIX_MODULE+"."+name+".log")
-	fout, err := os.OpenFile(logFname, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	if Config.Logging.RotateLogs {
+		dir := path.Join(Config.siteDataDir, Config.Logging.WorkingSubdir)
+		logWriter, err = lib.NewRotateWriter(dir, PREFIX_MODULE+"."+name+".log",
+			time.Duration(ROTATE_LOG_HOURS)*time.Hour,
+			time.Duration(ROTATE_LOG_RETAIN_HOURS)*time.Hour)
+
+	} else {
+		logWriter, err = os.OpenFile(logFname, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	}
+
 	if err != nil {
 		return nil, err
-	} else {
-		logWriter := io.Writer(fout)
-
-		logBackend := logging.NewLogBackend(logWriter, "", 0)
-		logBackendFormatter := logging.NewBackendFormatter(logBackend, logFormatter)
-		childBackend := logging.AddModuleLevel(logBackendFormatter)
-		childBackend.SetLevel(logLevel, name) // not needed ?
-		logger = logging.MustGetLogger(name)
-		mlogger := logging.MultiLogger(*masterBackend, childBackend)
-		mlogger.SetLevel(logLevel, name)
-		logger.SetBackend(mlogger)
 	}
+
+	logBackend := logging.NewLogBackend(logWriter, "", 0)
+	logBackendFormatter := logging.NewBackendFormatter(logBackend, logFormatter)
+	childBackend := logging.AddModuleLevel(logBackendFormatter)
+	childBackend.SetLevel(logLevel, name) // not needed ?
+	logger = logging.MustGetLogger(name)
+	mlogger := logging.MultiLogger(*masterBackend, childBackend)
+	mlogger.SetLevel(logLevel, name)
+	logger.SetBackend(mlogger)
 
 	logger.Infof("Created child logger '%v' -> %v, level: '%v'", name, logFname, logLevelName)
 	return logger, nil

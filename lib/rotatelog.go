@@ -3,52 +3,43 @@ package lib
 // https://stackoverflow.com/questions/28796021/how-can-i-log-in-golang-to-a-file-with-log-rotation
 
 import (
+	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
 
-type RotatePeriod int
-
-const (
-	ROTATE_HOURLY RotatePeriod = 0
-	ROTATE_DAYLY  RotatePeriod = 1
-)
-
 type RotateWriter struct {
-	lock        sync.Mutex
-	filename    string // should be set to the actual filename
-	rotate      RotatePeriod
-	rotateAfter time.Time
-	fp          *os.File
+	lock         sync.Mutex
+	dir          string // directory where to put logs
+	filename     string // should be set to the actual filename, without path
+	rotatePeriod time.Duration
+	retainPeriod time.Duration
+	rotateAfter  time.Time
+	fp           *os.File
 }
 
 // Make a new RotateWriter. Return nil if error occurs during setup.
-func NewRotateWriter(filename string, t RotatePeriod) *RotateWriter {
+func NewRotateWriter(dir string, filename string, rot time.Duration, retain time.Duration) (*RotateWriter, error) {
 	w := &RotateWriter{
-		filename:    filename,
-		rotate:      t,
-		rotateAfter: time.Now(),
+		dir:          dir,
+		filename:     filename,
+		rotatePeriod: rot,
+		retainPeriod: retain,
+		rotateAfter:  time.Now(),
 	}
 	err := w.rotateIfNeeded()
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	return w
+	return w, nil
 }
 
-func (w *RotateWriter) setRotateAfter() {
-	nowis := time.Now()
-	var rounded time.Time
-	switch w.rotate {
-	case ROTATE_HOURLY:
-		rounded = time.Date(nowis.Year(), nowis.Month(), nowis.Day(), nowis.Hour(), 0, 0, 0, nowis.Location())
-		rounded = rounded.Add(1 * time.Hour)
-	case ROTATE_DAYLY:
-		rounded = time.Date(nowis.Year(), nowis.Month(), nowis.Day(), 0, 0, 0, 0, nowis.Location())
-		rounded = rounded.Add(time.Duration(24) * time.Hour)
-	}
-	w.rotateAfter = rounded
+func (w *RotateWriter) fullPath() string {
+	return filepath.Join(w.dir, w.filename)
 }
 
 // Write satisfies the io.Writer interface.
@@ -65,6 +56,30 @@ func (w *RotateWriter) rotationNeeded() bool {
 	return w.fp == nil || !w.rotateAfter.After(time.Now())
 }
 
+func (w *RotateWriter) purgeOlder() {
+	files, err := ioutil.ReadDir(w.dir)
+	if err != nil {
+		return
+	}
+	purgeOlderThan := time.Now().Add(-w.retainPeriod)
+	//fmt.Printf("--- purge before %v\n", purgeOlderThan)
+	for _, f := range files {
+		if f.IsDir() {
+			continue
+		}
+		if !strings.HasPrefix(f.Name(), w.filename) || f.Name() == w.filename {
+			continue
+		}
+		//fmt.Printf("--- %v -- mod time %v\n", f.Name(), f.ModTime())
+		if f.ModTime().After(purgeOlderThan) {
+			continue
+		}
+		toremove := filepath.Join(w.dir, f.Name())
+		//fmt.Printf("Remove %v\n", toremove)
+		os.Remove(toremove)
+	}
+}
+
 // Perform the actual act of rotating and reopening file.
 func (w *RotateWriter) rotateIfNeeded() error {
 	var err error
@@ -73,7 +88,8 @@ func (w *RotateWriter) rotateIfNeeded() error {
 		return nil
 	}
 	// rotation needed
-
+	// Purge older files
+	w.purgeOlder()
 	// Close existing file if open
 	if w.fp != nil {
 		err = w.fp.Close()
@@ -83,15 +99,23 @@ func (w *RotateWriter) rotateIfNeeded() error {
 		}
 	}
 	// Rename dest file if it already exists
-	_, err = os.Stat(w.filename)
+	_, err = os.Stat(w.fullPath())
+	stamp := time.Now().Format(time.Stamp)
+	stamp = strings.Replace(stamp, ":", "_", -1)
 	if err == nil {
-		err = os.Rename(w.filename, w.filename+"."+time.Now().Format(time.RFC3339))
+		err = os.Rename(w.fullPath(), w.fullPath()+"."+stamp)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Create a file.
-	w.fp, err = os.Create(w.filename)
+	w.fp, err = os.OpenFile(w.fullPath(), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return err
+	}
+	w.rotateAfter = time.Now().Add(w.rotatePeriod)
+	m := fmt.Sprintf("---------------- rotating log %v created %v\n", w.fullPath(), time.Now())
+	_, err = w.Write([]byte(m))
 	return err
 }
