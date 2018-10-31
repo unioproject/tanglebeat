@@ -92,6 +92,11 @@ func (w *RotateWriter) rotateIfNeeded() error {
 	w.purgeOlder()
 	// Close existing file if open
 	if w.fp != nil {
+		m := fmt.Sprintf("---------------- leaving rotating log %v at %v\n", w.fullPath(), time.Now())
+		_, err = w.fp.Write([]byte(m))
+		if err != nil {
+			return err
+		}
 		err = w.fp.Close()
 		w.fp = nil
 		if err != nil {
@@ -116,6 +121,6 @@ func (w *RotateWriter) rotateIfNeeded() error {
 	}
 	w.rotateAfter = time.Now().Add(w.rotatePeriod)
 	m := fmt.Sprintf("---------------- rotating log %v created %v\n", w.fullPath(), time.Now())
-	_, err = w.Write([]byte(m))
+	_, err = w.fp.Write([]byte(m))
 	return err
 }
