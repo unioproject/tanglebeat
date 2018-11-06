@@ -18,7 +18,7 @@ import (
 // next bundle os generated upon current becoming confirmed
 // it is sequence of transfers along addresses with 0,1,2,3 ..indices of the same seed
 
-type traviotaGenerator struct {
+type transferBundleGenerator struct {
 	params        *senderParamsYAML
 	seed          giota.Trytes
 	securityLevel int
@@ -33,8 +33,8 @@ type traviotaGenerator struct {
 
 const UID_LEN = 12
 
-func NewTraviotaGenerator(params *senderParamsYAML, logger *logging.Logger) (chan *firstBundleData, error) {
-	state, err := initTraviotaGenerator(params, logger)
+func NewTransferBundleGenerator(params *senderParamsYAML, logger *logging.Logger) (chan *firstBundleData, error) {
+	state, err := initTransferBundleGenerator(params, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -42,9 +42,9 @@ func NewTraviotaGenerator(params *senderParamsYAML, logger *logging.Logger) (cha
 	return state.chanOut, nil
 }
 
-func initTraviotaGenerator(params *senderParamsYAML, logger *logging.Logger) (*traviotaGenerator, error) {
+func initTransferBundleGenerator(params *senderParamsYAML, logger *logging.Logger) (*transferBundleGenerator, error) {
 	var err error
-	var ret = traviotaGenerator{
+	var ret = transferBundleGenerator{
 		params:        params,
 		securityLevel: 2,
 		log:           logger,
@@ -97,12 +97,12 @@ func initTraviotaGenerator(params *senderParamsYAML, logger *logging.Logger) (*t
 
 	ret.index = lib.Max(idx, params.Index0)
 
-	ret.log.Infof("Created traviota ('traveling iota') transfer generator instance with UID = %v", params.GetUID())
+	ret.log.Infof("Created transfer bundle generator ('traveling iota') transfer generator instance with UID = %v", params.GetUID())
 	return &ret, nil
 }
 
 // main generating loop
-func (gen *traviotaGenerator) runGenerator() {
+func (gen *transferBundleGenerator) runGenerator() {
 	var addr giota.Address
 	var spent bool
 	var balance int64
@@ -136,18 +136,18 @@ func (gen *traviotaGenerator) runGenerator() {
 		case balance == 0 && spent:
 			// used, just go to next
 			if err = gen.saveIndex(); err != nil {
-				gen.log.Errorf("Traviota Bundles: saveIndex: %v", err)
+				gen.log.Errorf("Transfer Bundles: saveIndex: %v", err)
 				time.Sleep(5 * time.Second)
 				continue
 			}
-			gen.log.Infof("Traviota Bundles: index = %v is 'used'. Moving to the next", gen.index)
+			gen.log.Infof("Transfer Bundles: index = %v is 'used'. Moving to the next", gen.index)
 			gen.index += 1
 			addr = ""
 
 		case balance == 0 && !spent:
 			// nogo
 			// loops until balance != 0
-			gen.log.Infof("Traviota Bundles: index = %v, balance == 0, not spent. Wait %v sec for balance to become non zero",
+			gen.log.Infof("Transfer Bundles: index = %v, balance == 0, not spent. Wait %v sec for balance to become non zero",
 				gen.index, balanceZeroWaitSec)
 			time.Sleep(time.Duration(balanceZeroWaitSec) * time.Second)
 			balanceZeroWaitSec = lib.Min(balanceZeroWaitSec+2, 15)
@@ -155,7 +155,7 @@ func (gen *traviotaGenerator) runGenerator() {
 		case balance != 0:
 			bundleData, err = gen.findBundleToConfirm(addr)
 			if err != nil {
-				gen.log.Errorf("Traviota Bundles: findBundleToConfirm returned: %v", err)
+				gen.log.Errorf("Transfer Bundles: findBundleToConfirm returned: %v", err)
 				time.Sleep(5 * time.Second)
 				continue
 			}
@@ -163,20 +163,20 @@ func (gen *traviotaGenerator) runGenerator() {
 				// didn't find any ready to confirm, initialize new transfer
 				bundleData, err = gen.sendToNext(addr)
 				if err != nil {
-					gen.log.Errorf("Traviota Bundles: sendToNext returned: %v", err)
+					gen.log.Errorf("Transfer Bundles: sendToNext returned: %v", err)
 					time.Sleep(5 * time.Second)
 					continue
 				}
 				isNew = true
-				gen.log.Debugf("Traviota Bundles: Initialized new transfer idx=%v->%v, %v->",
+				gen.log.Debugf("Transfer Bundles: Initialized new transfer idx=%v->%v, %v->",
 					gen.index, gen.index+1, addr)
 			} else {
 				isNew = false
-				gen.log.Debugf("Traviota Bundles: Found existing transfer to confirm idx=%v->%v, %v->",
+				gen.log.Debugf("Transfer Bundles: Found existing transfer to confirm idx=%v->%v, %v->",
 					gen.index, gen.index+1, addr)
 			}
 			if bundleData == nil {
-				gen.log.Errorf("Traviota Bundles: internal inconsistency. Wait 5 min. idx = %v", gen.index)
+				gen.log.Errorf("Transfer Bundles: internal inconsistency. Wait 5 min. idx = %v", gen.index)
 				time.Sleep(5 * time.Second)
 				continue
 			}
@@ -188,28 +188,28 @@ func (gen *traviotaGenerator) runGenerator() {
 			// ---------------------- send bundle to confirm
 
 			bhash := bundleData.bundle.Hash()
-			gen.log.Debugf("Traviota Bundles: send bundle to confirmer and wait until bundle hash %v confirmed. idx = %v", bhash, gen.index)
+			gen.log.Debugf("Transfer Bundles: send bundle to confirmer and wait until bundle hash %v confirmed. idx = %v", bhash, gen.index)
 
 			// wait until any transaction with the bundle hash becomes confirmed
 			// blocks even in case of errors
 			gen.waitUntilBundleConfirmed(bhash)
 
-			gen.log.Debugf("Traviota Bundles: bundle confirmed. idx = %v", gen.index)
+			gen.log.Debugf("Transfer Bundles: bundle confirmed. idx = %v", gen.index)
 			err = gen.saveIndex()
 			if err != nil {
-				gen.log.Errorf("Traviota Bundles: saveIndex: %v", err)
+				gen.log.Errorf("Transfer Bundles: saveIndex: %v", err)
 				time.Sleep(5 * time.Second)
 			}
 			// moving to next even if balance is still not zero (sometimes happens)
 			// in latter case iotas will be left behind
 			gen.index += 1
 			addr = ""
-			gen.log.Debugf("Traviota Bundles: moving to the next index -> %v", gen.index)
+			gen.log.Debugf("Transfer Bundles: moving to the next index -> %v", gen.index)
 		}
 	}
 }
 
-func (gen *traviotaGenerator) waitUntilBundleConfirmed(bundleHash giota.Trytes) {
+func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash giota.Trytes) {
 	gen.log.Debugf("waitUntilBundleConfirmed: start waiting for the bundle to be confirmed")
 
 	startWaiting := time.Now()
@@ -247,7 +247,7 @@ func (gen *traviotaGenerator) waitUntilBundleConfirmed(bundleHash giota.Trytes) 
 	}
 }
 
-func (gen *traviotaGenerator) isSpentAddr(address giota.Address) (bool, error) {
+func (gen *transferBundleGenerator) isSpentAddr(address giota.Address) (bool, error) {
 	if resp, err := gen.iotaAPI.WereAddressesSpentFrom([]giota.Address{address}); err != nil {
 		AEC.IncErrorCount(gen.iotaAPI)
 		return false, err
@@ -256,7 +256,7 @@ func (gen *traviotaGenerator) isSpentAddr(address giota.Address) (bool, error) {
 	}
 }
 
-func (gen *traviotaGenerator) getBalanceAddr(addresses []giota.Address) ([]int64, error) {
+func (gen *transferBundleGenerator) getBalanceAddr(addresses []giota.Address) ([]int64, error) {
 	if gbResp, err := gen.iotaAPI.GetBalances(addresses, 100); err != nil {
 		AEC.IncErrorCount(gen.iotaAPI)
 		return nil, err
@@ -265,15 +265,15 @@ func (gen *traviotaGenerator) getBalanceAddr(addresses []giota.Address) ([]int64
 	}
 }
 
-func (gen *traviotaGenerator) getAddress(index int) (giota.Address, error) {
+func (gen *transferBundleGenerator) getAddress(index int) (giota.Address, error) {
 	return giota.NewAddress(gen.seed, index, gen.securityLevel)
 }
 
-func (gen *traviotaGenerator) getLastIndexFname() string {
+func (gen *transferBundleGenerator) getLastIndexFname() string {
 	return path.Join(Config.siteDataDir, Config.Logging.WorkingSubdir, gen.params.GetUID())
 }
 
-func (gen *traviotaGenerator) saveIndex() error {
+func (gen *transferBundleGenerator) saveIndex() error {
 	fname := gen.getLastIndexFname()
 	fout, err := os.OpenFile(fname, os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
@@ -286,7 +286,7 @@ func (gen *traviotaGenerator) saveIndex() error {
 	return err
 }
 
-func (gen *traviotaGenerator) sendBalance(fromAddr, toAddr giota.Address, balance int64,
+func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr giota.Address, balance int64,
 	seed giota.Trytes, fromIndex int) (*firstBundleData, error) {
 	// fromIndex is required to calculate inputs, cant specifiy inputs explicitely to PrepareTransfers
 	ret := &firstBundleData{
@@ -350,7 +350,7 @@ func (gen *traviotaGenerator) sendBalance(fromAddr, toAddr giota.Address, balanc
 	return ret, nil
 }
 
-func (gen *traviotaGenerator) sendToNext(addr giota.Address) (*firstBundleData, error) {
+func (gen *transferBundleGenerator) sendToNext(addr giota.Address) (*firstBundleData, error) {
 	nextAddr, err := gen.getAddress(gen.index + 1)
 	if err != nil {
 		return nil, err
@@ -386,7 +386,7 @@ func (gen *traviotaGenerator) sendToNext(addr giota.Address) (*firstBundleData, 
 	return ret, err
 }
 
-func (gen *traviotaGenerator) findBundleToConfirm(addr giota.Address) (*firstBundleData, error) {
+func (gen *transferBundleGenerator) findBundleToConfirm(addr giota.Address) (*firstBundleData, error) {
 	// find all transactions of the address
 	ftResp, err := gen.findTrytes(
 		&giota.FindTransactionsRequest{
@@ -492,7 +492,7 @@ func extractBundleTxByTail(tail *giota.Transaction, allTx []giota.Transaction) [
 	return ret
 }
 
-func (gen *traviotaGenerator) isAnyConfirmed(txHashes []giota.Trytes) (bool, error) {
+func (gen *transferBundleGenerator) isAnyConfirmed(txHashes []giota.Trytes) (bool, error) {
 	incl, err := gen.iotaAPI.GetLatestInclusion(txHashes)
 	if err != nil {
 		AEC.IncErrorCount(gen.iotaAPI)
@@ -506,7 +506,7 @@ func (gen *traviotaGenerator) isAnyConfirmed(txHashes []giota.Trytes) (bool, err
 	return false, nil
 }
 
-func (gen *traviotaGenerator) findTrytes(txReq *giota.FindTransactionsRequest) (*giota.GetTrytesResponse, error) {
+func (gen *transferBundleGenerator) findTrytes(txReq *giota.FindTransactionsRequest) (*giota.GetTrytesResponse, error) {
 	// TODO tx cache
 	ftResp, err := gen.iotaAPI.FindTransactions(txReq)
 	if err != nil {

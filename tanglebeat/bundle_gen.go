@@ -24,6 +24,6 @@ func NewBundleSource(params *senderParamsYAML, logger *logging.Logger) (chan *fi
 	if params.externalSource {
 		return nil, errors.New("External sources are not implemented")
 	}
-	return NewTraviotaGenerator(params, logger)
+	return NewTransferBundleGenerator(params, logger)
 
 }
