@@ -228,7 +228,7 @@ func (gen *traviotaGenerator) waitUntilBundleConfirmed(bundleHash giota.Trytes) 
 		if err != nil {
 			gen.log.Errorf("waitUntilBundleConfirmed: FindTransactions returned: %v. Time since waiting: %v",
 				err, sinceWaiting)
-			AEC.AccountError(gen.iotaAPI)
+			AEC.IncErrorCount(gen.iotaAPI)
 			continue
 		}
 
@@ -236,7 +236,7 @@ func (gen *traviotaGenerator) waitUntilBundleConfirmed(bundleHash giota.Trytes) 
 		if err != nil {
 			gen.log.Errorf("waitUntilBundleConfirmed: GetLatestInclusion returned: %v. Time since waiting: %v",
 				err, sinceWaiting)
-			AEC.AccountError(gen.iotaAPI)
+			AEC.IncErrorCount(gen.iotaAPI)
 			continue
 		}
 		for _, conf := range states {
@@ -249,7 +249,7 @@ func (gen *traviotaGenerator) waitUntilBundleConfirmed(bundleHash giota.Trytes) 
 
 func (gen *traviotaGenerator) isSpentAddr(address giota.Address) (bool, error) {
 	if resp, err := gen.iotaAPI.WereAddressesSpentFrom([]giota.Address{address}); err != nil {
-		AEC.AccountError(gen.iotaAPI)
+		AEC.IncErrorCount(gen.iotaAPI)
 		return false, err
 	} else {
 		return resp.States[0], nil
@@ -258,7 +258,7 @@ func (gen *traviotaGenerator) isSpentAddr(address giota.Address) (bool, error) {
 
 func (gen *traviotaGenerator) getBalanceAddr(addresses []giota.Address) ([]int64, error) {
 	if gbResp, err := gen.iotaAPI.GetBalances(addresses, 100); err != nil {
-		AEC.AccountError(gen.iotaAPI)
+		AEC.IncErrorCount(gen.iotaAPI)
 		return nil, err
 	} else {
 		return gbResp.Balances, nil
@@ -311,13 +311,13 @@ func (gen *traviotaGenerator) sendBalance(fromAddr, toAddr giota.Address, balanc
 		gen.securityLevel,
 	)
 	if err != nil {
-		AEC.AccountError(gen.iotaAPI)
+		AEC.IncErrorCount(gen.iotaAPI)
 		return nil, err
 	}
 	st := lib.UnixMs(time.Now())
 	gttaResp, err := gen.iotaAPIgTTA.GetTransactionsToApprove(3, 100, giota.Trytes(""))
 	if err != nil {
-		AEC.AccountError(gen.iotaAPIgTTA)
+		AEC.IncErrorCount(gen.iotaAPIgTTA)
 		return nil, err
 	}
 	ret.totalDurationGTTAMsec = lib.UnixMs(time.Now()) - st
@@ -330,7 +330,7 @@ func (gen *traviotaGenerator) sendBalance(fromAddr, toAddr giota.Address, balanc
 		MinWeightMagnitude: 14,
 	})
 	if err != nil {
-		AEC.AccountError(gen.iotaAPIaTT)
+		AEC.IncErrorCount(gen.iotaAPIaTT)
 		return nil, err
 	}
 
@@ -338,12 +338,12 @@ func (gen *traviotaGenerator) sendBalance(fromAddr, toAddr giota.Address, balanc
 
 	err = gen.iotaAPI.BroadcastTransactions(attResp.Trytes)
 	if err != nil {
-		AEC.AccountError(gen.iotaAPI)
+		AEC.IncErrorCount(gen.iotaAPI)
 		return nil, err
 	}
 	err = gen.iotaAPI.StoreTransactions(attResp.Trytes)
 	if err != nil {
-		AEC.AccountError(gen.iotaAPI)
+		AEC.IncErrorCount(gen.iotaAPI)
 		return nil, err
 	}
 	ret.bundle = attResp.Trytes
@@ -359,7 +359,7 @@ func (gen *traviotaGenerator) sendToNext(addr giota.Address) (*firstBundleData, 
 
 	gbResp, err := gen.iotaAPI.GetBalances([]giota.Address{addr}, 100)
 	if err != nil {
-		AEC.AccountError(gen.iotaAPI)
+		AEC.IncErrorCount(gen.iotaAPI)
 		return nil, err
 	}
 	balance := gbResp.Balances[0]
@@ -495,7 +495,7 @@ func extractBundleTxByTail(tail *giota.Transaction, allTx []giota.Transaction) [
 func (gen *traviotaGenerator) isAnyConfirmed(txHashes []giota.Trytes) (bool, error) {
 	incl, err := gen.iotaAPI.GetLatestInclusion(txHashes)
 	if err != nil {
-		AEC.AccountError(gen.iotaAPI)
+		AEC.IncErrorCount(gen.iotaAPI)
 		return false, err
 	}
 	for _, ok := range incl {
@@ -510,7 +510,7 @@ func (gen *traviotaGenerator) findTrytes(txReq *giota.FindTransactionsRequest) (
 	// TODO tx cache
 	ftResp, err := gen.iotaAPI.FindTransactions(txReq)
 	if err != nil {
-		AEC.AccountError(gen.iotaAPI)
+		AEC.IncErrorCount(gen.iotaAPI)
 		return nil, err
 	}
 	return gen.iotaAPI.GetTrytes(ftResp.Hashes)

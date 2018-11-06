@@ -43,6 +43,6 @@ func (aec *apiErrorCount) getEndpoint(api *giota.API) string {
 	return ret
 }
 
-func (aec *apiErrorCount) AccountError(api *giota.API) {
+func (aec *apiErrorCount) IncErrorCount(api *giota.API) {
 	aec.apiErrorCounter.With(prometheus.Labels{"endpoint": aec.getEndpoint(api)}).Inc()
 }

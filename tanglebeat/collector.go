@@ -12,8 +12,6 @@ import (
 	"time"
 )
 
-// TODO routing
-
 const (
 	SENDER_UPD_UNDEF          SenderUpdateType = "undef"
 	SENDER_UPD_NO_ACTION      SenderUpdateType = "no action"

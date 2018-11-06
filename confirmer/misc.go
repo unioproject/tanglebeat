@@ -16,7 +16,7 @@ func (conf *Confirmer) attachToTangle(trunkHash, branchHash giota.Trytes, trytes
 		MinWeightMagnitude: 14,
 	})
 	if err != nil {
-		conf.AEC.AccountError(conf.IotaAPIaTT)
+		conf.AEC.IncErrorCount(conf.IotaAPIaTT)
 	}
 	return ret, err
 }
@@ -47,13 +47,13 @@ func (conf *Confirmer) promote() error {
 		2,
 	)
 	if err != nil {
-		conf.AEC.AccountError(conf.IotaAPI)
+		conf.AEC.IncErrorCount(conf.IotaAPI)
 		return err
 	}
 	st := lib.UnixMs(time.Now())
 	gttaResp, err := conf.IotaAPIgTTA.GetTransactionsToApprove(3, 100, giota.Trytes(""))
 	if err != nil {
-		conf.AEC.AccountError(conf.IotaAPIgTTA)
+		conf.AEC.IncErrorCount(conf.IotaAPIgTTA)
 		return err
 	}
 	tail := lib.GetTail(conf.nextBundleToPromote)
@@ -74,12 +74,12 @@ func (conf *Confirmer) promote() error {
 	bundle = attResp.Trytes
 	err = conf.IotaAPI.BroadcastTransactions(bundle)
 	if err != nil {
-		conf.AEC.AccountError(conf.IotaAPI)
+		conf.AEC.IncErrorCount(conf.IotaAPI)
 		return err
 	}
 	err = conf.IotaAPI.StoreTransactions(bundle)
 	if err != nil {
-		conf.AEC.AccountError(conf.IotaAPI)
+		conf.AEC.IncErrorCount(conf.IotaAPI)
 		return err
 	}
 	nowis := time.Now()
@@ -97,7 +97,7 @@ func (conf *Confirmer) reattach() error {
 	}
 	gttaResp, err := conf.IotaAPIgTTA.GetTransactionsToApprove(3, 100, giota.Trytes(""))
 	if err != nil {
-		conf.AEC.AccountError(conf.IotaAPIgTTA)
+		conf.AEC.IncErrorCount(conf.IotaAPIgTTA)
 		return err
 	}
 	attResp, err := conf.attachToTangle(gttaResp.TrunkTransaction, gttaResp.BranchTransaction, conf.lastBundle)
@@ -106,12 +106,12 @@ func (conf *Confirmer) reattach() error {
 	}
 	err = conf.IotaAPI.BroadcastTransactions(attResp.Trytes)
 	if err != nil {
-		conf.AEC.AccountError(conf.IotaAPI)
+		conf.AEC.IncErrorCount(conf.IotaAPI)
 		return err
 	}
 	err = conf.IotaAPI.StoreTransactions(attResp.Trytes)
 	if err != nil {
-		conf.AEC.AccountError(conf.IotaAPI)
+		conf.AEC.IncErrorCount(conf.IotaAPI)
 		return err
 	}
 	nowis := time.Now()
