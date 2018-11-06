@@ -57,21 +57,21 @@ type senderYAML struct {
 }
 
 type senderParamsYAML struct {
-	externalSource        bool     // tmp TODO
-	Enabled               bool     `yaml:"enabled"`
-	IOTANode              []string `yaml:"iotaNode"`
-	IOTANodeGTTA          []string `yaml:"iotaNodeTipsel"`
-	IOTANodeATT           []string `yaml:"iotaNodePOW"`
-	TimeoutAPI            int      `yaml:"apiTimeout"`
-	TimeoutGTTA           int      `yaml:"GTTATimeout"`
-	TimeoutATT            int      `yaml:"ATTTimeout"`
-	Seed                  string   `yaml:"seed"`
-	Index0                int      `yaml:"index0"`
-	TxTag                 string   `yaml:"txTag"`
-	TxTagPromote          string   `yaml:"txTagPromote"`
-	ForceReattachAfterMin int      `yaml:"forceReattachAfterMin"`
-	PromoteChain          bool     `yaml:"promoteChain"`
-	PromoteEverySec       int      `yaml:"promoteEverySec"`
+	externalSource        bool   // tmp TODO
+	Enabled               bool   `yaml:"enabled"`
+	IOTANode              string `yaml:"iotaNode"`
+	IOTANodeTipsel        string `yaml:"iotaNodeTipsel"`
+	IOTANodePoW           string `yaml:"iotaNodePOW"`
+	TimeoutAPI            int    `yaml:"apiTimeout"`
+	TimeoutTipsel         int    `yaml:"tipselTimeout"`
+	TimeoutPoW            int    `yaml:"powTimeout"`
+	Seed                  string `yaml:"seed"`
+	Index0                int    `yaml:"index0"`
+	TxTag                 string `yaml:"txTag"`
+	TxTagPromote          string `yaml:"txTagPromote"`
+	ForceReattachAfterMin int    `yaml:"forceReattachAfterMin"`
+	PromoteChain          bool   `yaml:"promoteChain"`
+	PromoteEverySec       int    `yaml:"promoteEverySec"`
 }
 
 type senderDataCollectorYAML struct {
@@ -274,16 +274,16 @@ func getSeqParams(name string) (*senderParamsYAML, error) {
 			return &ret, errors.New(fmt.Sprintf("Default IOTA node is undefined in sequence '%v'\n", name))
 		}
 	}
-	if len(ret.IOTANodeGTTA) == 0 {
-		ret.IOTANodeGTTA = Config.Sender.Globals.IOTANodeGTTA
-		if len(ret.IOTANodeGTTA) == 0 {
-			ret.IOTANodeGTTA = ret.IOTANode
+	if len(ret.IOTANodeTipsel) == 0 {
+		ret.IOTANodeTipsel = Config.Sender.Globals.IOTANodeTipsel
+		if len(ret.IOTANodeTipsel) == 0 {
+			ret.IOTANodeTipsel = ret.IOTANode
 		}
 	}
-	if len(ret.IOTANodeATT) == 0 {
-		ret.IOTANodeATT = Config.Sender.Globals.IOTANodeATT
-		if len(ret.IOTANodeATT) == 0 {
-			ret.IOTANodeATT = ret.IOTANode
+	if len(ret.IOTANodePoW) == 0 {
+		ret.IOTANodePoW = Config.Sender.Globals.IOTANodePoW
+		if len(ret.IOTANodePoW) == 0 {
+			ret.IOTANodePoW = ret.IOTANode
 		}
 	}
 	if len(ret.TxTag) == 0 {
@@ -304,11 +304,11 @@ func getSeqParams(name string) (*senderParamsYAML, error) {
 	if ret.TimeoutAPI == 0 {
 		ret.TimeoutAPI = Config.Sender.Globals.TimeoutAPI
 	}
-	if ret.TimeoutGTTA == 0 {
-		ret.TimeoutGTTA = Config.Sender.Globals.TimeoutGTTA
+	if ret.TimeoutTipsel == 0 {
+		ret.TimeoutTipsel = Config.Sender.Globals.TimeoutTipsel
 	}
-	if ret.TimeoutATT == 0 {
-		ret.TimeoutATT = Config.Sender.Globals.TimeoutATT
+	if ret.TimeoutPoW == 0 {
+		ret.TimeoutPoW = Config.Sender.Globals.TimeoutPoW
 	}
 	if ret.ForceReattachAfterMin == 0 {
 		ret.ForceReattachAfterMin = Config.Sender.Globals.ForceReattachAfterMin

@@ -56,28 +56,28 @@ func NewSequence(name string) (*Sequence, error) {
 
 func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirmer.Confirmer, error) {
 	iotaAPI := giota.NewAPI(
-		params.IOTANode[0],
+		params.IOTANode,
 		&http.Client{
 			Timeout: time.Duration(params.TimeoutAPI) * time.Second,
 		},
 	)
-	AEC.registerAPI(iotaAPI, params.IOTANode[0])
+	AEC.registerAPI(iotaAPI, params.IOTANode)
 
 	iotaAPIgTTA := giota.NewAPI(
-		params.IOTANodeGTTA[0],
+		params.IOTANodeTipsel,
 		&http.Client{
-			Timeout: time.Duration(params.TimeoutGTTA) * time.Second,
+			Timeout: time.Duration(params.TimeoutTipsel) * time.Second,
 		},
 	)
-	AEC.registerAPI(iotaAPIgTTA, params.IOTANodeGTTA[0])
+	AEC.registerAPI(iotaAPIgTTA, params.IOTANodeTipsel)
 
 	iotaAPIaTT := giota.NewAPI(
-		params.IOTANodeATT[0],
+		params.IOTANodePoW,
 		&http.Client{
-			Timeout: time.Duration(params.TimeoutATT) * time.Second,
+			Timeout: time.Duration(params.TimeoutPoW) * time.Second,
 		},
 	)
-	AEC.registerAPI(iotaAPIaTT, params.IOTANodeATT[0])
+	AEC.registerAPI(iotaAPIaTT, params.IOTANodePoW)
 
 	txTagPromote, err := giota.ToTrytes(params.TxTagPromote)
 	if err != nil {
@@ -151,8 +151,8 @@ func (seq *Sequence) processStartUpdate(bundleData *firstBundleData) {
 			UpdateTs:              lib.UnixMs(bundleData.startTime),
 			NumAttaches:           bundleData.numAttach,
 			NumPromotions:         0,
-			NodeATT:               seq.params.IOTANodeATT[0],
-			NodeGTTA:              seq.params.IOTANodeGTTA[0],
+			NodeATT:               seq.params.IOTANodePoW,
+			NodeGTTA:              seq.params.IOTANodeTipsel,
 			PromoteEveryNumSec:    seq.params.PromoteEverySec,
 			ForceReattachAfterMin: seq.params.ForceReattachAfterMin,
 			PromoteChain:          seq.params.PromoteChain,
@@ -182,8 +182,8 @@ func (seq *Sequence) processConfirmerUpdate(updConf *confirmer.ConfirmerUpdate,
 			UpdateTs:              lib.UnixMs(updConf.UpdateTime),
 			NumAttaches:           updConf.NumAttaches,
 			NumPromotions:         updConf.NumPromotions,
-			NodeATT:               seq.params.IOTANodeATT[0],
-			NodeGTTA:              seq.params.IOTANodeGTTA[0],
+			NodeATT:               seq.params.IOTANodePoW,
+			NodeGTTA:              seq.params.IOTANodeTipsel,
 			PromoteEveryNumSec:    seq.params.PromoteEverySec,
 			ForceReattachAfterMin: seq.params.ForceReattachAfterMin,
 			PromoteChain:          seq.params.PromoteChain,
