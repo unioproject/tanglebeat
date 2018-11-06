@@ -7,7 +7,7 @@ as [Grafana](https://grafana.com).
 It is a successor of [Traveling IOTA](http://traviota.iotalt.com) project, 
 scaled up and more practical version of the latter.
 
-##Transfer confirmation metrics
+## Transfer confirmation metrics
 
 _Tanglebeat_ is performing IOTA value transfers from one address 
 to the next one in an endless loop. In every step whole balance 
