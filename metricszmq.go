@@ -7,16 +7,16 @@ import (
 	"github.com/go-zeromq/zmq4"
 	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/prometheus/client_golang/prometheus"
-	"strconv"
 	"strings"
 	"time"
 )
 
 var (
-	zmqMetricsCurrentMilestone     prometheus.Gauge
-	zmqMetricsSecBetweenMilestones prometheus.Gauge
-	zmqMetricsTxCounter            prometheus.Counter
-	zmqMetricsCtxCounter           prometheus.Counter
+	//zmqMetricsCurrentMilestone     prometheus.Gauge
+	//zmqMetricsSecBetweenMilestones prometheus.Gauge
+	zmqMetricsTxCounter        prometheus.Counter
+	zmqMetricsCtxCounter       prometheus.Counter
+	zmqMetricsMilestoneCounter prometheus.Counter
 )
 
 func openSocket(uri string, timeoutSec int) (zmq4.Socket, error) {
@@ -56,7 +56,7 @@ func startReadingIRIZmq(uri string) error {
 
 	go func() {
 		log.Debugf("ZMQ listener created succesfully")
-		var lastMilestoneUnixTs int64
+		//var lastMilestoneUnixTs int64
 
 		for {
 			msg, err := socket.Recv()
@@ -76,20 +76,22 @@ func startReadingIRIZmq(uri string) error {
 			case "sn":
 				zmqMetricsCtxCounter.Inc()
 			case "lmi":
-				if len(message) < 3 {
-					log.Errorf("reading ZMQ socket: unexpected 'lmi' message format")
-				}
-				if nextMilestone, err := strconv.Atoi(message[2]); err != nil {
-					log.Errorf("reading ZMQ socket: 'lmi' error: %v", err)
-				} else {
-					zmqMetricsCurrentMilestone.Set(float64(nextMilestone))
-					nowis := lib.UnixMs(time.Now())
-					if lastMilestoneUnixTs != 0 {
-						zmqMetricsSecBetweenMilestones.Set(float64(nowis-lastMilestoneUnixTs) / 1000)
-						log.Debugf("ZMQ metrics updater: milestone changed: %v --> %v", message[1], message[2])
-					}
-					lastMilestoneUnixTs = nowis
-				}
+				zmqMetricsMilestoneCounter.Inc()
+
+				//if len(message) < 3 {
+				//	log.Errorf("reading ZMQ socket: unexpected 'lmi' message format")
+				//}
+				//if nextMilestone, err := strconv.Atoi(message[2]); err != nil {
+				//	log.Errorf("reading ZMQ socket: 'lmi' error: %v", err)
+				//} else {
+				//	zmqMetricsCurrentMilestone.Set(float64(nextMilestone))
+				//	nowis := lib.UnixMs(time.Now())
+				//	if lastMilestoneUnixTs != 0 {
+				//		zmqMetricsSecBetweenMilestones.Set(float64(nowis-lastMilestoneUnixTs) / 1000)
+				//		log.Debugf("ZMQ metrics updater: milestone changed: %v --> %v", message[1], message[2])
+				//	}
+				//	lastMilestoneUnixTs = nowis
+				//}
 			}
 		}
 	}()
@@ -97,14 +99,14 @@ func startReadingIRIZmq(uri string) error {
 }
 
 func initMetricsZMQ() error {
-	zmqMetricsCurrentMilestone = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "tanglebeat_current_milestone",
-		Help: "Current milestone",
-	})
-	zmqMetricsSecBetweenMilestones = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "tanglebeat_sec_between_milestones",
-		Help: "Duration between last and previous milestone in seconds",
-	})
+	//zmqMetricsCurrentMilestone = prometheus.NewGauge(prometheus.GaugeOpts{
+	//	Name: "tanglebeat_current_milestone",
+	//	Help: "Current milestone",
+	//})
+	//zmqMetricsSecBetweenMilestones = prometheus.NewGauge(prometheus.GaugeOpts{
+	//	Name: "tanglebeat_sec_between_milestones",
+	//	Help: "Duration between last and previous milestone in seconds",
+	//})
 
 	zmqMetricsTxCounter = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "tanglebeat_tx_counter",
@@ -115,14 +117,20 @@ func initMetricsZMQ() error {
 		Name: "tanglebeat_ctx_counter",
 		Help: "Confirmed transaction counter",
 	})
-	prometheus.MustRegister(zmqMetricsCurrentMilestone)
-	prometheus.MustRegister(zmqMetricsSecBetweenMilestones)
+	zmqMetricsMilestoneCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "tanglebeat_milestone_counter",
+		Help: "Milestone counter",
+	})
+
+	//prometheus.MustRegister(zmqMetricsCurrentMilestone)
+	//prometheus.MustRegister(zmqMetricsSecBetweenMilestones)
 	prometheus.MustRegister(zmqMetricsTxCounter)
 	prometheus.MustRegister(zmqMetricsCtxCounter)
+	prometheus.MustRegister(zmqMetricsMilestoneCounter)
 
 	err := startReadingIRIZmq(Config.Prometheus.ZmqMetrics.ZMQUri)
 	if err != nil {
-		log.Errorf("cant't initialize zmq metrics uodater: %v", err)
+		log.Errorf("cant't initialize zmq metrics updater: %v", err)
 	}
 	return err
 }
