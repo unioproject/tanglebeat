@@ -16,7 +16,7 @@ func initAndRunPublisher() {
 	err := runPublisher()
 	if err != nil {
 		log.Errorf("Failed to create publishing channel. Publisher is disabled: %v", err)
-		Config.SenderDataCollector.Publish = false
+		Config.SenderUpdateCollector.Publish = false
 		return
 	}
 }
@@ -32,7 +32,7 @@ func runPublisher() error {
 	chanDataToPub = make(chan []byte)
 	// sock.AddTransport(ipc.NewTransport())
 	sock.AddTransport(tcp.NewTransport())
-	url := fmt.Sprintf("tcp://:%v", Config.SenderDataCollector.OutPort)
+	url := fmt.Sprintf("tcp://:%v", Config.SenderUpdateCollector.OutPort)
 	if err = sock.Listen(url); err != nil {
 		return errors.New(fmt.Sprintf("can't listen new pub socket: %v", err))
 	}

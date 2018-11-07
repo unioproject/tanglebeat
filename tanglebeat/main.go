@@ -27,7 +27,7 @@ func main() {
 	var enabled bool
 	initSenderDataCollector()
 
-	if Config.SenderDataCollector.Publish {
+	if Config.SenderUpdateCollector.Publish {
 		log.Infof("Starting publisher")
 		initAndRunPublisher()
 		enabled = true

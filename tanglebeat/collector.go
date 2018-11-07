@@ -35,7 +35,7 @@ var alreadyPublished = make(map[string]int64)
 // Updates are used to calculate sender metrics.
 // Updates are published if publisher is enabled
 func processUpdate(sourceName string, upd *sender_update.SenderUpdate) error {
-	if src, ok := Config.SenderDataCollector.Sources[sourceName]; !ok || !src.Enabled {
+	if src, ok := Config.SenderUpdateCollector.Sources[sourceName]; !ok || !src.Enabled {
 		// source is disabled, do nothing
 		return nil
 	}
@@ -53,7 +53,7 @@ func processUpdate(sourceName string, upd *sender_update.SenderUpdate) error {
 			upd.SeqUID, upd.SeqName, upd.Index)
 		updateSenderMetrics(upd)
 	}
-	if Config.SenderDataCollector.Publish {
+	if Config.SenderUpdateCollector.Publish {
 		log.Infof("Publish update '%v' received from '%v', seq: %v(%v), index: %v",
 			upd.UpdType, sourceName, upd.SeqUID, upd.SeqName, upd.Index)
 		if err := publishUpdate(upd); err != nil {
@@ -68,7 +68,7 @@ func initSenderDataCollector() {
 	var count int
 	var err error
 	log.Infof("Starting sender data updates sources")
-	for name, srcData := range Config.SenderDataCollector.Sources {
+	for name, srcData := range Config.SenderUpdateCollector.Sources {
 		if !srcData.Enabled {
 			log.Infof("Sender data updates source '%v' DISABLED", name)
 			continue
