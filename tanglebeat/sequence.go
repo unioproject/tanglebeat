@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/lunfardo314/giota"
+	"github.com/lunfardo314/tanglebeat/bundle_source"
 	"github.com/lunfardo314/tanglebeat/confirmer"
 	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/lunfardo314/tanglebeat/sender_update"
@@ -10,15 +11,19 @@ import (
 	"time"
 )
 
-type Sequence struct {
-	name         string
-	params       *senderParamsYAML
-	bundleSource chan *firstBundleData
+// TODO make Sequences more abstract
+
+type TransferSequence struct {
+	// common for all sequences
+	bundleSource *bundle_source.BundleSourceChan
 	confirmer    *confirmer.Confirmer
 	log          *logging.Logger
+	name         string
+	// specific for sender sequences
+	params *senderParamsYAML
 }
 
-func NewSequence(name string) (*Sequence, error) {
+func NewSequence(name string) (*TransferSequence, error) {
 	params, err := getSeqParams(name)
 	if err != nil {
 		return nil, err
@@ -36,7 +41,9 @@ func NewSequence(name string) (*Sequence, error) {
 			return nil, err
 		}
 	}
-	bundleSource, err := NewBundleSource(params, logger)
+	// Creating Traviota style bundle generator hidden behind
+	// abstract channel interface for incoming bundles
+	bundleSource, err := NewTransferBundleGenerator(params, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +51,7 @@ func NewSequence(name string) (*Sequence, error) {
 	if err != nil {
 		return nil, err
 	}
-	ret := Sequence{
+	ret := TransferSequence{
 		name:         name,
 		params:       params,
 		bundleSource: bundleSource,
@@ -98,28 +105,28 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 	return &ret, nil
 }
 
-func (seq *Sequence) Run() {
+func (seq *TransferSequence) Run() {
 	seq.log.Info("Start running sequence")
 	var bundleHash giota.Trytes
 
-	for bundleData := range seq.bundleSource {
+	for bundleData := range *seq.bundleSource {
 		seq.processStartUpdate(bundleData)
 
-		bundleHash = bundleData.bundle.Hash()
-		if chUpdate, err := seq.confirmer.RunConfirm(bundleData.bundle); err != nil {
+		bundleHash = bundleData.Bundle.Hash()
+		if chUpdate, err := seq.confirmer.RunConfirm(bundleData.Bundle); err != nil {
 			seq.log.Errorf("RunConfirm returned: %v", err)
 		} else {
 			for updConf := range chUpdate {
 				// summing up with stats collected during findOrCreateBundleToConfirm
 				if updConf.Err != nil {
-					seq.log.Errorf("Sequence: confirmer reported an error: %v", updConf.Err)
+					seq.log.Errorf("TransferSequence: confirmer reported an error: %v", updConf.Err)
 				} else {
-					updConf.NumAttaches += bundleData.numAttach
-					updConf.TotalDurationATTMsec += bundleData.totalDurationATTMsec
-					updConf.TotalDurationGTTAMsec += bundleData.totalDurationGTTAMsec
+					updConf.NumAttaches += bundleData.NumAttach
+					updConf.TotalDurationATTMsec += bundleData.TotalDurationPoWMs
+					updConf.TotalDurationGTTAMsec += bundleData.TotalDurationTipselMs
 
 					seq.processConfirmerUpdate(
-						updConf, bundleData.addr, bundleData.index, bundleHash, bundleData.startTime)
+						updConf, bundleData.Addr, bundleData.Index, bundleHash, bundleData.StartTime)
 				}
 			}
 
@@ -129,15 +136,15 @@ func (seq *Sequence) Run() {
 
 const securityLevel = 2
 
-func (seq *Sequence) processStartUpdate(bundleData *firstBundleData) {
+func (seq *TransferSequence) processStartUpdate(bundleData *bundle_source.FirstBundleData) {
 	var updType sender_update.SenderUpdateType
-	if bundleData.isNew {
+	if bundleData.IsNew {
 		updType = sender_update.SENDER_UPD_START_SEND
 	} else {
 		updType = sender_update.SENDER_UPD_START_CONTINUE
 	}
 	seq.log.Debugf("Update '%v' for %v index = %v",
-		updType, seq.params.GetUID(), bundleData.index)
+		updType, seq.params.GetUID(), bundleData.Index)
 
 	processUpdate(
 		"local",
@@ -145,12 +152,12 @@ func (seq *Sequence) processStartUpdate(bundleData *firstBundleData) {
 			SeqUID:                seq.params.GetUID(),
 			SeqName:               seq.name,
 			UpdType:               updType,
-			Index:                 bundleData.index,
-			Addr:                  bundleData.addr,
-			Bundle:                bundleData.bundle.Hash(),
-			StartTs:               lib.UnixMs(bundleData.startTime),
-			UpdateTs:              lib.UnixMs(bundleData.startTime),
-			NumAttaches:           bundleData.numAttach,
+			Index:                 bundleData.Index,
+			Addr:                  bundleData.Addr,
+			Bundle:                bundleData.Bundle.Hash(),
+			StartTs:               lib.UnixMs(bundleData.StartTime),
+			UpdateTs:              lib.UnixMs(bundleData.StartTime),
+			NumAttaches:           bundleData.NumAttach,
 			NumPromotions:         0,
 			NodeATT:               seq.params.IOTANodePoW,
 			NodeGTTA:              seq.params.IOTANodeTipsel,
@@ -159,12 +166,12 @@ func (seq *Sequence) processStartUpdate(bundleData *firstBundleData) {
 			PromoteChain:          seq.params.PromoteChain,
 			BundleSize:            securityLevel + 1,
 			PromoBundleSize:       1,
-			TotalPoWMsec:          bundleData.totalDurationATTMsec,
-			TotalTipselMsec:       bundleData.totalDurationGTTAMsec,
+			TotalPoWMsec:          bundleData.TotalDurationPoWMs,
+			TotalTipselMsec:       bundleData.TotalDurationTipselMs,
 		})
 }
 
-func (seq *Sequence) processConfirmerUpdate(updConf *confirmer.ConfirmerUpdate,
+func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.ConfirmerUpdate,
 	addr giota.Address, index int, bundleHash giota.Trytes, sendingStarted time.Time) {
 
 	updType := confirmerUpdType2Sender(updConf.UpdateType)

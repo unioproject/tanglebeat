@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lunfardo314/giota"
+	"github.com/lunfardo314/tanglebeat/bundle_source"
 	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/op/go-logging"
 	"io/ioutil"
@@ -14,8 +15,8 @@ import (
 	"time"
 )
 
-// generates sequence of transfers of full balance from address idx N to idx+1
-// next bundle os generated upon current becoming confirmed
+// generates sequence of transfers of full balance from address idx to idx+1
+// next bundle will be only generated upon current confirmed
 // it is sequence of transfers along addresses with 0,1,2,3 ..indices of the same seed
 
 type transferBundleGenerator struct {
@@ -28,18 +29,18 @@ type transferBundleGenerator struct {
 	iotaAPIgTTA   *giota.API
 	iotaAPIaTT    *giota.API
 	log           *logging.Logger
-	chanOut       chan *firstBundleData
+	chanOut       bundle_source.BundleSourceChan
 }
 
 const UID_LEN = 12
 
-func NewTransferBundleGenerator(params *senderParamsYAML, logger *logging.Logger) (chan *firstBundleData, error) {
-	state, err := initTransferBundleGenerator(params, logger)
+func NewTransferBundleGenerator(params *senderParamsYAML, logger *logging.Logger) (*bundle_source.BundleSourceChan, error) {
+	genState, err := initTransferBundleGenerator(params, logger)
 	if err != nil {
 		return nil, err
 	}
-	go state.runGenerator()
-	return state.chanOut, nil
+	go genState.runGenerator()
+	return &genState.chanOut, nil
 }
 
 func initTransferBundleGenerator(params *senderParamsYAML, logger *logging.Logger) (*transferBundleGenerator, error) {
@@ -48,7 +49,7 @@ func initTransferBundleGenerator(params *senderParamsYAML, logger *logging.Logge
 		params:        params,
 		securityLevel: 2,
 		log:           logger,
-		chanOut:       make(chan *firstBundleData),
+		chanOut:       make(bundle_source.BundleSourceChan),
 	}
 	ret.iotaAPI = giota.NewAPI(
 		params.IOTANode,
@@ -107,7 +108,7 @@ func (gen *transferBundleGenerator) runGenerator() {
 	var spent bool
 	var balance int64
 	var err error
-	var bundleData *firstBundleData
+	var bundleData *bundle_source.FirstBundleData
 	var isNew bool
 
 	addr = ""
@@ -181,13 +182,13 @@ func (gen *transferBundleGenerator) runGenerator() {
 				continue
 			}
 			// ---------------------- send bundle to confirm
-			bundleData.addr = addr
-			bundleData.index = gen.index
-			bundleData.isNew = isNew
+			bundleData.Addr = addr
+			bundleData.Index = gen.index
+			bundleData.IsNew = isNew
 			gen.chanOut <- bundleData /// here blocks until picked up in the sequence
 			// ---------------------- send bundle to confirm
 
-			bhash := bundleData.bundle.Hash()
+			bhash := bundleData.Bundle.Hash()
 			gen.log.Debugf("Transfer Bundles: send bundle to confirmer and wait until bundle hash %v confirmed. idx = %v", bhash, gen.index)
 
 			// wait until any transaction with the bundle hash becomes confirmed
@@ -287,11 +288,11 @@ func (gen *transferBundleGenerator) saveIndex() error {
 }
 
 func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr giota.Address, balance int64,
-	seed giota.Trytes, fromIndex int) (*firstBundleData, error) {
+	seed giota.Trytes, fromIndex int) (*bundle_source.FirstBundleData, error) {
 	// fromIndex is required to calculate inputs, cant specifiy inputs explicitely to PrepareTransfers
-	ret := &firstBundleData{
-		numAttach: 1,
-		startTime: time.Now(),
+	ret := &bundle_source.FirstBundleData{
+		NumAttach: 1,
+		StartTime: time.Now(),
 	}
 	transfers := []giota.Transfer{
 		{Address: toAddr,
@@ -320,7 +321,7 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr giota.Address, 
 		AEC.IncErrorCount(gen.iotaAPIgTTA)
 		return nil, err
 	}
-	ret.totalDurationGTTAMsec = lib.UnixMs(time.Now()) - st
+	ret.TotalDurationTipselMs = lib.UnixMs(time.Now()) - st
 
 	st = lib.UnixMs(time.Now())
 	attResp, err := gen.iotaAPIaTT.AttachToTangle(&giota.AttachToTangleRequest{
@@ -334,7 +335,7 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr giota.Address, 
 		return nil, err
 	}
 
-	ret.totalDurationATTMsec = lib.UnixMs(time.Now()) - st
+	ret.TotalDurationPoWMs = lib.UnixMs(time.Now()) - st
 
 	err = gen.iotaAPI.BroadcastTransactions(attResp.Trytes)
 	if err != nil {
@@ -346,11 +347,11 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr giota.Address, 
 		AEC.IncErrorCount(gen.iotaAPI)
 		return nil, err
 	}
-	ret.bundle = attResp.Trytes
+	ret.Bundle = attResp.Trytes
 	return ret, nil
 }
 
-func (gen *transferBundleGenerator) sendToNext(addr giota.Address) (*firstBundleData, error) {
+func (gen *transferBundleGenerator) sendToNext(addr giota.Address) (*bundle_source.FirstBundleData, error) {
 	nextAddr, err := gen.getAddress(gen.index + 1)
 	if err != nil {
 		return nil, err
@@ -386,7 +387,7 @@ func (gen *transferBundleGenerator) sendToNext(addr giota.Address) (*firstBundle
 	return ret, err
 }
 
-func (gen *transferBundleGenerator) findBundleToConfirm(addr giota.Address) (*firstBundleData, error) {
+func (gen *transferBundleGenerator) findBundleToConfirm(addr giota.Address) (*bundle_source.FirstBundleData, error) {
 	// find all transactions of the address
 	ftResp, err := gen.findTrytes(
 		&giota.FindTransactionsRequest{
@@ -459,10 +460,10 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr giota.Address) (*fi
 		// because it come from the node
 		return nil, errors.New(fmt.Sprintf("Inconsistency of a spending bundle in addr = %v: %v", addr, err))
 	}
-	ret := &firstBundleData{
-		bundle:    bundleTx,
-		numAttach: int64(len(tails)),
-		startTime: minTime,
+	ret := &bundle_source.FirstBundleData{
+		Bundle:    bundleTx,
+		NumAttach: int64(len(tails)),
+		StartTime: minTime,
 	}
 	return ret, nil
 }
