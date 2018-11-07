@@ -12,7 +12,7 @@ import (
 
 const (
 	path   = "C:/Users/evaldas/Documents/proj/site_data/log"
-	fname  = "rwtest.log"
+	fname  = "examples.log"
 	period = 10 * time.Second
 	retain = 1 * time.Minute
 )
