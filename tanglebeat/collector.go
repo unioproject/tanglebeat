@@ -1,15 +1,10 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/lunfardo314/tanglebeat/confirmer"
 	"github.com/lunfardo314/tanglebeat/sender_update"
-	"nanomsg.org/go-mangos"
-	"nanomsg.org/go-mangos/protocol/sub"
-	"nanomsg.org/go-mangos/transport/tcp"
-	"time"
 )
 
 func confirmerUpdType2Sender(confUpdType confirmer.UpdateType) sender_update.SenderUpdateType {
@@ -73,7 +68,7 @@ func initSenderDataCollector() {
 			log.Infof("Sender data updates source '%v' DISABLED", name)
 			continue
 		} else {
-			if err = runDataCollectorSource(name, srcData.Target); err == nil {
+			if err = runUpdateCollectorSource(name, srcData.Target); err == nil {
 				count += 1
 				log.Infof("Sender data updates source '%v' ENABLED: target = %v", name, srcData.Target)
 			} else {
@@ -85,43 +80,20 @@ func initSenderDataCollector() {
 	log.Infof("Number sender data updates sources initialized successfully: %v", count)
 }
 
-func runDataCollectorSource(sourceName string, uri string) error {
+func runUpdateCollectorSource(sourceName string, uri string) error {
 	if sourceName == "local" {
 		return nil
 	}
-	var sock mangos.Socket
-	var err error
 
-	if sock, err = sub.NewSocket(); err != nil {
-		return errors.New(fmt.Sprintf("sender update source '%v': Can't get new sub socket: %v", sourceName, err))
-	}
-	sock.AddTransport(tcp.NewTransport())
-	if err = sock.Dial(uri); err != nil {
-		return errors.New(fmt.Sprintf("sender update source '%v': Can't dial sub socket: %v", sourceName, err))
-	}
-	err = sock.SetOption(mangos.OptionSubscribe, []byte(""))
+	chIn, err := sender_update.NewUpdateChan(uri)
 	if err != nil {
-		return errors.New(fmt.Sprintf("sender update source '%v'. Can't subscribe to all topics: %v", sourceName, err))
+		return errors.New(fmt.Sprintf("failed to initialize sender update source '%v': %v", sourceName, err))
+
 	}
-	var msg []byte
-	var upd *sender_update.SenderUpdate
 	go func() {
 		log.Infof("Start listening external sender update source '%v'", sourceName)
-		defer sock.Close()
-		for {
-			msg, err = sock.Recv()
-			if err == nil {
-				upd = &sender_update.SenderUpdate{}
-				err = json.Unmarshal(msg, &upd)
-				if err == nil {
-					log.Debugf("Received '%v' update from source '%v': seq = %v(%v)",
-						upd.UpdType, sourceName, upd.SeqUID, upd.SeqName)
-					processUpdate(sourceName, upd)
-				} else {
-					log.Errorf("Error while receiving sender update from source %v(%v): %v", sourceName, uri, err)
-					time.Sleep(2 * time.Second)
-				}
-			}
+		for upd := range chIn {
+			processUpdate(sourceName, upd)
 		}
 	}()
 	return nil
