@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+const CONFIG_FILE = "tanglebeat.yml"
+
 func runSender() int {
 	var ret int
 	for _, name := range getEnabledSeqNames() {
@@ -21,31 +23,31 @@ func runSender() int {
 }
 
 func main() {
-	masterConfig("tanglebeat.yml")
-	var en bool
+	masterConfig(CONFIG_FILE)
+	var enabled bool
 	initSenderDataCollector()
 
 	if Config.SenderDataCollector.Publish {
 		log.Infof("Starting publisher")
 		initAndRunPublisher()
-		en = true
+		enabled = true
 	}
 	if Config.Prometheus.Enabled && (Config.Prometheus.ZmqMetrics.Enabled || Config.Prometheus.SenderMetricsEnabled) {
 		log.Infof("Exposing metrics to Prometheus")
 		initExposeToPometheus()
-		en = true
+		enabled = true
 	}
 	if Config.Prometheus.Enabled && Config.Prometheus.ZmqMetrics.Enabled {
 		log.Infof("Starting ZMQ metrics updater")
 		initMetricsZMQ()
-		en = true
+		enabled = true
 	}
 	if Config.Sender.Enabled {
 		log.Infof("Starting sender. Enabled sequences: %v", getEnabledSeqNames())
 		numSeq := runSender()
-		en = en || numSeq > 0
+		enabled = enabled || numSeq > 0
 	}
-	if !en {
+	if !enabled {
 		log.Errorf("Nothing is enabled. Leaving...")
 		os.Exit(0)
 	}

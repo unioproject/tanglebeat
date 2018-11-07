@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/lunfardo314/tanglebeat/sender_update"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
@@ -79,13 +80,13 @@ func initExposeToPometheus() {
 	go exposeMetrics(Config.Prometheus.ScrapeTargetPort)
 }
 
-func updateSenderMetrics(upd *SenderUpdate) {
-	if upd.UpdType != SENDER_UPD_CONFIRM {
+func updateSenderMetrics(upd *sender_update.SenderUpdate) {
+	if upd.UpdType != sender_update.SENDER_UPD_CONFIRM {
 		return
 	}
 	confCounter.With(prometheus.Labels{"seqid": upd.SeqUID}).Inc()
 
-	durSec := float64(upd.UpdateTs-upd.SendingStartedTs) / 1000
+	durSec := float64(upd.UpdateTs-upd.StartTs) / 1000
 	confDurationSecCounter.
 		With(prometheus.Labels{"seqid": upd.SeqUID}).Add(durSec)
 

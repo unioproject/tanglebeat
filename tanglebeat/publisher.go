@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lunfardo314/tanglebeat/sender_update"
 	"nanomsg.org/go-mangos"
 	"nanomsg.org/go-mangos/protocol/pub"
 	"nanomsg.org/go-mangos/transport/tcp"
@@ -48,7 +49,7 @@ func runPublisher() error {
 	return nil
 }
 
-func publishUpdate(upd *SenderUpdate) error {
+func publishUpdate(upd *sender_update.SenderUpdate) error {
 	data, err := json.Marshal(upd)
 	if err != nil {
 		log.Errorf("Publisher:publishUpdate %v", err)

@@ -4,6 +4,7 @@ import (
 	"github.com/lunfardo314/giota"
 	"github.com/lunfardo314/tanglebeat/confirmer"
 	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/lunfardo314/tanglebeat/sender_update"
 	"github.com/op/go-logging"
 	"net/http"
 	"time"
@@ -129,32 +130,32 @@ func (seq *Sequence) Run() {
 const securityLevel = 2
 
 func (seq *Sequence) processStartUpdate(bundleData *firstBundleData) {
-	var updType SenderUpdateType
+	var updType sender_update.SenderUpdateType
 	if bundleData.isNew {
-		updType = SENDER_UPD_START_SEND
+		updType = sender_update.SENDER_UPD_START_SEND
 	} else {
-		updType = SENDER_UPD_START_CONTINUE
+		updType = sender_update.SENDER_UPD_START_CONTINUE
 	}
 	seq.log.Debugf("Update '%v' for %v index = %v",
 		updType, seq.params.GetUID(), bundleData.index)
 
 	processUpdate(
 		"local",
-		&SenderUpdate{
+		&sender_update.SenderUpdate{
 			SeqUID:                seq.params.GetUID(),
 			SeqName:               seq.name,
 			UpdType:               updType,
 			Index:                 bundleData.index,
 			Addr:                  bundleData.addr,
 			Bundle:                bundleData.bundle.Hash(),
-			SendingStartedTs:      lib.UnixMs(bundleData.startTime),
+			StartTs:               lib.UnixMs(bundleData.startTime),
 			UpdateTs:              lib.UnixMs(bundleData.startTime),
 			NumAttaches:           bundleData.numAttach,
 			NumPromotions:         0,
 			NodeATT:               seq.params.IOTANodePoW,
 			NodeGTTA:              seq.params.IOTANodeTipsel,
-			PromoteEveryNumSec:    seq.params.PromoteEverySec,
-			ForceReattachAfterMin: seq.params.ForceReattachAfterMin,
+			PromoteEveryNumSec:    int64(seq.params.PromoteEverySec),
+			ForceReattachAfterMin: int64(seq.params.ForceReattachAfterMin),
 			PromoteChain:          seq.params.PromoteChain,
 			BundleSize:            securityLevel + 1,
 			PromoBundleSize:       1,
@@ -171,21 +172,21 @@ func (seq *Sequence) processConfirmerUpdate(updConf *confirmer.ConfirmerUpdate,
 		updType, seq.params.GetUID(), index)
 	processUpdate(
 		"local",
-		&SenderUpdate{
+		&sender_update.SenderUpdate{
 			SeqUID:                seq.params.GetUID(),
 			SeqName:               seq.name,
 			UpdType:               updType,
 			Index:                 index,
 			Addr:                  addr,
 			Bundle:                bundleHash,
-			SendingStartedTs:      lib.UnixMs(sendingStarted),
+			StartTs:               lib.UnixMs(sendingStarted),
 			UpdateTs:              lib.UnixMs(updConf.UpdateTime),
 			NumAttaches:           updConf.NumAttaches,
 			NumPromotions:         updConf.NumPromotions,
 			NodeATT:               seq.params.IOTANodePoW,
 			NodeGTTA:              seq.params.IOTANodeTipsel,
-			PromoteEveryNumSec:    seq.params.PromoteEverySec,
-			ForceReattachAfterMin: seq.params.ForceReattachAfterMin,
+			PromoteEveryNumSec:    int64(seq.params.PromoteEverySec),
+			ForceReattachAfterMin: int64(seq.params.ForceReattachAfterMin),
 			PromoteChain:          seq.params.PromoteChain,
 			BundleSize:            securityLevel + 1,
 			PromoBundleSize:       1,
