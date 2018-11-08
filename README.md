@@ -70,7 +70,7 @@ sender:
             seed: SEED9ANOTHER9999999999999
             index0: 0
             promoteChain: true
-```
+```   
 Sender generates **updates** with the information 
 about the progress, per sequence. Updates contain all the data, 
 necessary to calculate various metrics. 
