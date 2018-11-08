@@ -35,15 +35,41 @@ Each Tanglebeat agent consist of the following functional
 parts. Every part can be enabled, disabled and configured
 independently from each other thus enabling congfiguration of any size and complexity.
 
+Each Tanglebeat instance is configured through `tanglebeat.yml` file. It must be located in the working directory.
+
 #### Sender
 
-Sender for performs transfer bundle generation, promotion and 
+_Sender_ performs transfer bundle generation, promotion and 
 (re)attachment until confirmed for each of enabled address sequences. 
-Sender's input in config file is config data for each sequences. 
-It includes sequence's seed.
-
-Sender if enabled is slow (value) spammer for the Tangle.
-
+Sender's input in config file is config data for each sequences.
+```
+sender:
+    enabled: true
+    globals:
+        iotaNode: &DEFNODE https://field.deviota.com:443    
+        iotaNodeTipsel: *DEFNODE              
+        iotaNodePOW: https://api.powsrv.io:443
+        apiTimeout: 15
+        tipselTimeout: 15
+        powTimeout: 15
+        txTag: TANGLE9BEAT
+        txTagPromote: TANGLE9BEAT
+        forceReattachAfterMin: 15
+        promoteEverySec: 10
+        
+    sequences:
+        Seq T:
+            enabled: true
+            iotaNode: http://node.iotalt.com:14600
+            seed: SEED99999999999999
+            index0: 0
+            promoteChain: true
+        TB1:
+            enabled: false
+            seed: SEED9ANOTHER9999999999999
+            index0: 0
+            promoteChain: true
+```
 Sender generates **updates** with the information 
 about the progress, per sequence. Updates contain all the data, 
 necessary to calculate various metrics. 
