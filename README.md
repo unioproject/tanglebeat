@@ -1,38 +1,30 @@
 ## About Tanglebeat
-**Tanglebeat** is a lightweight, highly scalable and configurable 
-software agent which collects Tangle-related metrics to 
-[Prometheus TSDB](https://prometheus.io/). Later it can be with such tools
+**Tanglebeat** is a lightweight and highly configurable 
+software agent. It is aimed to collect Tangle-related metrics to 
+[Prometheus TSDB](https://prometheus.io/) do be displayed with such tools
 as [Grafana](https://grafana.com).
 
 It is a successor of [Traveling IOTA](http://traviota.iotalt.com) project, 
-scaled up and more practical version of the latter.
+scaled up and, hopefully, more practical version of the latter.
 
 ## Transfer confirmation metrics
 
 _Tanglebeat_ is performing IOTA value transfers from one address 
-to the next one in an endless loop. In every step whole balance 
-of the address is sent to the next address. 
-Tangle beat makes sure the resulting bundle is confirmed by _promoting_
-it and _reattaching_ (if necessary) untul confirmed.
+to the next one in an the endless loop.  
+Tangle beat makes sure the bundle of the transfer is confirmed by _promoting_
+it and _reattaching_ (if necessary).
 
-Immediately after transfer is confirmed Tanglebeat starts sending 
-those iotas to the next address in the sequence and so on.
+Immediately after current transfer is confirmed Tanglebeat starts sending 
+those iotas to the next address in the sequence. And so on.
 
 Several sequences of addresses is run in parallel. 
 Confirmation time and other statistical data is collected in 
 the process of sending and, after some averaging, is provided as 
 metrics. 
 
-The following are examples of metrics provided by Tanglebeat. 
-Tangle beat published much more data 
-about transfers progress which can be used to calculate more metrics.
+Examples might be _transfers per hour or TfPH_, _average PoW cost per confirmed transfer_, _average confirmation time_.
 
-- transfers per hour or TfPH metrics
-- Transfer confirmation time
-- average PoW cost per confirmed transfer: how many transactions, 
-(re)attached and promoted, are necessary on the average to confirm
-a transfer.
-
+Same time Tanglebeat makes available much more data about transfers progress. It can be used to calculate other metrics.
 
 ## ZeroMQ metrics
 
