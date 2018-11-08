@@ -2,7 +2,7 @@
 **Tanglebeat** is a lightweight and highly configurable 
 software agent. It is aimed to collect Tangle-related metrics to 
 [Prometheus TSDB](https://prometheus.io/) do be displayed with such tools
-as [Grafana](https://grafana.com).
+as [Grafana](https://grafana.com). Tanglebeat can be run as one agent or it can be combined in different distributed combinations of unlimited number of individualy configured agents. It allows to ensure high availibility of the measurement as well as objectivity through averaging of several sources. 
 
 It is a successor of [Traveling IOTA](http://traviota.iotalt.com) project, 
 scaled up and, hopefully, more practical version of the latter.
@@ -28,14 +28,8 @@ Same time Tanglebeat makes available much more data about transfers progress. It
 
 ## ZeroMQ metrics
 
-Usual metrics derived from data of Zero MQ stream by IRI 
-are provided by Tanglebeat.
+Tanglebeat provides usual metrics derived from data of Zero MQ stream by IRI such as _TPS_, _CTPS_, _Confirmation rate_ and _duration between milestones_
 
-- TPS - transactions per second
-- CTPS - confirmed transactions per second
-- confirmation rate = CTPS/TPS 
-- Time between two milestones
- 
 ## Highly configurable
 
 Tanglebeat consist of the following functional 
