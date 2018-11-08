@@ -59,13 +59,13 @@ sender:
         promoteEverySec: 10
         
     sequences:
-        Seq T:
+        Sequence 1:
             enabled: true
             iotaNode: http://node.iotalt.com:14600
             seed: SEED99999999999999
             index0: 0
             promoteChain: true
-        TB1:
+        Another sequence:
             enabled: false
             seed: SEED9ANOTHER9999999999999
             index0: 0
