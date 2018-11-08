@@ -12,7 +12,7 @@ import (
 func main() {
 
 	if len(os.Args) != 2 {
-		fmt.Println("Usage: tb_updates tcp://<host>:<port>\nExample: tb_updates my.host.com:3100")
+		fmt.Println("Usage: tb_updates tcp://<host>:<port>\nExample: tb_updates tcp://my.host.com:3100")
 		os.Exit(0)
 	}
 	uri := os.Args[1]

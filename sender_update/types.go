@@ -26,10 +26,10 @@ type SenderUpdate struct {
 	Index   int              `json:"addridx"` // address index
 	Addr    giota.Address    `json:"addr"`    // address
 	Bundle  giota.Trytes     `json:"bundle"`  // bundle hash
-	StartTs int64            `json:"start"`   // time when first bundle was creates.
+	StartTs int64            `json:"start"`   // unix time miliseconds when first bundle was creates.
 	// If bundle was already in the tangle (after restart)
 	// it is equal to timestamp of the tail
-	UpdateTs int64 `json:"ts"` // time when update was created. Based on the
+	UpdateTs int64 `json:"ts"` // unix time miliseconds when update was created. Based on the
 	// same clock as StartedTs
 	NumAttaches           int64  `json:"numattach"`  // number of out bundles in tha tangle
 	NumPromotions         int64  `json:"numpromote"` // number of promotions in the current session (starts with 0 after restart)
