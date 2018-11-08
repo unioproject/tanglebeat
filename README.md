@@ -12,8 +12,7 @@ scaled up and, hopefully, more practical version of the latter.
 _Tanglebeat_ is performing IOTA value transfers from one address 
 to the next one in an the endless loop.  
 Tangle beat makes sure the bundle of the transfer is confirmed by _promoting_
-it and _reattaching_ (if necessary).
-
+it and _reattaching_ (if necessary). 
 Immediately after current transfer is confirmed Tanglebeat starts sending 
 those iotas to the next address in the sequence. And so on.
 
@@ -22,19 +21,19 @@ Confirmation time and other statistical data is collected in
 the process of sending and, after some averaging, is provided as 
 metrics. 
 
-Examples might be _transfers per hour or TfPH_, _average PoW cost per confirmed transfer_, _average confirmation time_.
+Examples of the metrics are _transfers per hour or TfPH_, _average PoW cost per confirmed transfer_, _average confirmation time_.
 
-Same time Tanglebeat makes available much more data about transfers progress. It can be used to calculate other metrics.
+Tanglebeat makes available much more data about transfers. It can be used to calculate other metrics and to visualize transfer progress.
 
 ## ZeroMQ metrics
 
-Tanglebeat provides usual metrics derived from data of Zero MQ stream by IRI such as _TPS_, _CTPS_, _Confirmation rate_ and _duration between milestones_
+Tanglebeat also provides usual metrics derived from data of Zero MQ stream by IRI such as _TPS_, _CTPS_, _Confirmation rate_ and _duration between milestones_
 
 ## Highly configurable
 
-Tanglebeat consist of the following functional 
-parts which can be enabled, disabled and configured
-independently from each other.
+Each Tanglebeat agent consist of the following functional 
+parts. Every part can be enabled, disabled and configured
+independently from each other thus enabling congfiguration of any size and complexity.
 
 #### Sender
 
