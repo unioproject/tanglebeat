@@ -41,7 +41,8 @@ Each Tanglebeat instance is configured through `tanglebeat.yml` file. It must be
 
 _Sender_ performs transfer bundle generation, promotion and 
 (re)attachment until confirmed for each of enabled address sequences. 
-Sender's input in config file is config data for each sequences.
+Sender's is configured through `sender` section in the config file. It contains global anmd individual parameters 
+of each sequenceof transfers.
 ```
 sender:
     enabled: true
