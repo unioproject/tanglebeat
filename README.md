@@ -132,3 +132,6 @@ independent parts:
 - _Zero MQ metrics_. If enabled, reads Zero MQ from IRI node, calculates and exposes 
    TPS, CTPS etc metrics to Prometheus.
 
+### Picture
+
+[alt text](tanglebeat.png)
