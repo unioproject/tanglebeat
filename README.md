@@ -134,4 +134,4 @@ independent parts:
 
 ### Picture
 
-[alt text](tanglebeat/tanglebeat.png)
+[tanglebeat.png]
