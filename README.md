@@ -8,16 +8,16 @@ high availability and objectivty of the metrics.
 
 Demo Grafana dashboard with testing configuration behind (two instances of Tangelbeat) can be found at [tanglebeat.com](http://tanglebeat.com:3000/d/85B_28aiz/tanglebeat-demo?refresh=10s&orgId=1&from=1541747401598&to=1541769001598&tab=general)
 
-_Tanglebeat_ is a successor of [Traveling IOTA](http://traviota.iotalt.com) project, 
+Tanglebeat is a successor of [Traveling IOTA](http://traviota.iotalt.com) project, 
 scaled up and, hopefully, more practical version of the latter.
 
 ## Transfer confirmation metrics
 
-_Tanglebeat_ is performing IOTA value transfers from one address 
-to the next one in endless loop.  
+Tanglebeat is performing IOTA value transfers from one address 
+to the next one in the endless loop.  
 Tangle beat makes sure the bundle of the transfer is confirmed by _promoting_
 it and _reattaching_ (if necessary). 
-_Tanglebeat_ starts sending 
+Tanglebeat starts sending 
 whole balance of iotas to the next address in the sequence immediately after current transfer is confirmed. And so on.
 
 Several sequences of addresses are run in parallel. 
@@ -27,7 +27,7 @@ metrics.
 
 Examples of the metrics are _transfers per hour or TfPH_, _average PoW cost per confirmed transfer_, _average confirmation time_.
 
-Tanglebeat makes available much more data about transfers. It can be used to calculate other metrics and to visualize transfer progress.
+Tanglebeat publishes much more data about transfers thorough the open message channel. It can be used to calculate other metrics and to visualize transfer progress.
 
 ## ZeroMQ metrics
 
@@ -38,8 +38,13 @@ Tanglebeat also provides usual metrics derived from data of Zero MQ stream by IR
 Each Tanglebeat agent consist of the following functional 
 parts. Every part can be enabled, disabled and configured
 independently from each other thus enabling congfiguration of any size and complexity.
+- Sender
+- Update collector
+- Update publisher
+- Prometheus metrics collectors. It consists _sender metrics_ part and _ZMQ metrics_ part.
 
-Each Tanglebeat instance is configured through `tanglebeat.yml` file. It must be located in the working directory.
+Tanglebeat is single binary. It takes no command line argumenst. Each Tanglebeat instance is configured through `tanglebeat.yml` 
+file which must be located in the working directory of the instances.
 
 #### Sender
 
@@ -81,7 +86,7 @@ necessary to calculate various metrics.
 It also allows visualisation of the process 
 like [Traveling IOTA](http://traviota.iotalt.com) does.
  
-#### Data collector
+#### Update collector
 
 Data collector, if enabled, is a hub which collects updates from one or many 
 senders into one stream. 
