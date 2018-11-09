@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gonum/stat"
-	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/lunfardo314/tanglebeat/sender_update"
 	"math"
 	"net/http"
@@ -46,7 +45,7 @@ var (
 )
 
 func deleteOlderThan1h() {
-	ago1h := lib.UnixMs(time.Now().Add(-1 * time.Hour))
+	ago1h := unixms(time.Now().Add(-1 * time.Hour))
 	for i, ts := range sampleTs {
 		if ts < ago1h {
 			if i+1 < len(sampleTs) {
@@ -68,7 +67,7 @@ func addSample(confDurationSec float64, ts int64) {
 	sampleDurations = append(sampleDurations, confDurationSec)
 	sampleTs = append(sampleTs, ts)
 
-	ago30min := lib.UnixMs(time.Now().Add(-30 * time.Minute))
+	ago30min := unixms(time.Now().Add(-30 * time.Minute))
 	samples30min = samples30min[:0]
 	for i, ts := range sampleTs {
 		if ts >= ago30min {
@@ -131,7 +130,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	resp.Last30min.Since = since30minTs
 
 	listMutex.Unlock()
-	resp.Nowis = lib.UnixMs(time.Now())
+	resp.Nowis = unixms(time.Now())
 
 	data, err := json.Marshal(resp)
 	if err == nil {
@@ -178,11 +177,15 @@ func main() {
 	}
 	fmt.Printf("Initializing statsws for %v. Http port %v\n", uri, port)
 
-	since1hTs = lib.UnixMs(time.Now())
-	since30minTs = lib.UnixMs(time.Now())
+	since1hTs = unixms(time.Now())
+	since30minTs = unixms(time.Now())
 
 	goListen(uri)
 
 	http.HandleFunc("/", handler)
 	panic(http.ListenAndServe(":"+port, nil))
+}
+
+func unixms(t time.Time) int64 {
+	return t.UnixNano() / int64(time.Millisecond)
 }
