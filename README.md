@@ -3,6 +3,8 @@
 [Prometheus TSDB](https://prometheus.io/) to be displayed with such tools
 as [Grafana](https://grafana.com). 
 
+Demo Grafana dashboard can be found at [tanglebeat.com](http://tanglebeat.com:3000/d/85B_28aiz/tanglebeat-demo?refresh=10s&orgId=1&from=1541747401598&to=1541769001598&tab=general)
+
 It can be run in various standalone and distributed configurations to ensure 
 high availability and objectivty of the metrics.
 
@@ -16,9 +18,9 @@ to the next one in endless loop.
 Tangle beat makes sure the bundle of the transfer is confirmed by _promoting_
 it and _reattaching_ (if necessary). 
 _Tanglebeat_ starts sending 
-whole balance of iotas to the next address in the sequence immediately after current transfer is confirmed Tanglebeat. And so on.
+whole balance of iotas to the next address in the sequence immediately after current transfer is confirmed. And so on.
 
-Several sequences of addresses is run in parallel. 
+Several sequences of addresses are run in parallel. 
 Confirmation time and other statistical data is collected in 
 the process of sending and, after some averaging, is provided as 
 metrics. 
