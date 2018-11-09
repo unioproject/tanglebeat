@@ -50,8 +50,8 @@ file which must be located in the working directory of the instances.
 
 _Sender_ performs transfer bundle generation, promotion and 
 (re)attachment until confirmed for each of enabled address sequences. 
-Sender's is configured through `sender` section in the config file. It contains global anmd individual parameters 
-of each sequenceof transfers.
+Sender is configured through `sender` section in the config file. It contains global and individual parameters 
+for each sequence of transfers.
 ```
 sender:
     enabled: true
