@@ -120,8 +120,12 @@ sockets in the form of [JSON messages](https://github.com/lunfardo314/tanglebeat
 
 #### Prometheus collectors
 If enabled, it exposes metrics to Prometheus. There are two 
-independently enabled/disabled parts:
-- sender metrics. It exposes metrics calculated from sender update stream 
-- Zero MQ metrics. It reads Zero MQ from IRI, calculates and exposes 
-TPS, CTPS metrics to Prometheus.
+independent parts:
+- _Sender metrics_. It exposes metrics calculated from sender update stream. 
+    - `tanglebeat_confirmation_counter`, `tanglebeat_pow_cost_counter`, `anglebeat_confirmation_duration_counter`,
+    `tanglebeat_pow_duration_counter`, `tanglebeat_tipsel_duration_counter`
+    - and metrics precalculated by Prometheus rules in [tanglebeat.rules](tanglebeat.rules)
+
+- Zero MQ metrics. It reads Zero MQ from IRI node, calculates and exposes 
+   TPS, CTPS etc metrics to Prometheus.
 
