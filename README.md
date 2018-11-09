@@ -135,9 +135,4 @@ independent parts:
 
 #### Picture
 
-![kuku](tanglebeat.png)
-
-
-#### Picture
-
-![kuku](tanglebeat.png)
+![Picture of the main parts of Tanglebeat](tanglebeat.png)
