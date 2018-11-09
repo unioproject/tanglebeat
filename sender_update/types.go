@@ -39,7 +39,7 @@ type SenderUpdate struct {
 	NodeGTTA              string `json:"nodetipsel"` // node used for tipsel
 	BundleSize            int64  `json:"bsize"`      // number of tx in the spending bundle
 	PromoBundleSize       int64  `json:"pbsize"`     // number of tx in the promo bundle
-	PromoteEveryNumSec    int64  `json:"promosec"`   // sleep time after each promoton
+	PromoteEverySec       int64  `json:"promosec"`   // sleep time after each promoton
 	ForceReattachAfterMin int64  `json:"reattmin"`   // force reattach after minutes
 	PromoteChain          bool   `json:"chain"`      // promotion strategy. "chain" vs 'blowball'
 }
