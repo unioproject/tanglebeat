@@ -33,18 +33,17 @@ Tanglebeat publishes much more data about transfers thorough the open message ch
 
 Tanglebeat also provides usual metrics derived from data of Zero MQ stream by IRI such as _TPS_, _CTPS_, _Confirmation rate_ and _duration between milestones_
 
-## Highly configurable
+## Configure and run
 
-Each Tanglebeat agent consist of the following functional 
-parts. Every part can be enabled, disabled and configured
+Tanglebeat is single binary. It takes no command line arguments. Each Tanglebeat instance is configured 
+through  [tanglebeat.yml](tanglebeat.yml) file which must be located in the working 
+directory where instance ir run. The config file contains seeds of sequences therefore should never be made public.
+
+Each Tanglebeat instance consists of the following parts. Every part can be enabled, disabled and configured
 independently from each other thus enabling congfiguration of any size and complexity.
 - Sender
 - Update collector
 - Prometheus metrics collectors. It consists _sender metrics_ part and _ZMQ metrics_ part.
-
-Tanglebeat is single binary. It takes no command line argumenst. Each Tanglebeat instance is configured 
-through  [tanglebeat.yml](tanglebeat.yml). File which must be located in the working 
-directory of the instance. It contains seeds of sequences therefore should never be made public.
 
 #### Sender
 
