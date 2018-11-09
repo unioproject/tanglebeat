@@ -12,11 +12,11 @@ scaled up and, hopefully, more practical version of the latter.
 ## Transfer confirmation metrics
 
 _Tanglebeat_ is performing IOTA value transfers from one address 
-to the next one in an the endless loop.  
+to the next one in endless loop.  
 Tangle beat makes sure the bundle of the transfer is confirmed by _promoting_
 it and _reattaching_ (if necessary). 
-Immediately after current transfer is confirmed Tanglebeat starts sending 
-those iotas to the next address in the sequence. And so on.
+_Tanglebeat_ starts sending 
+whole balance of iotas to the next address in the sequence immediately after current transfer is confirmed Tanglebeat. And so on.
 
 Several sequences of addresses is run in parallel. 
 Confirmation time and other statistical data is collected in 
