@@ -2,7 +2,7 @@
 **Tanglebeat** is a lightweight yet highly configurable software agent with the main purpose to collect Tangle-related metrics to 
 [Prometheus TSDB](https://prometheus.io/) to be displayed with such tools
 as [Grafana](https://grafana.com). 
-Tanglebeat is able to run in various standalone and distributed configurations to ensure 
+_Tanglebeat_ can be run in various standalone and distributed configurations to ensure 
 high availability and objectivty of the metrics.
 
 It is a successor of [Traveling IOTA](http://traviota.iotalt.com) project, 
