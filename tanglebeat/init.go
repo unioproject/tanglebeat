@@ -17,7 +17,7 @@ import (
 
 const (
 	PREFIX_MODULE           = "tanglebeat"
-	ROTATE_LOG_HOURS        = 6
+	ROTATE_LOG_HOURS        = 12
 	ROTATE_LOG_RETAIN_HOURS = 36
 )
 
