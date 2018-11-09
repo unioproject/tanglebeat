@@ -41,5 +41,5 @@ type SenderUpdate struct {
 	PromoBundleSize       int64  `json:"pbsize"`     // number of tx in the promo bundle
 	PromoteEveryNumSec    int64  `json:"promosec"`   // sleep time after each promoton
 	ForceReattachAfterMin int64  `json:"reattmin"`   // force reattach after minutes
-	PromoteChain          bool   `json:"chn"`        // promotion strategy. "chain" vs 'blowball'
+	PromoteChain          bool   `json:"chain"`      // promotion strategy. "chain" vs 'blowball'
 }
