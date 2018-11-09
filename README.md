@@ -4,9 +4,9 @@
 as [Grafana](https://grafana.com). 
 
 It can be run in various standalone and distributed configurations to ensure 
-high availability and objectivty of the metrics.
+high availability and objectivity of the metrics.
 
-Demo Grafana dashboard with testing configuration behind (two instances of Tangelbeat) can be found at [tanglebeat.com](http://tanglebeat.com:3000/d/85B_28aiz/tanglebeat-demo?refresh=10s&orgId=1&from=1541747401598&to=1541769001598&tab=general)
+Demo Grafana dashboard can be found at [tanglebeat.com](http://tanglebeat.com:3000/d/85B_28aiz/tanglebeat-demo?refresh=10s&orgId=1&from=1541747401598&to=1541769001598&tab=general)
 
 Tanglebeat is a successor of [Traveling IOTA](http://traviota.iotalt.com) project, 
 scaled up and, hopefully, more practical version of the latter.
