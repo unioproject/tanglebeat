@@ -88,10 +88,10 @@ It also allows visualisation of the sendinf process like [Traveling IOTA](http:/
  
 #### Update collector
 
-If enabled, update collector, is a hub which collects updates from one or many 
-senders into one resulting stream of updates.  This function allows to configure distributed network of Tanglebeat agents.
-
-Data stream from update collector must is used to calculate metrics to Prometheus.
+If enabled, update collector gathers updates from one or many 
+senders (sources) into one resulting stream of updates. This function allows to configure distributed network of Tanglebeat agents.
+The sender itself is on of sources.
+Data stream from update collector is used to calculate metrics for Prometheus.
 
 ```
 senderUpdateCollector: 
@@ -113,11 +113,9 @@ senderUpdateCollector:
     outPort: 3100
 ```
 
-If update collector is disabled, tanglebeat instance still can be used as provider of ZeroMQ metrics.
-
-Data publisher, if enabled, publishes stream of updates collected 
-by data collector to other Tanglebeat (collectors) in the form of  
-JSON messages over Nanomsg/Mangos sockets (just like ZeroMQ).
+If `publish=true` resulting stream of updates is exposed through specified ports and can be collected by other 
+Tanglebeat instances. Data is published over [Nanomsg/Mangos](https://github.com/nanomsg/mangos) 
+sockets in the form of [JSON messages](https://github.com/lunfardo314/tanglebeat/blob/baf8c69bc119e5ba854d0d28a8746df94f1d318b/sender_update/types.go#L22).
 
 
 #### Prometheus collectors
