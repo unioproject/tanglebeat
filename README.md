@@ -118,7 +118,7 @@ Tanglebeat instances. Data is published over [Nanomsg/Mangos](https://github.com
 sockets in the form of [JSON messages](https://github.com/lunfardo314/tanglebeat/blob/baf8c69bc119e5ba854d0d28a8746df94f1d318b/sender_update/types.go#L22).
 
 
-#### Prometheus metric collectors
+#### Prometheus metrics collectors
 If enabled, it exposes metrics to Prometheus. There are two 
 independent parts:
 - _Sender metrics_. It exposes metrics calculated from sender update stream. 
