@@ -29,7 +29,7 @@ groups:
 	  - record: tanglebeat:confirmation_metrics:avg_seq_num_active
         expr: avg_over_time(tanglebeat:confirmation_metrics:num_active_seq[1h]) 
 
-      # TfPH ADJUSTED
+      # TfPH adjusted
       # TfPH is calculated by dividing sum of confirmations to number of active sequences averaged over last 1h 
 	  # It seems so far the optimal way to calculate TfPH
 	  
