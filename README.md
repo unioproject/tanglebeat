@@ -40,7 +40,6 @@ parts. Every part can be enabled, disabled and configured
 independently from each other thus enabling congfiguration of any size and complexity.
 - Sender
 - Update collector
-- Update publisher
 - Prometheus metrics collectors. It consists _sender metrics_ part and _ZMQ metrics_ part.
 
 Tanglebeat is single binary. It takes no command line argumenst. Each Tanglebeat instance is configured 
@@ -80,6 +79,7 @@ sender:
             seed: SEED9ANOTHER9999999999999
             index0: 0
             promoteChain: true
+        # more sequences can be configured    
 ```   
 Sender generates **updates** with the information 
 about the progress, per sequence. Each update [contains all the data](https://github.com/lunfardo314/tanglebeat/blob/baf8c69bc119e5ba854d0d28a8746df94f1d318b/sender_update/types.go#L22), 
@@ -88,7 +88,7 @@ It also allows visualisation of the sendinf process like [Traveling IOTA](http:/
  
 #### Update collector
 
-Update collector, if enabled, is a hub which collects updates from one or many 
+If enabled, update collector, is a hub which collects updates from one or many 
 senders into one resulting stream of updates.  This function allows to configure distributed network of Tanglebeat agents.
 
 Data stream from update collector must is used to calculate metrics to Prometheus.
@@ -115,11 +115,10 @@ senderUpdateCollector:
 
 If update collector is disabled, tanglebeat instance still can be used as provider of ZeroMQ metrics.
 
-#### Data publisher
-
 Data publisher, if enabled, publishes stream of updates collected 
 by data collector to other Tanglebeat (collectors) in the form of  
 JSON messages over Nanomsg/Mangos sockets (just like ZeroMQ).
+
 
 #### Prometheus collectors
 If enabled, it exposes metrics to Prometheus. There are two 
