@@ -43,8 +43,7 @@ independently from each other thus enabling congfiguration of any size and compl
 - Update publisher
 - Prometheus metrics collectors. It consists _sender metrics_ part and _ZMQ metrics_ part.
 
-Tanglebeat is single binary. It takes no command line argumenst. Each Tanglebeat instance is configured through `tanglebeat.yml` 
-file which must be located in the working directory of the instances.
+Tanglebeat is single binary. It takes no command line argumenst. Each Tanglebeat instance is configured through  [tanglebeat.yml](tanglebeat.yml). File which must be located in the working directory of the instance.
 
 #### Sender
 
