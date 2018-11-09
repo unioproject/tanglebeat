@@ -16,6 +16,7 @@ import (
 )
 
 const (
+	version                 = "0.1beta"
 	PREFIX_MODULE           = "tanglebeat"
 	ROTATE_LOG_HOURS        = 12
 	ROTATE_LOG_RETAIN_HOURS = 36
@@ -100,7 +101,7 @@ type zmqMetricsYAML struct {
 // main config structure
 var Config = ConfigStructYAML{}
 
-var msgBeforeLog = []string{"----- Starting TangleBeat "}
+var msgBeforeLog = []string{"*********** Starting TangleBeat ver. " + version}
 
 func (params *senderParamsYAML) GetUID() string {
 	seedT, err := giota.ToTrytes(params.Seed)
@@ -127,7 +128,6 @@ func flushMsgBeforeLog() {
 
 func masterConfig(configFilename string) {
 	currentDir, err := os.Getwd()
-	// currentDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
 		panic(fmt.Sprintf("Can't get current current dir. Error: %v", err))
 	}
