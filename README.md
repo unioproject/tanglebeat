@@ -117,15 +117,19 @@ If `publish=true` resulting stream of updates is exposed through specified ports
 Tanglebeat instances. Data is published over [Nanomsg/Mangos](https://github.com/nanomsg/mangos) 
 sockets in the form of [JSON messages](https://github.com/lunfardo314/tanglebeat/blob/baf8c69bc119e5ba854d0d28a8746df94f1d318b/sender_update/types.go#L22).
 
+Published sender updates can be subscribed by external consumers for expample in order to calculate own metrics. 
+
+[Here's an example](https://github.com/lunfardo314/tanglebeat/tree/ver0/examples/statsws) of a client (in Go) which calculates averaged confirmation time statistics to expose it as web service
+
 
 #### Prometheus metrics collectors
 If enabled, it exposes metrics to Prometheus. There are two 
 independent parts:
-- _Sender metrics_. It exposes metrics calculated from sender update stream. 
+- _Sender metrics_. It exposes metrics calculated from sender update stream: 
     - `tanglebeat_confirmation_counter`, `tanglebeat_pow_cost_counter`, `anglebeat_confirmation_duration_counter`,
     `tanglebeat_pow_duration_counter`, `tanglebeat_tipsel_duration_counter`
     - and metrics precalculated by Prometheus rules in [tanglebeat.rules](tanglebeat.rules)
 
-- Zero MQ metrics. It reads Zero MQ from IRI node, calculates and exposes 
+- _Zero MQ metrics_. If enabled, reads Zero MQ from IRI node, calculates and exposes 
    TPS, CTPS etc metrics to Prometheus.
 
