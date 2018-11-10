@@ -45,7 +45,7 @@ independently from each other thus enabling congfiguration of any size and compl
 - Update collector
 - Prometheus metrics collectors. It consists _sender metrics_ part and _ZMQ metrics_ part.
 
-See [picture in the end](#### Picture)
+See [picture in the end](#Picture)
 
 #### Sender
 
