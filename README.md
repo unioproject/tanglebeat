@@ -27,7 +27,7 @@ metrics.
 
 Examples of the metrics are _transfers per hour or TfPH_, _average PoW cost per confirmed transfer_, _average confirmation time_.
 
-Tanglebeat publishes much more data about transfers thorough the open message channel. It can be used to calculate other metrics and to visualize transfer progress.
+Tanglebeat publishes much more data about transfers through the open message channel. It can be used to calculate other metrics and to visualize transfer progress.
 
 ## ZeroMQ metrics
 
@@ -35,7 +35,7 @@ Tanglebeat also provides usual metrics derived from data of Zero MQ stream by IR
 
 ## Configure and run
 
-Tanglebeat is single binary. It takes no command line arguments. Each Tanglebeat instance is configured 
+Tanglebeat is a single binary. It takes no command line arguments. Each Tanglebeat instance is configured 
 through  [tanglebeat.yml](tanglebeat.yml) file which must be located in the working 
 directory where instance ir run. The config file contains seeds of sequences therefore should never be made public.
 
