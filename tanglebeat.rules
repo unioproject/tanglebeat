@@ -3,35 +3,33 @@ groups:
       rules: 
       # TfPH NO ADJUSTMENT
       # number of transfer confirmation during last hour for each sequence
-	  # calculated in simple manner. Reacts sharply to config changes and technical downtimes of the scrape target.
-	  
-      - record: tanglebeat:confirmation_metrics:tfph_plain_vec
-        expr: increase(tanglebeat_confirmation_counter[1h]) 
+      # calculated in simple manner. Reacts sharply to config changes and technical downtimes of the scrape target.
+        - record: tanglebeat:confirmation_metrics:tfph_plain_vec
+          expr: increase(tanglebeat_confirmation_counter[1h]) 
       
-      - record: tanglebeat:confirmation_metrics:tfph_plain
-        expr: avg(tanglebeat:confirmation_metrics:tfph_plain_vec > 0)
+        - record: tanglebeat:confirmation_metrics:tfph_plain
+          expr: avg(tanglebeat:confirmation_metrics:tfph_plain_vec > 0)
         
       # vector with 1 if sequence is active, 0 otherwise
       # sequence is active if has at least one counter increase over last 15 min 
       # definition of active sequence may change in the future
       
-	  - record: tanglebeat:confirmation_metrics:seq_is_active_vec
-        expr: increase(tanglebeat_confirmation_counter[15m]) > bool 0
+        - record: tanglebeat:confirmation_metrics:seq_is_active_vec
+          expr: increase(tanglebeat_confirmation_counter[15m]) > bool 0
         
 
       # number of active sequences
       
-	  - record: tanglebeat:confirmation_metrics:num_active_seq
-        expr: sum(tanglebeat:confirmation_metrics:seq_is_active_vec) 
+        - record: tanglebeat:confirmation_metrics:num_active_seq
+          expr: sum(tanglebeat:confirmation_metrics:seq_is_active_vec) 
 
       # number of active sequences averaged over last 1h
       
-	  - record: tanglebeat:confirmation_metrics:avg_seq_num_active
-        expr: avg_over_time(tanglebeat:confirmation_metrics:num_active_seq[1h]) 
+        - record: tanglebeat:confirmation_metrics:avg_seq_num_active
+          expr: avg_over_time(tanglebeat:confirmation_metrics:num_active_seq[1h]) 
 
-      # TfPH adjusted
+      # TfPH ADJUSTED
       # TfPH is calculated by dividing sum of confirmations to number of active sequences averaged over last 1h 
-	  # It seems so far the optimal way to calculate TfPH
-	  
-      - record: tanglebeat:confirmation_metrics:tfph_adjusted
-        expr: sum(tanglebeat:confirmation_metrics:tfph_plain_vec) / tanglebeat:confirmation_metrics:avg_seq_num_active
+      # It seems so far the optimal way to calculate TfPH
+        - record: tanglebeat:confirmation_metrics:tfph_adjusted
+          expr: sum(tanglebeat:confirmation_metrics:tfph_plain_vec) / tanglebeat:confirmation_metrics:avg_seq_num_active
