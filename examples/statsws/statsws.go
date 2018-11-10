@@ -2,12 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/gonum/stat"
 	"github.com/lunfardo314/tanglebeat/sender_update"
 	"math"
 	"net/http"
-	"os"
 	"sort"
 	"sync"
 	"time"
@@ -162,19 +162,14 @@ var port = "3200"
 var debug = false
 
 func main() {
-	var uri string
-	if debug {
-		uri = "tcp://tanglebeat.com:3100"
-	} else {
-		if len(os.Args) < 2 {
-			fmt.Println("Usage: statsws tcp://<host>:<port> [<port>]\nExample: statsws tcp://my.host.com:3100 3200")
-			os.Exit(0)
-		}
-		uri = os.Args[1]
-		if len(os.Args) >= 3 {
-			port = os.Args[2]
-		}
-	}
+
+	puri := flag.String("target", "tcp://tanglebeat.com:3100", "target to listen")
+	pport := flag.Int("port", 3200, "Http port to listen to'")
+	flag.Parse()
+
+	uri := *puri
+	port := *pport
+
 	fmt.Printf("Initializing statsws for %v. Http port %v\n", uri, port)
 
 	since1hTs = unixms(time.Now())
@@ -183,7 +178,7 @@ func main() {
 	goListen(uri)
 
 	http.HandleFunc("/", handler)
-	panic(http.ListenAndServe(":"+port, nil))
+	panic(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }
 
 func unixms(t time.Time) int64 {
