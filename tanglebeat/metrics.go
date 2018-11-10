@@ -75,12 +75,12 @@ func updateSenderMetrics(upd *sender_update.SenderUpdate) {
 	confPoWDurationSecCounter.
 		With(prometheus.Labels{
 			"seqid":    upd.SeqUID,
-			"node_pow": upd.NodeATT,
+			"node_pow": upd.NodePOW,
 		}).Add(float64(upd.TotalPoWMsec) / 1000)
 
 	confTipselDurationSecCounter.
 		With(prometheus.Labels{
 			"seqid":       upd.SeqUID,
-			"node_tipsel": upd.NodeGTTA,
+			"node_tipsel": upd.NodeTipsel,
 		}).Add(float64(upd.TotalTipselMsec) / 1000)
 }
