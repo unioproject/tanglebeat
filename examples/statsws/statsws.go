@@ -16,7 +16,6 @@ import (
 // JSON returned by the WS
 type response struct {
 	Nowis     int64        `json:"nowis"`
-	Duration  int64        `json:"duration"`
 	Last1h    confTimeData `json:"1h"`
 	Last30min confTimeData `json:"30min"`
 }
@@ -126,7 +125,6 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	listMutex.Lock()
 
-	start := time.Now()
 	calcStats(sampleDurations, &resp.Last1h)
 	resp.Last1h.Since = since1hTs
 
@@ -135,7 +133,6 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	listMutex.Unlock()
 	resp.Nowis = unixms(time.Now())
-	resp.Duration = resp.Nowis - unixms(start)
 
 	data, err := json.MarshalIndent(resp, "", "   ")
 	if err == nil {
