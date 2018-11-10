@@ -1,9 +1,9 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/lunfardo314/tanglebeat/sender_update"
-	"os"
 )
 
 // tanglebeat client example
@@ -11,13 +11,14 @@ import (
 
 func main() {
 
-	if len(os.Args) != 2 {
-		fmt.Println("Usage: tb_updates tcp://<host>:<port>\nExample: tb_updates tcp://my.host.com:3100")
-		os.Exit(0)
-	}
-	uri := os.Args[1]
+	puri := flag.String("target", "tcp://tanglebeat.com:3100", "target to listen")
+	pshowall := flag.Bool("all", false, "show all updates. By default shows only 'confirm'")
+	flag.Parse()
 
-	fmt.Printf("Initializing tb_updates for %v\n", uri)
+	uri := *puri
+	showall := *pshowall
+
+	fmt.Printf("Initializing tb_updates for %v, showall = %v\n", uri, showall)
 	chIn, err := sender_update.NewUpdateChan(uri)
 	if err != nil {
 		panic(err)
@@ -25,7 +26,9 @@ func main() {
 	fmt.Printf("Start receiving sender updates from %v\n", uri)
 
 	for upd := range chIn {
-		fmt.Printf("Received '%v' from %v(%v), idx = %v, addr = %v\n",
-			upd.UpdType, upd.SeqUID, upd.SeqName, upd.Index, upd.Addr)
+		if showall || upd.UpdType == sender_update.SENDER_UPD_CONFIRM {
+			fmt.Printf("Received '%v' from %v(%v), idx = %v, addr = %v\n",
+				upd.UpdType, upd.SeqUID, upd.SeqName, upd.Index, upd.Addr)
+		}
 	}
 }
