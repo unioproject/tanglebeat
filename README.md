@@ -45,6 +45,8 @@ independently from each other thus enabling congfiguration of any size and compl
 - Update collector
 - Prometheus metrics collectors. It consists _sender metrics_ part and _ZMQ metrics_ part.
 
+See [picture in the end](#Picture)
+
 #### Sender
 
 _Sender_ is running sequences of transfers. It generates transfer bundles, promotion and 
