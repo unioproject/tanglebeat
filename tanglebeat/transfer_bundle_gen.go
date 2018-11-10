@@ -394,6 +394,9 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr giota.Address) (*bu
 			Addresses: []giota.Address{addr},
 		},
 	)
+	if err != nil {
+		return nil, err
+	}
 	// filter out spending transactions, collect set of bundles of those transactions
 	// note that bundle hashes can be more than one in rare cases
 	var spendingBundleHashes []giota.Trytes
@@ -514,5 +517,10 @@ func (gen *transferBundleGenerator) findTrytes(txReq *giota.FindTransactionsRequ
 		AEC.IncErrorCount(gen.iotaAPI)
 		return nil, err
 	}
-	return gen.iotaAPI.GetTrytes(ftResp.Hashes)
+	gtResp, err := gen.iotaAPI.GetTrytes(ftResp.Hashes)
+	if err != nil {
+		AEC.IncErrorCount(gen.iotaAPI)
+		return nil, err
+	}
+	return gtResp, nil
 }
