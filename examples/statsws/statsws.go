@@ -119,6 +119,8 @@ func calcStats(samples []float64, ret *confTimeData) {
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("%v: Request %v from %v\n", time.Now().Format(time.RFC3339), r.RequestURI, r.RemoteAddr)
+
 	resp := response{}
 
 	listMutex.Lock()
@@ -132,7 +134,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	listMutex.Unlock()
 	resp.Nowis = unixms(time.Now())
 
-	data, err := json.Marshal(resp)
+	data, err := json.MarshalIndent(resp, "", "   ")
 	if err == nil {
 		w.Write(data)
 	} else {
@@ -177,7 +179,7 @@ func main() {
 
 	goListen(uri)
 
-	http.HandleFunc("/", handler)
+	http.HandleFunc("/get_stats", handler)
 	panic(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }
 
