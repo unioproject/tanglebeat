@@ -35,8 +35,8 @@ type SenderUpdate struct {
 	NumPromotions         int64  `json:"numpromote"` // number of promotions in the current session (starts with 0 after restart)
 	TotalPoWMsec          int64  `json:"powms"`      // total milliseconds spent on PoW (attachToTangle calls)
 	TotalTipselMsec       int64  `json:"tipselms"`   // total milliseconds spent on tipsel (getTransactionsToApproves calls)
-	NodeATT               string `json:"nodepow"`    // node used for PoW
-	NodeGTTA              string `json:"nodetipsel"` // node used for tipsel
+	NodePOW               string `json:"nodepow"`    // node used for attachToTangle calls
+	NodeTipsel            string `json:"nodetipsel"` // node used for getTransactionToApprove cals
 	BundleSize            int64  `json:"bsize"`      // number of tx in the spending bundle
 	PromoBundleSize       int64  `json:"pbsize"`     // number of tx in the promo bundle
 	PromoteEverySec       int64  `json:"promosec"`   // sleep time after each promoton
