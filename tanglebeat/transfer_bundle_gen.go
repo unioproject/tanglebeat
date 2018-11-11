@@ -238,7 +238,7 @@ func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash giota.Tr
 	errorCount := 0
 
 	for confirmed := false; !confirmed; count++ {
-		if errorCount >= gen.params.SeqRestartAfterErr {
+		if gen.params.SeqRestartAfterErr > 0 && errorCount >= gen.params.SeqRestartAfterErr {
 			return errorCount
 		}
 		time.Sleep(2 * time.Second)
