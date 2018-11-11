@@ -73,6 +73,7 @@ type senderParamsYAML struct {
 	ForceReattachAfterMin int    `yaml:"forceReattachAfterMin"`
 	PromoteChain          bool   `yaml:"promoteChain"`
 	PromoteEverySec       int    `yaml:"promoteEverySec"`
+	SeqRestartAfterErr    int    `yaml:"seqRestartAfterErr"`
 }
 
 type senderUpdateCollectorYAML struct {
@@ -315,6 +316,9 @@ func getSeqParams(name string) (*senderParamsYAML, error) {
 	}
 	if ret.PromoteEverySec == 0 {
 		ret.PromoteEverySec = Config.Sender.Globals.PromoteEverySec
+	}
+	if ret.SeqRestartAfterErr == 0 {
+		ret.SeqRestartAfterErr = Config.Sender.Globals.SeqRestartAfterErr
 	}
 	return &ret, nil
 }
