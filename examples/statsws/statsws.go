@@ -47,13 +47,18 @@ var (
 const debug = true
 
 func deleteOlderThan1h() {
-	ago1h := unixms(time.Now().Add(-1 * time.Hour))
+	nowis := time.Now()
+	ago1h := unixms(nowis.Add(-1 * time.Hour))
+	if debug {
+		fmt.Printf("nowis = %d agoIh = %d", unixms(nowis), ago1h)
+	}
 	for i, ts := range sampleTs {
-		if ts < ago1h {
-			if i+1 < len(sampleTs) {
-				copy(sampleDurations[i:], sampleDurations[i+1:])
-				copy(sampleTs[i:], sampleTs[i+1:])
+		if ts < ago1h && i+1 < len(sampleTs) {
+			if debug {
+				fmt.Printf("Delete sample %v with ts = %v. nowis = %v\n", sampleDurations[i], sampleTs[i], time.Now())
 			}
+			copy(sampleDurations[i:], sampleDurations[i+1:])
+			copy(sampleTs[i:], sampleTs[i+1:])
 		}
 	}
 	if since1hTs < ago1h {
@@ -65,7 +70,16 @@ func addSample(confDurationSec float64, ts int64) {
 	listMutex.Lock()
 	defer listMutex.Unlock()
 
+	if debug {
+		fmt.Printf("Before purge -- num samples = %v\n", len(sampleDurations))
+	}
+
 	deleteOlderThan1h()
+
+	if debug {
+		fmt.Printf("After purge -- num samples = %v\n", len(sampleDurations))
+	}
+
 	sampleDurations = append(sampleDurations, confDurationSec)
 	sampleTs = append(sampleTs, ts)
 
@@ -78,9 +92,6 @@ func addSample(confDurationSec float64, ts int64) {
 	}
 	if since30minTs < ago30min {
 		since30minTs = ago30min
-	}
-	if debug {
-		fmt.Printf("Num samples = %v. Num samples 30min = %v\n", len(sampleDurations), len(samples30min))
 	}
 }
 
@@ -155,12 +166,12 @@ func goListen(uri string) {
 	fmt.Printf("Start receiving confirmation updates from %v\n", uri)
 	go func() {
 		for upd := range chIn {
-			if upd.UpdType == sender_update.SENDER_UPD_CONFIRM {
-				addSample(float64(upd.UpdateTs-upd.StartTs)/1000, upd.UpdateTs)
-			}
 			if upd.UpdType == sender_update.SENDER_UPD_CONFIRM || debug {
 				fmt.Printf("Received '%v' from %v(%v), idx = %v, addr = %v\n",
 					upd.UpdType, upd.SeqUID, upd.SeqName, upd.Index, upd.Addr)
+			}
+			if upd.UpdType == sender_update.SENDER_UPD_CONFIRM {
+				addSample(float64(upd.UpdateTs-upd.StartTs)/1000, upd.UpdateTs)
 			}
 		}
 	}()
