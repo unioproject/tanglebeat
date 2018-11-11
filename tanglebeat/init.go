@@ -156,6 +156,7 @@ func masterConfig(configFilename string) {
 
 	err = yaml.Unmarshal(yamlbytes, &Config)
 	if err != nil {
+		fmt.Printf("Error while reading config file %v: %v\n", yamlFile, err)
 		os.Exit(1)
 	}
 	configMasterLogging()
