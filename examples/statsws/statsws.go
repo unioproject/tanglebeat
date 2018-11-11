@@ -50,7 +50,7 @@ func deleteOlderThan1h() {
 	nowis := time.Now()
 	ago1h := unixms(nowis.Add(-1 * time.Hour))
 	if debug {
-		fmt.Printf("nowis = %d agoIh = %d\n", unixms(nowis), ago1h)
+		fmt.Printf("nowis = %d ago1h = %d diff = %d\n", unixms(nowis), ago1h, unixms(nowis)-ago1h)
 	}
 	for i, ts := range sampleTs {
 		if ts < ago1h && i+1 < len(sampleTs) {
