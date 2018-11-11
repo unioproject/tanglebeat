@@ -15,14 +15,14 @@ import (
 
 // JSON returned by the WS
 type response struct {
-	Nowis     int64        `json:"nowis"`
+	Nowis     int64        `json:"nowis"` // unix time in miliseconds
 	Last1h    confTimeData `json:"1h"`
 	Last30min confTimeData `json:"30min"`
 }
 
-// time is in seconds
+// stat data is seconds
 type confTimeData struct {
-	Since        int64   `json:"since"`      // samples since when samples were collected unix time miliseconds
+	Since        int64   `json:"since"`      // samples since when samples were collected unix time in miliseconds
 	NumSamples   int     `json:"numSamples"` // number of confirmations (samples) collected
 	Minimum      float64 `json:"min"`
 	Maximum      float64 `json:"max"`
