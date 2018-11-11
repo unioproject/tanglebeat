@@ -46,49 +46,42 @@ var (
 
 const debug = true
 
-func deleteOlderThan1h() {
-	nowis := time.Now()
-	ago1h := unixms(nowis.Add(-1 * time.Hour))
-	if debug {
-		fmt.Printf("nowis = %d ago1h = %d diff = %d\n", unixms(nowis), ago1h, unixms(nowis)-ago1h)
-	}
-	for i, ts := range sampleTs {
-		if ts < ago1h && i+1 < len(sampleTs) {
-			if debug {
-				fmt.Printf("Delete sample %v with ts = %v. nowis = %v\n", sampleDurations[i], sampleTs[i], time.Now())
-			}
-			copy(sampleDurations[i:], sampleDurations[i+1:])
-			copy(sampleTs[i:], sampleTs[i+1:])
-		}
-	}
-	if since1hTs < ago1h {
-		since1hTs = ago1h
-	}
-}
-
 func addSample(confDurationSec float64, ts int64) {
 	listMutex.Lock()
 	defer listMutex.Unlock()
 
 	if debug {
-		fmt.Printf("Before purge -- num samples = %v\n", len(sampleDurations))
-	}
-
-	deleteOlderThan1h()
-
-	if debug {
-		fmt.Printf("After purge -- num samples = %v\n", len(sampleDurations))
+		fmt.Printf("Before adding sample -- num samples = %v num samples 3 min = %v\n",
+			len(sampleDurations), len(samples30min))
 	}
 
 	sampleDurations = append(sampleDurations, confDurationSec)
 	sampleTs = append(sampleTs, ts)
 
-	ago30min := unixms(time.Now().Add(-30 * time.Minute))
-	samples30min = samples30min[:0]
+	// retain only those younger 1h and 30 min
+	nowis := time.Now()
+	ago1h := unixms(nowis.Add(-1 * time.Hour))
+	ago30min := unixms(nowis.Add(-30 * time.Minute))
+
+	sdTmp := make([]float64, 0, len(sampleDurations))
+	sd30Tmp := make([]float64, 0, len(samples30min))
+	tsTmp := make([]int64, 0, len(sampleTs))
+
 	for i, ts := range sampleTs {
-		if ts >= ago30min {
-			samples30min = append(samples30min, sampleDurations[i])
+		if ts >= ago1h {
+			tsTmp = append(tsTmp, ts)
+			sdTmp = append(sdTmp, sampleDurations[i])
+			if ts >= ago30min {
+				sd30Tmp = append(sd30Tmp, sampleDurations[i])
+			}
 		}
+	}
+	sampleDurations = sdTmp
+	sampleTs = tsTmp
+	samples30min = sd30Tmp
+
+	if since1hTs < ago1h {
+		since1hTs = ago1h
 	}
 	if since30minTs < ago30min {
 		since30minTs = ago30min
@@ -148,6 +141,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	resp.Last30min.Since = since30minTs
 
 	listMutex.Unlock()
+
 	resp.Nowis = unixms(time.Now())
 
 	data, err := json.MarshalIndent(resp, "", "   ")
