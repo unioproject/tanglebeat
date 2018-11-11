@@ -44,6 +44,8 @@ var (
 	since30minTs    int64
 )
 
+const debug = false
+
 func deleteOlderThan1h() {
 	ago1h := unixms(time.Now().Add(-1 * time.Hour))
 	for i, ts := range sampleTs {
@@ -76,6 +78,9 @@ func addSample(confDurationSec float64, ts int64) {
 	}
 	if since30minTs < ago30min {
 		since30minTs = ago30min
+	}
+	if debug {
+		fmt.Printf("Num samples = %v. Num samples 30min = %v\n", len(sampleDurations), len(samples30min))
 	}
 }
 
@@ -151,9 +156,11 @@ func goListen(uri string) {
 	go func() {
 		for upd := range chIn {
 			if upd.UpdType == sender_update.SENDER_UPD_CONFIRM {
-				fmt.Printf("Received 'confirm' from %v(%v), idx = %v, addr = %v\n",
-					upd.SeqUID, upd.SeqName, upd.Index, upd.Addr)
 				addSample(float64(upd.UpdateTs-upd.StartTs)/1000, upd.UpdateTs)
+			}
+			if upd.UpdType == sender_update.SENDER_UPD_CONFIRM || debug {
+				fmt.Printf("Received '%v' from %v(%v), idx = %v, addr = %v\n",
+					upd.UpdType, upd.SeqUID, upd.SeqName, upd.Index, upd.Addr)
 			}
 		}
 	}()
@@ -161,7 +168,6 @@ func goListen(uri string) {
 }
 
 var port = "3200"
-var debug = false
 
 func main() {
 
