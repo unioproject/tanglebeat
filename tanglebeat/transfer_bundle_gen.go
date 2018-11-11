@@ -229,6 +229,9 @@ func (gen *transferBundleGenerator) runGenerator() {
 }
 
 // returns 0 if error count doesn't reach limit
+
+const sleepEveryLoop = 5 * time.Second
+
 func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash giota.Trytes) int {
 	gen.log.Debugf("waitUntilBundleConfirmed: start waiting for the bundle to be confirmed")
 
@@ -241,7 +244,7 @@ func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash giota.Tr
 		if gen.params.SeqRestartAfterErr > 0 && errorCount >= gen.params.SeqRestartAfterErr {
 			return errorCount
 		}
-		time.Sleep(2 * time.Second)
+		time.Sleep(sleepEveryLoop)
 		sinceWaiting = time.Since(startWaiting)
 		if count%5 == 0 {
 			gen.log.Debugf("waitUntilBundleConfirmed: time since waiting: %v", sinceWaiting)
