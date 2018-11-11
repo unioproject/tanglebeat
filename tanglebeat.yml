@@ -47,6 +47,8 @@ sender:
         # normally bundles are reattached when becimes inconsistent as per 'checkConsisteny'. 
         # With this parameter specifies minutes after which reattachment is forced even if is still consistent
         forceReattachAfterMin: 15
+        # if > 0, restart sequence after consecutive N API errors
+        seqRestartAfterErr: 30
         
     # Sequences
     # each sequence is configured with YAML maping 'sequences name' -> (mappings parameters -> values)

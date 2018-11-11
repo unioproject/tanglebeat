@@ -8,6 +8,7 @@ import (
 	"github.com/lunfardo314/tanglebeat/sender_update"
 	"github.com/op/go-logging"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -57,6 +58,9 @@ func NewSequence(name string) (*TransferSequence, error) {
 		bundleSource: bundleSource,
 		confirmer:    conf,
 		log:          logger,
+	}
+	if params.SeqRestartAfterErr > 0 {
+		ret.log.Debugf("Exit sequence '%v' after %d consecutive API errors", name, params.SeqRestartAfterErr)
 	}
 	ret.log.Infof("Created instance of the sequence UID = %v, name = %v", params.GetUID(), name)
 	return &ret, nil
@@ -129,9 +133,15 @@ func (seq *TransferSequence) Run() {
 						updConf, bundleData.Addr, bundleData.Index, bundleHash, bundleData.StartTime)
 				}
 			}
-
 		}
 	}
+	// at this point *seq.bundleSource is closed. It can happen when generator closes channel due to API errors
+	// The strategy at the moment is to exit the program with errors altogether. It will be restarted by systemd
+	// Alternative might be to restart the sequence caused those errors
+	// that would be better strategy but most likely restart won't be significant for the metrics calculation
+
+	seq.log.Errorf("---- !!!!! ---- Bundle generation channel was closed for sequence '%v'. Exiting the program", seq.name)
+	os.Exit(8)
 }
 
 const securityLevel = 2
