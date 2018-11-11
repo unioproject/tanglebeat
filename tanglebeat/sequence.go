@@ -44,7 +44,7 @@ func NewSequence(name string) (*TransferSequence, error) {
 	}
 	// Creating Traviota style bundle generator hidden behind
 	// abstract channel interface for incoming bundles
-	bundleSource, err := NewTransferBundleGenerator(params, logger)
+	bundleSource, err := NewTransferBundleGenerator(name, params, logger)
 	if err != nil {
 		return nil, err
 	}

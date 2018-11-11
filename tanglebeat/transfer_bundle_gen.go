@@ -20,6 +20,7 @@ import (
 // it is sequence of transfers along addresses with 0,1,2,3 ..indices of the same seed
 
 type transferBundleGenerator struct {
+	name          string
 	params        *senderParamsYAML
 	seed          giota.Trytes
 	securityLevel int
@@ -34,8 +35,8 @@ type transferBundleGenerator struct {
 
 const UID_LEN = 12
 
-func NewTransferBundleGenerator(params *senderParamsYAML, logger *logging.Logger) (*bundle_source.BundleSourceChan, error) {
-	genState, err := initTransferBundleGenerator(params, logger)
+func NewTransferBundleGenerator(name string, params *senderParamsYAML, logger *logging.Logger) (*bundle_source.BundleSourceChan, error) {
+	genState, err := initTransferBundleGenerator(name, params, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -43,9 +44,10 @@ func NewTransferBundleGenerator(params *senderParamsYAML, logger *logging.Logger
 	return &genState.chanOut, nil
 }
 
-func initTransferBundleGenerator(params *senderParamsYAML, logger *logging.Logger) (*transferBundleGenerator, error) {
+func initTransferBundleGenerator(name string, params *senderParamsYAML, logger *logging.Logger) (*transferBundleGenerator, error) {
 	var err error
 	var ret = transferBundleGenerator{
+		name:          name,
 		params:        params,
 		securityLevel: 2,
 		log:           logger,
@@ -153,7 +155,8 @@ func (gen *transferBundleGenerator) runGenerator() {
 				errorCount += 1
 				continue
 			}
-			gen.log.Infof("Transfer Bundles: index = %v is 'used'. Moving to the next", gen.index)
+			gen.log.Infof("Transfer Bundles: '%v' index = %v is 'used'. Moving to the next",
+				gen.name, gen.index)
 			gen.index += 1
 			addr = ""
 
@@ -222,7 +225,7 @@ func (gen *transferBundleGenerator) runGenerator() {
 				// in latter case iotas will be left behind
 				gen.index += 1
 				addr = ""
-				gen.log.Debugf("Transfer Bundles: moving to the next index -> %v", gen.index)
+				gen.log.Debugf("Transfer Bundles: moving '%v' to the next index -> %v", gen.name, gen.index)
 			}
 		}
 	}
