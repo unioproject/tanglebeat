@@ -60,7 +60,7 @@ func NewSequence(name string) (*TransferSequence, error) {
 		log:          logger,
 	}
 	if params.SeqRestartAfterErr > 0 {
-		ret.log.Debugf("Exit sequence '%v' after %d consecutive API errors", name, params.SeqRestartAfterErr)
+		ret.log.Infof("Exit sequence '%v' after %d consecutive API errors", name, params.SeqRestartAfterErr)
 	}
 	ret.log.Infof("Created instance of the sequence UID = %v, name = %v", params.GetUID(), name)
 	return &ret, nil
