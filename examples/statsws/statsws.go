@@ -51,7 +51,7 @@ func addSample(confDurationSec float64, ts int64) {
 	defer listMutex.Unlock()
 
 	if debug {
-		fmt.Printf("Before adding sample -- num samples = %v num samples 3 min = %v\n",
+		fmt.Printf("Before adding sample -- num samples = %v num samples 30 min = %v\n",
 			len(sampleDurations), len(samples30min))
 	}
 
@@ -86,6 +86,11 @@ func addSample(confDurationSec float64, ts int64) {
 	if since30minTs < ago30min {
 		since30minTs = ago30min
 	}
+	if debug {
+		fmt.Printf("After adding sample -- num samples = %v num samples 30 min = %v\n",
+			len(sampleDurations), len(samples30min))
+	}
+
 }
 
 func minMax(arr []float64) (float64, float64) {
