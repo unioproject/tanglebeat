@@ -44,7 +44,7 @@ var (
 	since30minTs    int64
 )
 
-const debug = false
+const debug = true
 
 func deleteOlderThan1h() {
 	ago1h := unixms(time.Now().Add(-1 * time.Hour))
@@ -178,7 +178,7 @@ func main() {
 	uri := *puri
 	port := *pport
 
-	fmt.Printf("Initializing statsws for %v. Http port %v\n", uri, port)
+	fmt.Printf("Initializing statsws for %v. Http port %v. debug = %v\n", uri, port, debug)
 
 	since1hTs = unixms(time.Now())
 	since30minTs = unixms(time.Now())
