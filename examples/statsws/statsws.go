@@ -13,8 +13,11 @@ import (
 	"time"
 )
 
+const version = "0.1"
+
 // JSON returned by active seq WS
 type activeSeqResponse struct {
+	Version   string         `json:"version"`
 	Nowis     int64          `json:"nowis"` // unix time in miliseconds
 	Last5min  map[string]int `json:"5min"`
 	Last15min map[string]int `json:"15min"`
@@ -23,6 +26,7 @@ type activeSeqResponse struct {
 
 // JSON returned by the stats WS
 type statsResponse struct {
+	Version   string       `json:"version"`
 	Nowis     int64        `json:"nowis"` // unix time in miliseconds
 	Last1h    confTimeData `json:"1h"`
 	Last30min confTimeData `json:"30min"`
@@ -187,6 +191,7 @@ func handlerActivity(w http.ResponseWriter, r *http.Request) {
 	calcActivityResp(30, resp.Last30min)
 
 	resp.Nowis = unixms(time.Now())
+	resp.Version = version
 	listMutex.Unlock()
 
 	data, err := json.MarshalIndent(resp, "", "   ")
@@ -213,6 +218,7 @@ func handlerConfStats(w http.ResponseWriter, r *http.Request) {
 	listMutex.Unlock()
 
 	resp.Nowis = unixms(time.Now())
+	resp.Version = version
 
 	data, err := json.MarshalIndent(resp, "", "   ")
 	if err == nil {
@@ -254,7 +260,7 @@ func main() {
 	uri := *puri
 	port := *pport
 
-	fmt.Printf("Initializing statsws for %v. Http port %v. debug = %v\n", uri, port, debug)
+	fmt.Printf("Initializing statsws ver %v for %v. Http port %v. debug = %v\n", version, uri, port, debug)
 
 	since1hTs = unixms(time.Now())
 	since30minTs = unixms(time.Now())
