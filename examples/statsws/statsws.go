@@ -13,8 +13,20 @@ import (
 	"time"
 )
 
-// JSON returned by the WS
-type response struct {
+const version = "0.1"
+
+// JSON returned by active seq WS
+type activeSeqResponse struct {
+	Version   string         `json:"version"`
+	Nowis     int64          `json:"nowis"` // unix time in miliseconds
+	Last5min  map[string]int `json:"5min"`
+	Last15min map[string]int `json:"15min"`
+	Last30min map[string]int `json:"30min"`
+}
+
+// JSON returned by the stats WS
+type statsResponse struct {
+	Version   string       `json:"version"`
 	Nowis     int64        `json:"nowis"` // unix time in miliseconds
 	Last1h    confTimeData `json:"1h"`
 	Last30min confTimeData `json:"30min"`
@@ -42,11 +54,29 @@ var (
 	listMutex       sync.Mutex
 	since1hTs       int64
 	since30minTs    int64
+	activity        = map[string][]int64{}
 )
 
 const debug = true
 
-func addSample(confDurationSec float64, ts int64) {
+func addActivity(uid string, ts int64) {
+	_, ok := activity[uid]
+	if !ok {
+		activity[uid] = make([]int64, 0, 100)
+	} else {
+		alistTmp := make([]int64, 0, len(activity[uid]))
+		ago30min := unixms(time.Now().Add(-30 * time.Minute))
+		for _, t := range activity[uid] {
+			if t >= ago30min {
+				alistTmp = append(alistTmp, t)
+			}
+		}
+		activity[uid] = alistTmp
+	}
+	activity[uid] = append(activity[uid], ts)
+}
+
+func addConfTimeSample(confDurationSec float64, ts int64) {
 	listMutex.Lock()
 	defer listMutex.Unlock()
 
@@ -132,10 +162,50 @@ func calcStats(samples []float64, ret *confTimeData) {
 	ret.Percentile80 = stat.Quantile(0.8, stat.Empirical, sorted, nil)
 }
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("%v: Request %v from %v\n", time.Now().Format(time.RFC3339), r.RequestURI, r.RemoteAddr)
+func calcActivityResp(minAgo int, mp map[string]int) {
+	nowis := time.Now()
+	agoMoment := unixms(nowis.Add(-time.Duration(minAgo) * time.Minute))
+	for uid, tslist := range activity {
+		c := 0
+		for _, ts := range tslist {
+			if ts >= agoMoment {
+				c += 1
+			}
+		}
+		mp[uid] = c
+	}
+}
 
-	resp := response{}
+func handlerActivity(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("%v: Request get_activity %v from %v\n", time.Now().Format(time.RFC3339), r.RequestURI, r.RemoteAddr)
+
+	resp := activeSeqResponse{
+		Last5min:  make(map[string]int),
+		Last15min: make(map[string]int),
+		Last30min: make(map[string]int),
+	}
+	listMutex.Lock()
+
+	calcActivityResp(5, resp.Last5min)
+	calcActivityResp(15, resp.Last15min)
+	calcActivityResp(30, resp.Last30min)
+
+	resp.Nowis = unixms(time.Now())
+	resp.Version = version
+	listMutex.Unlock()
+
+	data, err := json.MarshalIndent(resp, "", "   ")
+	if err == nil {
+		w.Write(data)
+	} else {
+		fmt.Fprintf(w, "Error while marshaling activity response: %v\n", err)
+	}
+}
+
+func handlerConfStats(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("%v: Request get_stats %v from %v\n", time.Now().Format(time.RFC3339), r.RequestURI, r.RemoteAddr)
+
+	resp := statsResponse{}
 
 	listMutex.Lock()
 
@@ -148,12 +218,13 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	listMutex.Unlock()
 
 	resp.Nowis = unixms(time.Now())
+	resp.Version = version
 
 	data, err := json.MarshalIndent(resp, "", "   ")
 	if err == nil {
 		w.Write(data)
 	} else {
-		fmt.Fprintf(w, "Error while marshaling: %v\n", err)
+		fmt.Fprintf(w, "Error while marshaling ststa response: %v\n", err)
 	}
 }
 
@@ -170,7 +241,8 @@ func goListen(uri string) {
 					upd.UpdType, upd.SeqUID, upd.SeqName, upd.Index, upd.Addr)
 			}
 			if upd.UpdType == sender_update.SENDER_UPD_CONFIRM {
-				addSample(float64(upd.UpdateTs-upd.StartTs)/1000, upd.UpdateTs)
+				addConfTimeSample(float64(upd.UpdateTs-upd.StartTs)/1000, upd.UpdateTs)
+				addActivity(upd.SeqUID, upd.UpdateTs)
 			}
 		}
 	}()
@@ -188,14 +260,15 @@ func main() {
 	uri := *puri
 	port := *pport
 
-	fmt.Printf("Initializing statsws for %v. Http port %v. debug = %v\n", uri, port, debug)
+	fmt.Printf("Initializing statsws ver %v for %v. Http port %v. debug = %v\n", version, uri, port, debug)
 
 	since1hTs = unixms(time.Now())
 	since30minTs = unixms(time.Now())
 
 	goListen(uri)
 
-	http.HandleFunc("/get_stats", handler)
+	http.HandleFunc("/get_activity", handlerActivity)
+	http.HandleFunc("/get_stats", handlerConfStats)
 	panic(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }
 
