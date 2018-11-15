@@ -1,9 +1,11 @@
 package main
 
+// version with iota.go library version
+
 import (
 	"fmt"
-	"github.com/lunfardo314/giota"
-	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/iotaledger/iota.go/trinary"
+	"github.com/lunfardo314/tanglebeat1/lib"
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -16,8 +18,8 @@ import (
 )
 
 const (
-	version                 = "0.1beta"
-	PREFIX_MODULE           = "tanglebeat"
+	version                 = "1.0"
+	PREFIX_MODULE           = "tanglebeat1"
 	ROTATE_LOG_HOURS        = 12
 	ROTATE_LOG_RETAIN_HOURS = 36
 )
@@ -67,7 +69,7 @@ type senderParamsYAML struct {
 	TimeoutTipsel         int    `yaml:"tipselTimeout"`
 	TimeoutPoW            int    `yaml:"powTimeout"`
 	Seed                  string `yaml:"seed"`
-	Index0                int    `yaml:"index0"`
+	Index0                uint64 `yaml:"index0"`
 	TxTag                 string `yaml:"txTag"`
 	TxTagPromote          string `yaml:"txTagPromote"`
 	ForceReattachAfterMin int    `yaml:"forceReattachAfterMin"`
@@ -105,7 +107,7 @@ var Config = ConfigStructYAML{}
 var msgBeforeLog = []string{"*********** Starting TangleBeat ver. " + version}
 
 func (params *senderParamsYAML) GetUID() string {
-	seedT, err := giota.ToTrytes(params.Seed)
+	seedT, err := trinary.NewTrytes(params.Seed)
 	if err != nil {
 		panic("can't generate UID")
 	}
@@ -294,13 +296,13 @@ func getSeqParams(name string) (*senderParamsYAML, error) {
 	if len(ret.TxTagPromote) == 0 {
 		ret.TxTagPromote = Config.Sender.Globals.TxTagPromote
 	}
-	if _, err := giota.ToTrytes(ret.Seed); err != nil || len(ret.Seed) != 81 {
+	if _, err := trinary.NewTrytes(ret.Seed); err != nil || len(ret.Seed) != 81 {
 		return &ret, errors.New(fmt.Sprintf("Wrong seed in sequence '%v'. Must be exactly 81 long trytes string\n", name))
 	}
-	if _, err := giota.ToTrytes(ret.TxTag); err != nil || len(ret.TxTag) > 27 {
+	if _, err := trinary.NewTrytes(ret.TxTag); err != nil || len(ret.TxTag) > 27 {
 		return &ret, errors.New(fmt.Sprintf("Wrong tx tag in sequence '%v'. Must be no more than 27 long trytes string\n", name))
 	}
-	if _, err := giota.ToTrytes(ret.TxTagPromote); err != nil || len(ret.TxTagPromote) > 27 {
+	if _, err := trinary.NewTrytes(ret.TxTagPromote); err != nil || len(ret.TxTagPromote) > 27 {
 		return &ret, errors.New(fmt.Sprintf("Wrong tx tag promote in sequence '%v'. Must be no more than 27 long trytes string\n", name))
 	}
 	if ret.TimeoutAPI == 0 {

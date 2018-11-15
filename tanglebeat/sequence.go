@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/lunfardo314/giota"
-	"github.com/lunfardo314/tanglebeat/bundle_source"
-	"github.com/lunfardo314/tanglebeat/confirmer"
-	"github.com/lunfardo314/tanglebeat/lib"
-	"github.com/lunfardo314/tanglebeat/sender_update"
+	"github.com/iotaledger/iota.go/api"
+	"github.com/iotaledger/iota.go/trinary"
+	"github.com/lunfardo314/tanglebeat1/bundle_source"
+	"github.com/lunfardo314/tanglebeat1/confirmer"
+	"github.com/lunfardo314/tanglebeat1/lib"
+	"github.com/lunfardo314/tanglebeat1/sender_update"
 	"github.com/op/go-logging"
 	"net/http"
 	"os"
@@ -67,31 +68,32 @@ func NewSequence(name string) (*TransferSequence, error) {
 }
 
 func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirmer.Confirmer, error) {
-	iotaAPI := giota.NewAPI(
-		params.IOTANode,
-		&http.Client{
-			Timeout: time.Duration(params.TimeoutAPI) * time.Second,
-		},
+	// TODO add timeouts
+	iotaAPI, err := api.ComposeAPI(
+		api.HTTPClientSettings{URI: params.IOTANode},
 	)
+	if err != nil {
+		return nil, err
+	}
 	AEC.registerAPI(iotaAPI, params.IOTANode)
 
-	iotaAPIgTTA := giota.NewAPI(
-		params.IOTANodeTipsel,
-		&http.Client{
-			Timeout: time.Duration(params.TimeoutTipsel) * time.Second,
-		},
+	iotaAPIgTTA, err := api.ComposeAPI(
+		api.HTTPClientSettings{URI: params.IOTANodeTipsel},
 	)
+	if err != nil {
+		return nil, err
+	}
 	AEC.registerAPI(iotaAPIgTTA, params.IOTANodeTipsel)
 
-	iotaAPIaTT := giota.NewAPI(
-		params.IOTANodePoW,
-		&http.Client{
-			Timeout: time.Duration(params.TimeoutPoW) * time.Second,
-		},
+	iotaAPIaTT, err := api.ComposeAPI(
+		api.HTTPClientSettings{URI: params.IOTANodePoW},
 	)
+	if err != nil {
+		return nil, err
+	}
 	AEC.registerAPI(iotaAPIaTT, params.IOTANodePoW)
 
-	txTagPromote, err := giota.ToTrytes(params.TxTagPromote)
+	txTagPromote, err := trinary.BytesToTrytes([]byte(params.TxTagPromote))
 	if err != nil {
 		return nil, err
 	}
@@ -110,14 +112,14 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 }
 
 func (seq *TransferSequence) Run() {
-	seq.log.Info("Start running sequence")
-	var bundleHash giota.Trytes
+	seq.log.Info("Start running sequence '%v'", seq.name)
+	var bundleHash trinary.Trytes
 
 	for bundleData := range *seq.bundleSource {
 		seq.processStartUpdate(bundleData)
 
-		bundleHash = bundleData.Bundle.Hash()
-		if chUpdate, err := seq.confirmer.RunConfirm(bundleData.Bundle); err != nil {
+		bundleHash = bundleData.BundleTrytes.Hash()
+		if chUpdate, err := seq.confirmer.RunConfirm(bundleData.BundleTrytes); err != nil {
 			seq.log.Errorf("RunConfirm returned: %v", err)
 		} else {
 			for updConf := range chUpdate {
@@ -140,7 +142,7 @@ func (seq *TransferSequence) Run() {
 	// Alternative might be to restart the sequence caused those errors
 	// that would be better strategy but most likely restart won't be significant for the metrics calculation
 
-	seq.log.Errorf("---- !!!!! ---- Bundle generation channel was closed for sequence '%v'. Exiting the program", seq.name)
+	seq.log.Errorf("---- !!!!! ---- BundleTrytes generation channel was closed for sequence '%v'. Exiting the program", seq.name)
 	os.Exit(8)
 }
 
@@ -164,7 +166,7 @@ func (seq *TransferSequence) processStartUpdate(bundleData *bundle_source.FirstB
 			UpdType:               updType,
 			Index:                 bundleData.Index,
 			Addr:                  bundleData.Addr,
-			Bundle:                bundleData.Bundle.Hash(),
+			Bundle:                bundleData.BundleTrytes.Hash(),
 			StartTs:               lib.UnixMs(bundleData.StartTime),
 			UpdateTs:              lib.UnixMs(bundleData.StartTime),
 			NumAttaches:           bundleData.NumAttach,

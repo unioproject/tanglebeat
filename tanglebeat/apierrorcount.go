@@ -3,13 +3,13 @@
 package main
 
 import (
-	"github.com/lunfardo314/giota"
+	. "github.com/iotaledger/iota.go/api"
 	"github.com/prometheus/client_golang/prometheus"
 	"sync"
 )
 
 type apiErrorCount struct {
-	apiEndpoints      map[*giota.API]string
+	apiEndpoints      map[*API]string
 	apiEndpointsMutex sync.Mutex
 	apiErrorCounter   *prometheus.CounterVec
 }
@@ -18,7 +18,7 @@ var AEC *apiErrorCount
 
 func init() {
 	AEC = &apiErrorCount{
-		apiEndpoints: make(map[*giota.API]string),
+		apiEndpoints: make(map[*API]string),
 		apiErrorCounter: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "tanglebeat_iota_api_error_counter",
 			Help: "Increases every time IOTA (giota) API returns an error",
@@ -27,13 +27,13 @@ func init() {
 	prometheus.MustRegister(AEC.apiErrorCounter)
 }
 
-func (aec *apiErrorCount) registerAPI(api *giota.API, endpoint string) {
+func (aec *apiErrorCount) registerAPI(api *API, endpoint string) {
 	aec.apiEndpointsMutex.Lock()
 	defer aec.apiEndpointsMutex.Unlock()
 	aec.apiEndpoints[api] = endpoint
 }
 
-func (aec *apiErrorCount) getEndpoint(api *giota.API) string {
+func (aec *apiErrorCount) getEndpoint(api *API) string {
 	aec.apiEndpointsMutex.Lock()
 	defer aec.apiEndpointsMutex.Unlock()
 	ret, ok := aec.apiEndpoints[api]
@@ -43,6 +43,6 @@ func (aec *apiErrorCount) getEndpoint(api *giota.API) string {
 	return ret
 }
 
-func (aec *apiErrorCount) IncErrorCount(api *giota.API) {
+func (aec *apiErrorCount) IncErrorCount(api *API) {
 	aec.apiErrorCounter.With(prometheus.Labels{"endpoint": aec.getEndpoint(api)}).Inc()
 }

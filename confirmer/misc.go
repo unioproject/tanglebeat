@@ -2,19 +2,14 @@ package confirmer
 
 import (
 	"errors"
-	"github.com/lunfardo314/giota"
-	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/iotaledger/iota.go/trinary"
+	"github.com/lunfardo314/tanglebeat1/lib"
 	"strings"
 	"time"
 )
 
-func (conf *Confirmer) attachToTangle(trunkHash, branchHash giota.Trytes, trytes []giota.Transaction) (*giota.AttachToTangleResponse, error) {
-	ret, err := conf.IotaAPIaTT.AttachToTangle(&giota.AttachToTangleRequest{
-		TrunkTransaction:   trunkHash,
-		BranchTransaction:  branchHash,
-		Trytes:             trytes,
-		MinWeightMagnitude: 14,
-	})
+func (conf *Confirmer) attachToTangle(trunkHash, branchHash trinary.Hash, trytes []trinary.Trytes) ([]trinary.Trytes, error) {
+	ret, err := conf.IotaAPIaTT.AttachToTangle(trunkHash, branchHash, 14, trytes)
 	if err != nil {
 		conf.AEC.IncErrorCount(conf.IotaAPIaTT)
 	}
