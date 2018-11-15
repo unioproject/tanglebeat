@@ -8,9 +8,7 @@ import (
 	"github.com/lunfardo314/tanglebeat1/lib"
 	"github.com/lunfardo314/tanglebeat1/sender_update"
 	"github.com/op/go-logging"
-	"net/http"
 	"os"
-	"time"
 )
 
 // TODO make Sequences more abstract
@@ -93,7 +91,8 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 	}
 	AEC.registerAPI(iotaAPIaTT, params.IOTANodePoW)
 
-	txTagPromote, err := trinary.BytesToTrytes([]byte(params.TxTagPromote))
+	txTagPromote := trinary.Trytes(params.TxTagPromote)
+	err = trinary.ValidTrytes(txTagPromote)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +103,7 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 		TxTagPromote:          txTagPromote,
 		ForceReattachAfterMin: params.ForceReattachAfterMin,
 		PromoteChain:          params.PromoteChain,
-		PromoteEverySec:       int64(params.PromoteEverySec),
+		PromoteEverySec:       params.PromoteEverySec,
 		Log:                   logger,
 		AEC:                   AEC,
 	}
@@ -118,7 +117,6 @@ func (seq *TransferSequence) Run() {
 	for bundleData := range *seq.bundleSource {
 		seq.processStartUpdate(bundleData)
 
-		bundleHash = bundleData.BundleTrytes.Hash()
 		if chUpdate, err := seq.confirmer.RunConfirm(bundleData.BundleTrytes); err != nil {
 			seq.log.Errorf("RunConfirm returned: %v", err)
 		} else {
@@ -166,15 +164,15 @@ func (seq *TransferSequence) processStartUpdate(bundleData *bundle_source.FirstB
 			UpdType:               updType,
 			Index:                 bundleData.Index,
 			Addr:                  bundleData.Addr,
-			Bundle:                bundleData.BundleTrytes.Hash(),
-			StartTs:               lib.UnixMs(bundleData.StartTime),
-			UpdateTs:              lib.UnixMs(bundleData.StartTime),
+			Bundle:                bundleData.BundleHash,
+			StartTs:               bundleData.StartTime,
+			UpdateTs:              bundleData.StartTime,
 			NumAttaches:           bundleData.NumAttach,
 			NumPromotions:         0,
 			NodePOW:               seq.params.IOTANodePoW,
 			NodeTipsel:            seq.params.IOTANodeTipsel,
-			PromoteEverySec:       int64(seq.params.PromoteEverySec),
-			ForceReattachAfterMin: int64(seq.params.ForceReattachAfterMin),
+			PromoteEverySec:       seq.params.PromoteEverySec,
+			ForceReattachAfterMin: seq.params.ForceReattachAfterMin,
 			PromoteChain:          seq.params.PromoteChain,
 			BundleSize:            securityLevel + 1,
 			PromoBundleSize:       1,
@@ -184,7 +182,7 @@ func (seq *TransferSequence) processStartUpdate(bundleData *bundle_source.FirstB
 }
 
 func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.ConfirmerUpdate,
-	addr giota.Address, index int, bundleHash giota.Trytes, sendingStarted time.Time) {
+	addr trinary.Hash, index uint64, bundleHash trinary.Hash, sendingStarted uint64) {
 
 	updType := confirmerUpdType2Sender(updConf.UpdateType)
 	seq.log.Debugf("Update '%v' for %v index = %v",
@@ -198,14 +196,14 @@ func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.Confirmer
 			Index:                 index,
 			Addr:                  addr,
 			Bundle:                bundleHash,
-			StartTs:               lib.UnixMs(sendingStarted),
+			StartTs:               sendingStarted,
 			UpdateTs:              lib.UnixMs(updConf.UpdateTime),
 			NumAttaches:           updConf.NumAttaches,
 			NumPromotions:         updConf.NumPromotions,
 			NodePOW:               seq.params.IOTANodePoW,
 			NodeTipsel:            seq.params.IOTANodeTipsel,
-			PromoteEverySec:       int64(seq.params.PromoteEverySec),
-			ForceReattachAfterMin: int64(seq.params.ForceReattachAfterMin),
+			PromoteEverySec:       seq.params.PromoteEverySec,
+			ForceReattachAfterMin: seq.params.ForceReattachAfterMin,
 			PromoteChain:          seq.params.PromoteChain,
 			BundleSize:            securityLevel + 1,
 			PromoBundleSize:       1,

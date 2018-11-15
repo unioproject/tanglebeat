@@ -3,8 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/confirmer"
-	"github.com/lunfardo314/tanglebeat/sender_update"
+	"github.com/lunfardo314/tanglebeat1/confirmer"
+	"github.com/lunfardo314/tanglebeat1/sender_update"
 )
 
 func confirmerUpdType2Sender(confUpdType confirmer.UpdateType) sender_update.SenderUpdateType {
@@ -24,7 +24,7 @@ func confirmerUpdType2Sender(confUpdType confirmer.UpdateType) sender_update.Sen
 // update is uniquely identified by SeqUID and UpdateTs
 // make sure the same is not published twice by saving last ts and skipping
 // updates with ts less than that
-var alreadyPublished = make(map[string]int64)
+var alreadyPublished = make(map[string]uint64)
 
 // this is called by updates or local sender every time update arrives
 // Updates are used to calculate sender metrics.

@@ -26,9 +26,9 @@ type Confirmer struct {
 	IotaAPIgTTA           *api.API
 	IotaAPIaTT            *api.API
 	TxTagPromote          trinary.Trytes
-	ForceReattachAfterMin int
+	ForceReattachAfterMin uint64
 	PromoteChain          bool
-	PromoteEverySec       int64
+	PromoteEverySec       uint64
 	Log                   *logging.Logger
 	AEC                   lib.ErrorCounter
 	// internal
@@ -38,20 +38,20 @@ type Confirmer struct {
 	lastBundleTrytes      []trinary.Trytes
 	lastTail              transaction.Transaction
 	nextForceReattachTime time.Time
-	numAttach             int64
+	numAttach             uint64
 	nextPromoTime         time.Time
-	nextTailToPromote     *transaction.Transaction
-	numPromote            int64
-	totalDurationATTMsec  int64
-	totalDurationGTTAMsec int64
+	nextTailHashToPromote trinary.Hash
+	numPromote            uint64
+	totalDurationATTMsec  uint64
+	totalDurationGTTAMsec uint64
 	isNotPromotable       bool
 }
 
 type ConfirmerUpdate struct {
-	NumAttaches           int64
-	NumPromotions         int64
-	TotalDurationATTMsec  int64
-	TotalDurationGTTAMsec int64
+	NumAttaches           uint64
+	NumPromotions         uint64
+	TotalDurationATTMsec  uint64
+	TotalDurationGTTAMsec uint64
 	UpdateTime            time.Time
 	UpdateType            UpdateType
 	Err                   error
@@ -93,7 +93,7 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []trinary.Trytes) (trinar
 	conf.lastTail = *tail
 	conf.nextForceReattachTime = nowis.Add(time.Duration(conf.ForceReattachAfterMin) * time.Minute)
 	conf.nextPromoTime = nowis
-	conf.nextTailToPromote = &conf.lastTail
+	conf.nextTailHashToPromote = conf.lastTail.Hash
 	conf.isNotPromotable = false
 	conf.chanUpdate = make(chan *ConfirmerUpdate)
 	conf.numAttach = 0
@@ -206,7 +206,7 @@ func (conf *Confirmer) checkIfToPromote() (bool, error) {
 		return false, nil
 	}
 	// check if next tail to promote is consistent. If not, promote will be idle
-	consistent, err := conf.checkConsistency(conf.nextTailToPromote.Hash)
+	consistent, err := conf.checkConsistency(conf.nextTailHashToPromote)
 	if err != nil {
 		return false, err
 	}

@@ -65,17 +65,17 @@ type senderParamsYAML struct {
 	IOTANode              string `yaml:"iotaNode"`
 	IOTANodeTipsel        string `yaml:"iotaNodeTipsel"`
 	IOTANodePoW           string `yaml:"iotaNodePOW"`
-	TimeoutAPI            int    `yaml:"apiTimeout"`
-	TimeoutTipsel         int    `yaml:"tipselTimeout"`
-	TimeoutPoW            int    `yaml:"powTimeout"`
+	TimeoutAPI            uint64 `yaml:"apiTimeout"`
+	TimeoutTipsel         uint64 `yaml:"tipselTimeout"`
+	TimeoutPoW            uint64 `yaml:"powTimeout"`
 	Seed                  string `yaml:"seed"`
 	Index0                uint64 `yaml:"index0"`
 	TxTag                 string `yaml:"txTag"`
 	TxTagPromote          string `yaml:"txTagPromote"`
-	ForceReattachAfterMin int    `yaml:"forceReattachAfterMin"`
+	ForceReattachAfterMin uint64 `yaml:"forceReattachAfterMin"`
 	PromoteChain          bool   `yaml:"promoteChain"`
-	PromoteEverySec       int    `yaml:"promoteEverySec"`
-	SeqRestartAfterErr    int    `yaml:"seqRestartAfterErr"`
+	PromoteEverySec       uint64 `yaml:"promoteEverySec"`
+	SeqRestartAfterErr    uint64 `yaml:"seqRestartAfterErr"`
 }
 
 type senderUpdateCollectorYAML struct {

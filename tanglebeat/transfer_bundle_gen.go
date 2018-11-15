@@ -87,12 +87,14 @@ func initTransferBundleGenerator(name string, params *senderParamsYAML, logger *
 
 	AEC.registerAPI(ret.iotaAPIaTT, params.IOTANodePoW)
 
-	ret.seed, err = trinary.BytesToTrytes([]byte(params.Seed))
+	ret.seed = trinary.Trytes(params.Seed)
+	err = trinary.ValidTrytes(ret.seed)
 	if err != nil {
 		return nil, err
 	}
 
-	ret.txTag, err = trinary.BytesToTrytes([]byte(params.TxTag))
+	ret.txTag = trinary.Trytes(params.TxTag)
+	err = trinary.ValidTrytes(ret.txTag)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +131,7 @@ func (gen *transferBundleGenerator) runGenerator() {
 	var bundleData *bundle_source.FirstBundleData
 	var isNew bool
 	// error count will be used to stop producing bundles if exceeds SeqRestartAfterErr
-	var errorCount int
+	var errorCount uint64
 
 	defer gen.log.Debugf("Leaving Transfer BundleTrytes Generator routine")
 
@@ -260,13 +262,13 @@ func (gen *transferBundleGenerator) runGenerator() {
 
 const sleepEveryLoop = 5 * time.Second
 
-func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash trinary.Hash) int {
+func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash trinary.Hash) uint64 {
 	gen.log.Debugf("waitUntilBundleConfirmed: start waiting for the bundle to be confirmed")
 
 	startWaiting := time.Now()
 	count := 0
 	var sinceWaiting time.Duration
-	errorCount := 0
+	var errorCount uint64
 
 	for confirmed := false; !confirmed; count++ {
 		if gen.params.SeqRestartAfterErr > 0 && errorCount >= gen.params.SeqRestartAfterErr {
