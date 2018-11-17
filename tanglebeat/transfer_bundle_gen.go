@@ -508,21 +508,20 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr trinary.Hash) (*bun
 	// none is confirmed hence no matter which one
 	// select the oldest one by Timestamp
 	// TODO  use attachmentTimestamp instead
-	maxTime := tails[0].Timestamp
-	minTime := tails[0].Timestamp
 	maxTail := tails[0]
+	maxTime := maxTail.Timestamp
 	for _, tail := range tails {
 		if tail.Timestamp > maxTime {
 			maxTime = tail.Timestamp
 			maxTail = tail
 		}
-		if tail.Timestamp < minTime {
-			minTime = tail.Timestamp
-		}
 	}
 	// collect the bundle by maxTail
 	txSet := extractBundleTxByTail(maxTail, txs)
-
+	if txSet == nil {
+		return nil, errors.New(fmt.Sprintf("Can't get bundle from tail hash = %v in addr = %v: %v",
+			maxTail.Hash, addr, err))
+	}
 	txSet, err = lib.CheckAndSortTxSetAsBundle(txSet)
 
 	if err != nil {
@@ -538,7 +537,7 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr trinary.Hash) (*bun
 	ret := &bundle_source.FirstBundleData{
 		BundleTrytes: bundleTrytes,
 		NumAttach:    uint64(len(tails)),
-		StartTime:    minTime,
+		StartTime:    maxTime,
 	}
 	return ret, nil
 }
@@ -547,7 +546,9 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr trinary.Hash) (*bun
 // checks consistency of the bundle. Sorts it by index
 
 func extractBundleTxByTail(tail *transaction.Transaction, allTx []transaction.Transaction) []*transaction.Transaction {
-	lib.Assert(tail.CurrentIndex == 0, "tail.CurrentIndex == 0", nil)
+	if !transaction.IsTailTransaction(tail) {
+		return nil
+	}
 	// first in a bundle is tail tx
 	var ret []*transaction.Transaction
 	tx := tail
