@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/lunfardo314/tanglebeat1/lib"
 	"os"
 	"path/filepath"
 	"time"
