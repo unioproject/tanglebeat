@@ -41,17 +41,11 @@ func (conf *Confirmer) promote() error {
 	prepTransferOptions := api.PrepareTransfersOptions{
 		Timestamp: &ts,
 	}
-	var bundleTrytes []trinary.Trytes
-	bundleTrytes, err = conf.IotaAPI.PrepareTransfers(all9, transfers, prepTransferOptions)
+	bundleTrytesPrep, err := conf.IotaAPI.PrepareTransfers(all9, transfers, prepTransferOptions)
 	if err != nil {
 		conf.AEC.IncErrorCount(conf.IotaAPI)
 		return err
 	}
-	tail, err := transaction.AsTransactionObject(bundleTrytes[0])
-	if !transaction.IsTailTransaction(tail) {
-		return errors.New("can't get tail of the bundle")
-	}
-
 	st := lib.UnixMs(time.Now())
 	gttaResp, err := conf.IotaAPIgTTA.GetTransactionsToApprove(3)
 	if err != nil {
@@ -64,18 +58,18 @@ func (conf *Confirmer) promote() error {
 	branchTxh := gttaResp.BranchTransaction
 
 	st = lib.UnixMs(time.Now())
-	bundleTrytes, err = conf.attachToTangle(trunkTxh, branchTxh, bundleTrytes)
+	btrytes, err := conf.attachToTangle(trunkTxh, branchTxh, bundleTrytesPrep)
 	if err != nil {
 		return err
 	}
 	conf.totalDurationATTMsec += lib.UnixMs(time.Now()) - st
 
-	_, err = conf.IotaAPI.BroadcastTransactions(bundleTrytes...)
+	_, err = conf.IotaAPI.BroadcastTransactions(btrytes...)
 	if err != nil {
 		conf.AEC.IncErrorCount(conf.IotaAPI)
 		return err
 	}
-	_, err = conf.IotaAPI.StoreTransactions(bundleTrytes...)
+	_, err = conf.IotaAPI.StoreTransactions(btrytes...)
 	if err != nil {
 		conf.AEC.IncErrorCount(conf.IotaAPI)
 		return err
@@ -83,6 +77,15 @@ func (conf *Confirmer) promote() error {
 	nowis := time.Now()
 	conf.numPromote += 1
 	if conf.PromoteChain {
+		// vienintele tx turi buti tail
+		tail, err := transaction.AsTransactionObject(btrytes[0])
+		if err != nil {
+			conf.AEC.IncErrorCount(conf.IotaAPI)
+			return err
+		}
+		if !transaction.IsTailTransaction(tail) {
+			return errors.New("can't get tail of the bundle")
+		}
 		conf.nextTailHashToPromote = tail.Hash
 	}
 	conf.nextPromoTime = nowis.Add(time.Duration(conf.PromoteEverySec) * time.Second)
