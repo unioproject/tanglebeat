@@ -1,6 +1,6 @@
 package main
 
-// version with iota.go library version
+// Version with iota.go library Version
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	version                 = "1.0"
+	Version                 = "1.0"
 	PREFIX_MODULE           = "tanglebeat1"
 	ROTATE_LOG_HOURS        = 12
 	ROTATE_LOG_RETAIN_HOURS = 36
@@ -104,7 +104,7 @@ type zmqMetricsYAML struct {
 // main config structure
 var Config = ConfigStructYAML{}
 
-var msgBeforeLog = []string{"*********** Starting TangleBeat ver. " + version}
+var msgBeforeLog = []string{"*********** Starting TangleBeat ver. " + Version}
 
 func (params *senderParamsYAML) GetUID() string {
 	seedT, err := trinary.NewTrytes(params.Seed)

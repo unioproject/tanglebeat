@@ -27,8 +27,8 @@ func main() {
 
 	for upd := range chIn {
 		if showall || upd.UpdType == sender_update.SENDER_UPD_CONFIRM {
-			fmt.Printf("Received '%v' from %v(%v), idx = %v, addr = %v\n",
-				upd.UpdType, upd.SeqUID, upd.SeqName, upd.Index, upd.Addr)
+			fmt.Printf("Received '%v' from %v(%v) ver= %v, idx = %v, addr = %v\n",
+				upd.UpdType, upd.SeqUID, upd.SeqName, upd.Version, upd.Index, upd.Addr)
 		}
 	}
 }

@@ -159,6 +159,7 @@ func (seq *TransferSequence) processStartUpdate(bundleData *bundle_source.FirstB
 	processUpdate(
 		"local",
 		&sender_update.SenderUpdate{
+			Version:               Version,
 			SeqUID:                seq.params.GetUID(),
 			SeqName:               seq.name,
 			UpdType:               updType,
@@ -190,6 +191,7 @@ func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.Confirmer
 	processUpdate(
 		"local",
 		&sender_update.SenderUpdate{
+			Version:               Version,
 			SeqUID:                seq.params.GetUID(),
 			SeqName:               seq.name,
 			UpdType:               updType,

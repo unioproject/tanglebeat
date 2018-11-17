@@ -20,6 +20,7 @@ const (
 )
 
 type SenderUpdate struct {
+	Version string           `json:"ver"`     // version of the originator
 	SeqUID  string           `json:"seqid"`   // unique id of the sequences. Parte of seed's hash
 	SeqName string           `json:"seqname"` // name of the sequence as specified in the config
 	UpdType SenderUpdateType `json:"updtype"` // update type
