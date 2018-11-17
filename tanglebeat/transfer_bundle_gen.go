@@ -372,7 +372,7 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr trinary.Trytes,
 		Timestamp: &ts,
 	}
 	// signing is here
-	bundleRet, err := gen.iotaAPI.PrepareTransfers(seed, transfers, prepTransferOptions)
+	bundlePrep, err := gen.iotaAPI.PrepareTransfers(seed, transfers, prepTransferOptions)
 	if err != nil {
 		AEC.IncErrorCount(gen.iotaAPI)
 		return nil, err
@@ -391,11 +391,11 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr trinary.Trytes,
 	st = lib.UnixMs(time.Now())
 
 	// do POW by calling attachToTangle
-	bundleRet, err = gen.iotaAPIaTT.AttachToTangle(
+	bundleRet, err := gen.iotaAPIaTT.AttachToTangle(
 		gttaResp.TrunkTransaction,
 		gttaResp.BranchTransaction,
 		14,
-		bundleRet,
+		bundlePrep,
 	)
 	if err != nil {
 		AEC.IncErrorCount(gen.iotaAPIaTT)
@@ -403,7 +403,7 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr trinary.Trytes,
 	}
 
 	ret.TotalDurationPoWMs = lib.UnixMs(time.Now()) - st
-	// breatcast bundle
+	// broadcast bundle
 	_, err = gen.iotaAPI.BroadcastTransactions(bundleRet...)
 	if err != nil {
 		AEC.IncErrorCount(gen.iotaAPI)

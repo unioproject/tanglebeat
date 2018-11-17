@@ -6,7 +6,6 @@ import (
 	"github.com/iotaledger/iota.go/kerl"
 	"github.com/iotaledger/iota.go/transaction"
 	"github.com/iotaledger/iota.go/trinary"
-	"github.com/op/go-logging"
 	"time"
 )
 
@@ -189,27 +188,10 @@ func FindTxByHashP(hash trinary.Trytes, txList []*transaction.Transaction) (*tra
 }
 
 func FindTail(txs transaction.Transactions) *transaction.Transaction {
-	for _, tx := range txs {
-		if transaction.IsTailTransaction(&tx) {
-			return &tx
+	for i := range txs {
+		if transaction.IsTailTransaction(&txs[i]) {
+			return &txs[i]
 		}
 	}
 	return nil
-}
-
-func Assert(cond bool, msg string, log *logging.Logger) {
-	if !cond {
-		if log != nil {
-			log.Panicf("Assertion error: %v", msg)
-		} else {
-			panic(fmt.Sprintf("Assertion error: %v", msg))
-		}
-	}
-}
-
-func Iff(cond bool, trueVal interface{}, falseVal interface{}) interface{} {
-	if cond {
-		return trueVal
-	}
-	return falseVal
 }
