@@ -44,8 +44,6 @@ func processUpdate(sourceName string, upd *sender_update.SenderUpdate) error {
 	alreadyPublished[upd.SeqUID] = upd.UpdateTs
 
 	if Config.Prometheus.Enabled && Config.Prometheus.SenderMetricsEnabled {
-		log.Debugf("Update metrics for %v(%v), index = %v",
-			upd.SeqUID, upd.SeqName, upd.Index)
 		updateSenderMetrics(upd)
 	}
 	if Config.SenderUpdateCollector.Publish {
