@@ -1,8 +1,10 @@
 package main
 
 import (
-	"github.com/iotaledger/iota.go/api"
-	"github.com/iotaledger/iota.go/trinary"
+	. "github.com/iotaledger/iota.go/api"
+	. "github.com/iotaledger/iota.go/consts"
+	. "github.com/iotaledger/iota.go/guards/validators"
+	. "github.com/iotaledger/iota.go/trinary"
 	"github.com/lunfardo314/tanglebeat1/bundle_source"
 	"github.com/lunfardo314/tanglebeat1/confirmer"
 	"github.com/lunfardo314/tanglebeat1/lib"
@@ -67,32 +69,32 @@ func NewSequence(name string) (*TransferSequence, error) {
 
 func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirmer.Confirmer, error) {
 	// TODO add timeouts
-	iotaAPI, err := api.ComposeAPI(
-		api.HTTPClientSettings{URI: params.IOTANode},
+	iotaAPI, err := ComposeAPI(
+		HTTPClientSettings{URI: params.IOTANode},
 	)
 	if err != nil {
 		return nil, err
 	}
 	AEC.registerAPI(iotaAPI, params.IOTANode)
 
-	iotaAPIgTTA, err := api.ComposeAPI(
-		api.HTTPClientSettings{URI: params.IOTANodeTipsel},
+	iotaAPIgTTA, err := ComposeAPI(
+		HTTPClientSettings{URI: params.IOTANodeTipsel},
 	)
 	if err != nil {
 		return nil, err
 	}
 	AEC.registerAPI(iotaAPIgTTA, params.IOTANodeTipsel)
 
-	iotaAPIaTT, err := api.ComposeAPI(
-		api.HTTPClientSettings{URI: params.IOTANodePoW},
+	iotaAPIaTT, err := ComposeAPI(
+		HTTPClientSettings{URI: params.IOTANodePoW},
 	)
 	if err != nil {
 		return nil, err
 	}
 	AEC.registerAPI(iotaAPIaTT, params.IOTANodePoW)
 
-	txTagPromote := trinary.Trytes(params.TxTagPromote)
-	err = trinary.ValidTrytes(txTagPromote)
+	txTagPromote := Pad(Trytes(params.TxTagPromote), TagTrinarySize/3)
+	err = Validate(ValidateTags(txTagPromote))
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +114,7 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 
 func (seq *TransferSequence) Run() {
 	seq.log.Infof("Start running sequence '%v'", seq.name)
-	var bundleHash trinary.Trytes
+	var bundleHash Trytes
 
 	for bundleData := range *seq.bundleSource {
 		seq.processStartUpdate(bundleData)
@@ -183,7 +185,7 @@ func (seq *TransferSequence) processStartUpdate(bundleData *bundle_source.FirstB
 }
 
 func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.ConfirmerUpdate,
-	addr trinary.Hash, index uint64, bundleHash trinary.Hash, sendingStarted uint64) {
+	addr Hash, index uint64, bundleHash Hash, sendingStarted uint64) {
 
 	updType := confirmerUpdType2Sender(updConf.UpdateType)
 	seq.log.Debugf("Update '%v' for %v index = %v",
