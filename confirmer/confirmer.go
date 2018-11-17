@@ -2,9 +2,10 @@ package confirmer
 
 import (
 	"errors"
-	"fmt"
-	"github.com/lunfardo314/giota"
-	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/iotaledger/iota.go/api"
+	"github.com/iotaledger/iota.go/transaction"
+	"github.com/iotaledger/iota.go/trinary"
+	"github.com/lunfardo314/tanglebeat1/lib"
 	"github.com/op/go-logging"
 	"strings"
 	"sync"
@@ -21,35 +22,36 @@ const (
 )
 
 type Confirmer struct {
-	IotaAPI               *giota.API
-	IotaAPIgTTA           *giota.API
-	IotaAPIaTT            *giota.API
-	TxTagPromote          giota.Trytes
-	ForceReattachAfterMin int
+	IotaAPI               *api.API
+	IotaAPIgTTA           *api.API
+	IotaAPIaTT            *api.API
+	TxTagPromote          trinary.Trytes
+	ForceReattachAfterMin uint64
 	PromoteChain          bool
-	PromoteEverySec       int64
+	PromoteEverySec       uint64
 	Log                   *logging.Logger
 	AEC                   lib.ErrorCounter
 	// internal
 	chanUpdate chan *ConfirmerUpdate
 	mutex      sync.Mutex //task state access sync
 	// confirmer task state
-	lastBundle            giota.Bundle
+	lastBundleTrytes      []trinary.Trytes
+	lastTail              transaction.Transaction
 	nextForceReattachTime time.Time
-	numAttach             int64
+	numAttach             uint64
 	nextPromoTime         time.Time
-	nextBundleToPromote   giota.Bundle
-	numPromote            int64
-	totalDurationATTMsec  int64
-	totalDurationGTTAMsec int64
+	nextTailHashToPromote trinary.Hash
+	numPromote            uint64
+	totalDurationATTMsec  uint64
+	totalDurationGTTAMsec uint64
 	isNotPromotable       bool
 }
 
 type ConfirmerUpdate struct {
-	NumAttaches           int64
-	NumPromotions         int64
-	TotalDurationATTMsec  int64
-	TotalDurationGTTAMsec int64
+	NumAttaches           uint64
+	NumPromotions         uint64
+	TotalDurationATTMsec  uint64
+	TotalDurationGTTAMsec uint64
 	UpdateTime            time.Time
 	UpdateType            UpdateType
 	Err                   error
@@ -69,17 +71,29 @@ func (conf *Confirmer) errorf(f string, p ...interface{}) {
 
 type dummy struct{}
 
-func (*dummy) IncErrorCount(api *giota.API) {}
+func (*dummy) IncErrorCount(api *api.API) {}
 
-func (conf *Confirmer) StartConfirmerTask(bundle giota.Bundle) (chan *ConfirmerUpdate, func(), error) {
-	if err := lib.CheckBundle(bundle); err != nil {
-		return nil, nil, errors.New(fmt.Sprintf("Attempt to run confirmer with wrong bundle: %v", err))
+func (conf *Confirmer) StartConfirmerTask(bundleTrytes []trinary.Trytes) (trinary.Hash, chan *ConfirmerUpdate, func(), error) {
+	//if err := lib.CheckBundle(bundle); err != nil {
+	//	return nil, nil, errors.New(fmt.Sprintf("Attempt to run confirmer with wrong bundle: %v", err))
+	//}
+
+	// find tail
+	txs, err := transaction.AsTransactionObjects(bundleTrytes, nil)
+	if err != nil {
+		return "", nil, nil, err
 	}
+	tail := lib.FindTail(txs)
+	if tail == nil {
+		return "", nil, nil, errors.New("Can't find tail")
+	}
+
 	nowis := time.Now()
-	conf.lastBundle = bundle
+	conf.lastBundleTrytes = bundleTrytes
+	conf.lastTail = *tail
 	conf.nextForceReattachTime = nowis.Add(time.Duration(conf.ForceReattachAfterMin) * time.Minute)
 	conf.nextPromoTime = nowis
-	conf.nextBundleToPromote = bundle
+	conf.nextTailHashToPromote = conf.lastTail.Hash
 	conf.isNotPromotable = false
 	conf.chanUpdate = make(chan *ConfirmerUpdate)
 	conf.numAttach = 0
@@ -89,33 +103,31 @@ func (conf *Confirmer) StartConfirmerTask(bundle giota.Bundle) (chan *ConfirmerU
 	if conf.AEC == nil {
 		conf.AEC = &dummy{}
 	}
+	bhash := conf.lastTail.Bundle
+
 	cancelPromo := conf.goPromote()
 	cancelReattach := conf.goReattach()
 
-	h := bundle.Hash()
-
-	return conf.chanUpdate, func() {
-		conf.Log.Debugf("CONFIRMER: canceling confirmer task for %v", h)
+	return bhash, conf.chanUpdate, func() {
+		conf.Log.Debugf("CONFIRMER: canceling confirmer task for %v", bhash)
 		cancelPromo()
 		cancelReattach()
 		close(conf.chanUpdate)
 	}, nil
-
 }
 
-func (conf *Confirmer) RunConfirm(bundle giota.Bundle) (chan *ConfirmerUpdate, error) {
-	chUpd, cancelFun, err := conf.StartConfirmerTask(bundle)
+func (conf *Confirmer) RunConfirm(bundleTrytes []trinary.Trytes) (chan *ConfirmerUpdate, error) {
+	bhash, chUpd, cancelFun, err := conf.StartConfirmerTask(bundleTrytes)
 	if err != nil {
 		return nil, err
 	}
 
-	bundleHash := bundle.Hash()
 	go func() {
 		defer conf.debugf("CONFIRMER: confirmer task ended")
 		defer cancelFun()
 
 		for {
-			if confirmed, err := conf.isBundleHashConfirmed(bundleHash); err != nil {
+			if confirmed, err := conf.isBundleHashConfirmed(bhash); err != nil {
 				conf.errorf("CONFIRMER:isBundleHashConfirmed: %v", err)
 				time.Sleep(5 * time.Second)
 			} else {
@@ -130,19 +142,19 @@ func (conf *Confirmer) RunConfirm(bundle giota.Bundle) (chan *ConfirmerUpdate, e
 	return chUpd, nil
 }
 
-func (conf *Confirmer) isBundleHashConfirmed(bundleHash giota.Trytes) (bool, error) {
+func (conf *Confirmer) isBundleHashConfirmed(bundleHash trinary.Trytes) (bool, error) {
 	for {
 		time.Sleep(2 * time.Second)
 
-		ftResp, err := conf.IotaAPI.FindTransactions(&giota.FindTransactionsRequest{
-			Bundles: []giota.Trytes{bundleHash},
+		respHashes, err := conf.IotaAPI.FindTransactions(api.FindTransactionsQuery{
+			Bundles: trinary.Hashes{bundleHash},
 		})
 		if err != nil {
 			conf.AEC.IncErrorCount(conf.IotaAPI)
 			return false, err
 		}
 
-		states, err := conf.IotaAPI.GetLatestInclusion(ftResp.Hashes)
+		states, err := conf.IotaAPI.GetLatestInclusion(respHashes)
 		if err != nil {
 			conf.AEC.IncErrorCount(conf.IotaAPI)
 			return false, err
@@ -170,18 +182,17 @@ func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, err error) {
 	conf.chanUpdate <- upd
 }
 
-func (conf *Confirmer) checkConsistency(tailHash giota.Trytes) (bool, error) {
-	ccResp, err := conf.IotaAPI.CheckConsistency([]giota.Trytes{tailHash})
+func (conf *Confirmer) checkConsistency(tailHash trinary.Hash) (bool, error) {
+	consistent, info, err := conf.IotaAPI.CheckConsistency(tailHash)
 	if err != nil {
 		conf.AEC.IncErrorCount(conf.IotaAPI)
 		return false, err
 	}
-	consistent := ccResp.State
-	if !consistent && strings.Contains(ccResp.Info, "not solid") {
+	if !consistent && strings.Contains(info, "not solid") {
 		consistent = true
 	}
 	if !consistent {
-		conf.debugf("CONFIRMER: inconsistent tail. Reason: %v", ccResp.Info)
+		conf.debugf("CONFIRMER: inconsistent tail. Reason: %v", info)
 	}
 	return consistent, nil
 }
@@ -194,22 +205,18 @@ func (conf *Confirmer) checkIfToPromote() (bool, error) {
 		// if not promotable, routine will be idle until reattached
 		return false, nil
 	}
-	tail := lib.GetTail(conf.nextBundleToPromote)
-	if tail != nil {
-		txh := tail.Hash()
-		consistent, err := conf.checkConsistency(txh)
-		if err != nil {
-			return false, err
-		}
-		conf.isNotPromotable = !consistent
-		return consistent, nil
+	// check if next tail to promote is consistent. If not, promote will be idle
+	consistent, err := conf.checkConsistency(conf.nextTailHashToPromote)
+	if err != nil {
+		return false, err
 	}
-	return false, errors.New("can't get tail")
+	conf.isNotPromotable = !consistent
+	return consistent, nil
 }
 
 func (conf *Confirmer) goPromote() func() {
 	chCancel := make(chan struct{})
-	h := conf.lastBundle.Hash()
+	h := conf.lastTail.Hash
 
 	var wg sync.WaitGroup
 	go func() {
@@ -254,7 +261,7 @@ func (conf *Confirmer) goPromote() func() {
 
 func (conf *Confirmer) goReattach() func() {
 	chCancel := make(chan struct{})
-	h := conf.lastBundle.Hash()
+	h := conf.lastTail.Hash
 
 	var wg sync.WaitGroup
 	go func() {

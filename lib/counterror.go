@@ -1,7 +1,7 @@
 package lib
 
-import "github.com/lunfardo314/giota"
+import "github.com/iotaledger/iota.go/api"
 
 type ErrorCounter interface {
-	IncErrorCount(api *giota.API)
+	IncErrorCount(api *api.API)
 }

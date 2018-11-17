@@ -3,23 +3,29 @@ package lib
 import (
 	"errors"
 	"fmt"
-	"github.com/lunfardo314/giota"
+	"github.com/iotaledger/iota.go/kerl"
+	"github.com/iotaledger/iota.go/transaction"
+	"github.com/iotaledger/iota.go/trinary"
 	"github.com/op/go-logging"
 	"time"
 )
 
-func UnixMs(t time.Time) int64 {
-	return t.UnixNano() / int64(time.Millisecond)
+func UnixMs(t time.Time) uint64 {
+	return uint64(t.UnixNano()) / uint64(time.Millisecond)
 }
 
 // calculates hash of the same length
-func KerlTrytes(s giota.Trytes) (giota.Trytes, error) {
-	k := giota.NewKerl()
+func KerlTrytes(s trinary.Trytes) (trinary.Trytes, error) {
+	k := kerl.NewKerl()
 	if k == nil {
 		return "", errors.New(fmt.Sprintf("Couldn't initialize Kerl instance"))
 	}
-	trits := s.Trits()
-	err := k.Absorb(trits)
+	var err error
+	var trits trinary.Trits
+	if trits, err = trinary.TrytesToTrits(s); err != nil {
+		return "", err
+	}
+	err = k.Absorb(trits)
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("Absorb(_) failed: %s", err))
 	}
@@ -29,7 +35,8 @@ func KerlTrytes(s giota.Trytes) (giota.Trytes, error) {
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("Squeeze() failed: %v", err))
 	}
-	return ts.Trytes(), nil
+	return trinary.TritsToTrytes(ts)
+
 }
 
 func Min(a, b int) int {
@@ -46,7 +53,7 @@ func Max(a, b int) int {
 	return b
 }
 
-func TrytesInSet(a giota.Trytes, list []giota.Trytes) bool {
+func TrytesInSet(a trinary.Trytes, list []trinary.Trytes) bool {
 	for _, b := range list {
 		if b == a {
 			return true
@@ -65,14 +72,14 @@ func StringInSlice(a string, list []string) bool {
 }
 
 // check consistency of the indices of the set and return error if not consistent
-func CheckBundle(txSet []giota.Transaction) error {
+func CheckBundle(txSet []transaction.Transaction) error {
 	if len(txSet) == 0 {
-		return errors.New("Bundle is empty")
+		return errors.New("BundleTrytes is empty")
 	}
 	filled := make([]bool, len(txSet))
 	lastIndex := txSet[0].LastIndex
 	bundleHash := txSet[0].Bundle
-	if lastIndex+1 != int64(len(txSet)) {
+	if lastIndex+1 != uint64(len(txSet)) {
 		return errors.New(fmt.Sprintf("Inconsistent LastIndex %v in the bundle", lastIndex))
 	}
 	for _, tx := range txSet {
@@ -109,15 +116,15 @@ func CheckBundle(txSet []giota.Transaction) error {
 // check consistency of the indices of the set and return sorted slice.
 // if finds inconsistency, returns same set and error
 //
-func CheckAndSortBundle(txSet []giota.Transaction) ([]giota.Transaction, error) {
+func CheckAndSortTxSetAsBundle(txSet []*transaction.Transaction) ([]*transaction.Transaction, error) {
 	if len(txSet) == 0 {
 		return nil, nil
 	}
-	ret := make([]giota.Transaction, len(txSet))
+	ret := make([]*transaction.Transaction, len(txSet))
 	filled := make([]bool, len(txSet))
 	lastIndex := txSet[0].LastIndex
 	bundleHash := txSet[0].Bundle
-	if lastIndex+1 != int64(len(txSet)) {
+	if lastIndex+1 != uint64(len(txSet)) {
 		return txSet, errors.New(fmt.Sprintf("Inconsistent LastIndex %v in the bundle", lastIndex))
 	}
 	for _, tx := range txSet {
@@ -130,7 +137,7 @@ func CheckAndSortBundle(txSet []giota.Transaction) ([]giota.Transaction, error) 
 				tx.Bundle, tx.CurrentIndex))
 		}
 		if tx.CurrentIndex != tx.LastIndex {
-			if _, inSet := FindTxByHash(tx.TrunkTransaction, txSet); !inSet {
+			if _, inSet := FindTxByHashP(tx.TrunkTransaction, txSet); !inSet {
 				return txSet, errors.New(fmt.Sprintf("Trunk chain is broken in CurrentIndex %v of the bundle",
 					tx.CurrentIndex))
 			}
@@ -147,19 +154,43 @@ func CheckAndSortBundle(txSet []giota.Transaction) ([]giota.Transaction, error) 
 	return ret, nil
 }
 
+func TransactionSetToBundleTrytes(txSet []*transaction.Transaction) ([]trinary.Trytes, error) {
+	if len(txSet) == 0 {
+		return nil, nil
+	}
+	ret := make([]trinary.Trytes, 0, len(txSet))
+	for _, tx := range txSet {
+		tr, err := transaction.TransactionToTrytes(tx)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, tr)
+	}
+	return ret, nil
+}
+
 // by hash find specific tx in a set of transaction
-func FindTxByHash(hash giota.Trytes, txList []giota.Transaction) (*giota.Transaction, bool) {
+func FindTxByHash(hash trinary.Trytes, txList []transaction.Transaction) (*transaction.Transaction, bool) {
 	for _, tx := range txList {
-		if tx.Hash() == hash {
+		if tx.Hash == hash {
 			return &tx, true
 		}
 	}
 	return nil, false
 }
 
-func GetTail(bundle giota.Bundle) *giota.Transaction {
-	for _, tx := range bundle {
-		if tx.CurrentIndex == 0 {
+func FindTxByHashP(hash trinary.Trytes, txList []*transaction.Transaction) (*transaction.Transaction, bool) {
+	for _, tx := range txList {
+		if tx.Hash == hash {
+			return tx, true
+		}
+	}
+	return nil, false
+}
+
+func FindTail(txs transaction.Transactions) *transaction.Transaction {
+	for _, tx := range txs {
+		if transaction.IsTailTransaction(&tx) {
 			return &tx
 		}
 	}

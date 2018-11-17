@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/sender_update"
+	"github.com/lunfardo314/tanglebeat1/sender_update"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
@@ -68,7 +68,7 @@ func updateSenderMetrics(upd *sender_update.SenderUpdate) {
 	confDurationSecCounter.
 		With(prometheus.Labels{"seqid": upd.SeqUID}).Add(durSec)
 
-	powCost := float64(upd.NumAttaches*int64(upd.BundleSize) + upd.NumPromotions*int64(upd.PromoBundleSize))
+	powCost := float64(upd.NumAttaches*upd.BundleSize + upd.NumPromotions*upd.PromoBundleSize)
 	confPoWCostCounter.
 		With(prometheus.Labels{"seqid": upd.SeqUID}).Add(powCost)
 
