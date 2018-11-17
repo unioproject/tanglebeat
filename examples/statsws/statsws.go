@@ -13,12 +13,12 @@ import (
 	"time"
 )
 
-const version = "0.1"
+const version = "0.2"
 
 // JSON returned by active seq WS
 type activeSeqResponse struct {
 	Version   string         `json:"version"`
-	Nowis     int64          `json:"nowis"` // unix time in miliseconds
+	Nowis     uint64         `json:"nowis"` // unix time in miliseconds
 	Last5min  map[string]int `json:"5min"`
 	Last15min map[string]int `json:"15min"`
 	Last30min map[string]int `json:"30min"`
@@ -27,15 +27,15 @@ type activeSeqResponse struct {
 // JSON returned by the stats WS
 type statsResponse struct {
 	Version   string       `json:"version"`
-	Nowis     int64        `json:"nowis"` // unix time in miliseconds
+	Nowis     uint64       `json:"nowis"` // unix time in miliseconds
 	Last1h    confTimeData `json:"1h"`
 	Last30min confTimeData `json:"30min"`
 }
 
 // stat data is seconds
 type confTimeData struct {
-	Since        int64   `json:"since"`      // samples since when samples were collected unix time in miliseconds
-	NumSamples   int     `json:"numSamples"` // number of confirmations (samples) collected
+	Since        uint64  `json:"since"`      // samples since when samples were collected unix time in miliseconds
+	NumSamples   uint64  `json:"numSamples"` // number of confirmations (samples) collected
 	Minimum      float64 `json:"min"`
 	Maximum      float64 `json:"max"`
 	Mean         float64 `json:"mean"`
@@ -49,22 +49,22 @@ type confTimeData struct {
 
 var (
 	sampleDurations = make([]float64, 0, 100)
-	sampleTs        = make([]int64, 0, 100)
+	sampleTs        = make([]uint64, 0, 100)
 	samples30min    = make([]float64, 0, 100)
 	listMutex       sync.Mutex
-	since1hTs       int64
-	since30minTs    int64
-	activity        = map[string][]int64{}
+	since1hTs       uint64
+	since30minTs    uint64
+	activity        = map[string][]uint64{}
 )
 
 const debug = true
 
-func addActivity(uid string, ts int64) {
+func addActivity(uid string, ts uint64) {
 	_, ok := activity[uid]
 	if !ok {
-		activity[uid] = make([]int64, 0, 100)
+		activity[uid] = make([]uint64, 0, 100)
 	} else {
-		alistTmp := make([]int64, 0, len(activity[uid]))
+		alistTmp := make([]uint64, 0, len(activity[uid]))
 		ago30min := unixms(time.Now().Add(-30 * time.Minute))
 		for _, t := range activity[uid] {
 			if t >= ago30min {
@@ -76,7 +76,7 @@ func addActivity(uid string, ts int64) {
 	activity[uid] = append(activity[uid], ts)
 }
 
-func addConfTimeSample(confDurationSec float64, ts int64) {
+func addConfTimeSample(confDurationSec float64, ts uint64) {
 	listMutex.Lock()
 	defer listMutex.Unlock()
 
@@ -95,7 +95,7 @@ func addConfTimeSample(confDurationSec float64, ts int64) {
 
 	sdTmp := make([]float64, 0, len(sampleDurations))
 	sd30Tmp := make([]float64, 0, len(samples30min))
-	tsTmp := make([]int64, 0, len(sampleTs))
+	tsTmp := make([]uint64, 0, len(sampleTs))
 
 	for i, ts := range sampleTs {
 		if ts >= ago1h {
@@ -144,7 +144,7 @@ func calcStats(samples []float64, ret *confTimeData) {
 	if len(sampleTs) == 0 {
 		return
 	}
-	ret.NumSamples = len(samples)
+	ret.NumSamples = uint64(len(samples))
 	ret.Minimum, ret.Maximum = minMax(samples)
 	ret.Mean, ret.Stddev = stat.MeanStdDev(samples, nil)
 	if math.IsNaN(ret.Stddev) {
@@ -272,6 +272,6 @@ func main() {
 	panic(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }
 
-func unixms(t time.Time) int64 {
-	return t.UnixNano() / int64(time.Millisecond)
+func unixms(t time.Time) uint64 {
+	return uint64(t.UnixNano()) / uint64(time.Millisecond)
 }
