@@ -31,9 +31,9 @@ func (conf *Confirmer) promote() error {
 		conf.Log.Debugf("CONFIRMER: promoting '%v' every ~%v sec if bundle is consistent. Tag = '%v'",
 			m, conf.PromoteEverySec, conf.TxTagPromote)
 	}
-	addr9 := trinary.Trytes(strings.Repeat("9", 81))
+	all9 := trinary.Trytes(strings.Repeat("9", 81))
 	transfers := bundle.Transfers{{
-		Address: addr9,
+		Address: all9,
 		Value:   0,
 		Tag:     conf.TxTagPromote,
 	}}
@@ -42,7 +42,7 @@ func (conf *Confirmer) promote() error {
 		Timestamp: &ts,
 	}
 	var bundleTrytes []trinary.Trytes
-	bundleTrytes, err = conf.IotaAPI.PrepareTransfers("", transfers, prepTransferOptions)
+	bundleTrytes, err = conf.IotaAPI.PrepareTransfers(all9, transfers, prepTransferOptions)
 	if err != nil {
 		conf.AEC.IncErrorCount(conf.IotaAPI)
 		return err
@@ -118,12 +118,12 @@ func (conf *Confirmer) reattach() error {
 	if tail == nil {
 		return errors.New("FindTail: inconsistency")
 	}
-	_, err = conf.IotaAPI.BroadcastTransactions(conf.lastBundleTrytes...)
+	_, err = conf.IotaAPI.BroadcastTransactions(btrytes...)
 	if err != nil {
 		conf.AEC.IncErrorCount(conf.IotaAPI)
 		return err
 	}
-	_, err = conf.IotaAPI.StoreTransactions(conf.lastBundleTrytes...)
+	_, err = conf.IotaAPI.StoreTransactions(btrytes...)
 	if err != nil {
 		conf.AEC.IncErrorCount(conf.IotaAPI)
 		return err

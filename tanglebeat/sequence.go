@@ -111,7 +111,7 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 }
 
 func (seq *TransferSequence) Run() {
-	seq.log.Info("Start running sequence '%v'", seq.name)
+	seq.log.Infof("Start running sequence '%v'", seq.name)
 	var bundleHash trinary.Trytes
 
 	for bundleData := range *seq.bundleSource {
