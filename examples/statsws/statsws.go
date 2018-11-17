@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/gonum/stat"
-	"github.com/lunfardo314/tanglebeat/sender_update"
+	"github.com/lunfardo314/tanglebeat1/sender_update"
 	"math"
 	"net/http"
 	"sort"
