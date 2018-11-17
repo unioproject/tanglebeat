@@ -485,9 +485,10 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr trinary.Hash) (*bun
 
 	// collect all tails
 	var tails []*transaction.Transaction
-	for _, tx := range txs {
-		if transaction.IsTailTransaction(&tx) {
-			tails = append(tails, &tx)
+	for i := range txs {
+		if transaction.IsTailTransaction(&txs[i]) {
+			tail := txs[i]
+			tails = append(tails, &tail)
 		}
 	}
 	// collect hashes of tails
