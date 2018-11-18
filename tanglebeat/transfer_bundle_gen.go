@@ -536,7 +536,7 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_sour
 	ret := &bundle_source.FirstBundleData{
 		BundleTrytes: bundleTrytes,
 		NumAttach:    uint64(len(tails)),
-		StartTime:    maxTime,
+		StartTime:    lib.UnixMs(time.Now()), // won't be using tx timestamp as time at all
 	}
 	return ret, nil
 }
