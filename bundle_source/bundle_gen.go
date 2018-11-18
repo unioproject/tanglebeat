@@ -19,16 +19,15 @@ import (
 
 // structure produced by BundleTrytes generator
 type FirstBundleData struct {
-	Addr         trinary.Hash
-	Index        uint64
-	BundleTrytes []trinary.Trytes // raw bundle trytes to start with confirmation.
-	BundleHash   trinary.Hash     // bundle hash, never changes
-	IsNew        bool             // new BundleTrytes created or existing one found
-	StartTime    uint64           // unix milisec	for new BundleTrytes, when BundleTrytes attach,
-	// 	for old BundleTrytes timestamp of oldest of all tails
-	TotalDurationPoWMs    uint64 // > 0 if new BundleTrytes, ==0 if existing BundleTrytes
-	TotalDurationTipselMs uint64 // > 0 if new BundleTrytes, ==0 if existing BundleTrytes
-	NumAttach             uint64 // number of tails with the same BundleTrytes hash at the start
+	Addr                  trinary.Hash
+	Index                 uint64
+	BundleTrytes          []trinary.Trytes // raw bundle trytes to start with confirmation.
+	BundleHash            trinary.Hash     // bundle hash, never changes
+	IsNew                 bool             // new BundleTrytes created or existing one found
+	StartTime             uint64           // unix milisec	set when bundle was read from tangle. Tx timestamps not used
+	TotalDurationPoWMs    uint64           // > 0 if new BundleTrytes, ==0 if existing BundleTrytes
+	TotalDurationTipselMs uint64           // > 0 if new BundleTrytes, ==0 if existing BundleTrytes
+	NumAttach             uint64           // number of tails with the same BundleTrytes hash at the start
 }
 
 type BundleSourceChan chan *FirstBundleData
