@@ -8,6 +8,7 @@ import (
 	"nanomsg.org/go-mangos"
 	"nanomsg.org/go-mangos/protocol/pub"
 	"nanomsg.org/go-mangos/transport/tcp"
+	"time"
 )
 
 var chanDataToPub chan []byte
@@ -55,6 +56,10 @@ func publishUpdate(upd *sender_update.SenderUpdate) error {
 		log.Errorf("Publisher:publishUpdate %v", err)
 		return err
 	}
-	chanDataToPub <- data
+	select {
+	case chanDataToPub <- data:
+	case <-time.After(5 * time.Second):
+		log.Error("----- Timeout 5 sec on sending to publish channel")
+	}
 	return nil
 }
