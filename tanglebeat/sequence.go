@@ -119,6 +119,7 @@ func (seq *TransferSequence) Run() {
 	for bundleData := range *seq.bundleSource {
 		seq.processStartUpdate(bundleData)
 
+		//run confirmed task and listen to updates
 		if chUpdate, err := seq.confirmer.RunConfirm(bundleData.BundleTrytes); err != nil {
 			seq.log.Errorf("RunConfirm returned: %v", err)
 		} else {

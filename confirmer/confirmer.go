@@ -2,9 +2,9 @@ package confirmer
 
 import (
 	"errors"
-	"github.com/iotaledger/iota.go/api"
-	"github.com/iotaledger/iota.go/transaction"
-	"github.com/iotaledger/iota.go/trinary"
+	. "github.com/iotaledger/iota.go/api"
+	. "github.com/iotaledger/iota.go/transaction"
+	. "github.com/iotaledger/iota.go/trinary"
 	"github.com/lunfardo314/tanglebeat1/lib"
 	"github.com/op/go-logging"
 	"strings"
@@ -22,10 +22,10 @@ const (
 )
 
 type Confirmer struct {
-	IotaAPI               *api.API
-	IotaAPIgTTA           *api.API
-	IotaAPIaTT            *api.API
-	TxTagPromote          trinary.Trytes
+	IotaAPI               *API
+	IotaAPIgTTA           *API
+	IotaAPIaTT            *API
+	TxTagPromote          Trytes
 	ForceReattachAfterMin uint64
 	PromoteChain          bool
 	PromoteEverySec       uint64
@@ -35,12 +35,12 @@ type Confirmer struct {
 	chanUpdate chan *ConfirmerUpdate
 	mutex      sync.Mutex //task state access sync
 	// confirmer task state
-	lastBundleTrytes      []trinary.Trytes
-	lastTail              transaction.Transaction
+	lastBundleTrytes      []Trytes
+	lastTail              Transaction
 	nextForceReattachTime time.Time
 	numAttach             uint64
 	nextPromoTime         time.Time
-	nextTailHashToPromote trinary.Hash
+	nextTailHashToPromote Hash
 	numPromote            uint64
 	totalDurationATTMsec  uint64
 	totalDurationGTTAMsec uint64
@@ -71,15 +71,15 @@ func (conf *Confirmer) errorf(f string, p ...interface{}) {
 
 type dummy struct{}
 
-func (*dummy) IncErrorCount(api *api.API) {}
+func (*dummy) IncErrorCount(api *API) {}
 
-func (conf *Confirmer) StartConfirmerTask(bundleTrytes []trinary.Trytes) (trinary.Hash, chan *ConfirmerUpdate, func(), error) {
+func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (Hash, chan *ConfirmerUpdate, func(), error) {
 	//if err := lib.CheckBundle(bundle); err != nil {
 	//	return nil, nil, errors.New(fmt.Sprintf("Attempt to run confirmer with wrong bundle: %v", err))
 	//}
 
 	// find tail
-	txs, err := transaction.AsTransactionObjects(bundleTrytes, nil)
+	txs, err := AsTransactionObjects(bundleTrytes, nil)
 	if err != nil {
 		return "", nil, nil, err
 	}
@@ -116,12 +116,14 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []trinary.Trytes) (trinar
 	}, nil
 }
 
-func (conf *Confirmer) RunConfirm(bundleTrytes []trinary.Trytes) (chan *ConfirmerUpdate, error) {
+func (conf *Confirmer) RunConfirm(bundleTrytes []Trytes) (chan *ConfirmerUpdate, error) {
+	// start promote and reattach routines
 	bhash, chUpd, cancelFun, err := conf.StartConfirmerTask(bundleTrytes)
 	if err != nil {
 		return nil, err
 	}
 
+	// wait until any bundle with the hash is confirmed
 	go func() {
 		defer conf.debugf("CONFIRMER: confirmer task ended")
 		defer cancelFun()
@@ -129,42 +131,38 @@ func (conf *Confirmer) RunConfirm(bundleTrytes []trinary.Trytes) (chan *Confirme
 		for {
 			if confirmed, err := conf.isBundleHashConfirmed(bhash); err != nil {
 				conf.errorf("CONFIRMER:isBundleHashConfirmed: %v", err)
-				time.Sleep(5 * time.Second)
 			} else {
 				if confirmed {
 					conf.sendConfirmerUpdate(UPD_CONFIRM, nil)
 					return
 				}
 			}
-			time.Sleep(1 * time.Second)
+			time.Sleep(5 * time.Second)
 		}
 	}()
 	return chUpd, nil
 }
 
-func (conf *Confirmer) isBundleHashConfirmed(bundleHash trinary.Trytes) (bool, error) {
-	for {
-		time.Sleep(2 * time.Second)
+func (conf *Confirmer) isBundleHashConfirmed(bundleHash Trytes) (bool, error) {
+	respHashes, err := conf.IotaAPI.FindTransactions(FindTransactionsQuery{
+		Bundles: Hashes{bundleHash},
+	})
+	if err != nil {
+		conf.AEC.IncErrorCount(conf.IotaAPI)
+		return false, err
+	}
 
-		respHashes, err := conf.IotaAPI.FindTransactions(api.FindTransactionsQuery{
-			Bundles: trinary.Hashes{bundleHash},
-		})
-		if err != nil {
-			conf.AEC.IncErrorCount(conf.IotaAPI)
-			return false, err
-		}
-
-		states, err := conf.IotaAPI.GetLatestInclusion(respHashes)
-		if err != nil {
-			conf.AEC.IncErrorCount(conf.IotaAPI)
-			return false, err
-		}
-		for _, conf := range states {
-			if conf {
-				return true, nil
-			}
+	states, err := conf.IotaAPI.GetLatestInclusion(respHashes)
+	if err != nil {
+		conf.AEC.IncErrorCount(conf.IotaAPI)
+		return false, err
+	}
+	for _, conf := range states {
+		if conf {
+			return true, nil
 		}
 	}
+	return false, nil
 }
 
 func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, err error) {
@@ -182,7 +180,7 @@ func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, err error) {
 	conf.chanUpdate <- upd
 }
 
-func (conf *Confirmer) checkConsistency(tailHash trinary.Hash) (bool, error) {
+func (conf *Confirmer) checkConsistency(tailHash Hash) (bool, error) {
 	consistent, info, err := conf.IotaAPI.CheckConsistency(tailHash)
 	if err != nil {
 		conf.AEC.IncErrorCount(conf.IotaAPI)
