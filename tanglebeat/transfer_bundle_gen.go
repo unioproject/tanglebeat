@@ -263,7 +263,7 @@ const sleepEveryLoop = 5 * time.Second
 
 func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash Hash) uint64 {
 	gen.log.Debugf("waitUntilBundleConfirmed: '%v' start waiting for the bundle to be confirmed", gen.name)
-	defer gen.log.Debugf("waitUntilBundleConfirmed: '%v' bundle just confirmed", gen.name)
+	defer gen.log.Debugf("waitUntilBundleConfirmed: '%v' left", gen.name)
 
 	startWaiting := time.Now()
 	var sinceWaiting time.Duration
