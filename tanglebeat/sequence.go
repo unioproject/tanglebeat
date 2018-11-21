@@ -46,7 +46,8 @@ func NewSequence(name string) (*TransferSequence, error) {
 	}
 	// Creating Traviota style bundle generator hidden behind
 	// abstract channel interface for incoming bundles
-	bundleSource, err := NewTransferBundleGenerator(name, params, logger)
+	longName := fmt.Sprintf("%v(%v)", params.GetUID(), name)
+	bundleSource, err := NewTransferBundleGenerator(longName, params, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +56,7 @@ func NewSequence(name string) (*TransferSequence, error) {
 		return nil, err
 	}
 	ret := TransferSequence{
-		name:         name,
+		name:         longName,
 		params:       params,
 		bundleSource: bundleSource,
 		confirmer:    conf,
@@ -126,12 +127,12 @@ func (seq *TransferSequence) Run() {
 
 		//run confirmed task and listen to updates
 		if chUpdate, err := seq.confirmer.RunConfirm(bundleData.BundleTrytes); err != nil {
-			seq.log.Errorf("RunConfirm returned: %v", err)
+			seq.log.Errorf("RunConfirm for '%v' returned: %v", seq.GetLongName(), err)
 		} else {
 			for updConf := range chUpdate {
 				// summing up with stats collected during findOrCreateBundleToConfirm
 				if updConf.Err != nil {
-					seq.log.Errorf("TransferSequence: confirmer reported an error: %v", updConf.Err)
+					seq.log.Errorf("TransferSequence '%v': confirmer reported an error: %v", seq.GetLongName(), updConf.Err)
 				} else {
 					updConf.NumAttaches += bundleData.NumAttach
 					updConf.TotalDurationATTMsec += bundleData.TotalDurationPoWMs
@@ -140,11 +141,8 @@ func (seq *TransferSequence) Run() {
 					seq.processConfirmerUpdate(
 						updConf, bundleData.Addr, bundleData.Index, bundleHash, bundleData.StartTime)
 				}
-				seq.log.Debug("Trace 1")
 			}
-			seq.log.Debug("Trace 2")
 		}
-		seq.log.Debug("Trace 3")
 	}
 	// at this point *seq.bundleSource is closed. It can happen when generator closes channel due to API errors
 	// The strategy at the moment is to exit the program with errors altogether. It will be restarted by systemd
