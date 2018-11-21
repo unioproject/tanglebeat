@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	. "github.com/iotaledger/iota.go/api"
 	. "github.com/iotaledger/iota.go/consts"
 	. "github.com/iotaledger/iota.go/guards/validators"
@@ -61,10 +62,14 @@ func NewSequence(name string) (*TransferSequence, error) {
 		log:          logger,
 	}
 	if params.SeqRestartAfterErr > 0 {
-		ret.log.Infof("Exit sequence '%v' after %d consecutive API errors", name, params.SeqRestartAfterErr)
+		ret.log.Infof("Exit sequence '%v' after %d consecutive API errors", ret.GetLongName(), params.SeqRestartAfterErr)
 	}
-	ret.log.Infof("Created instance of the sequence UID = %v, name = %v", params.GetUID(), name)
+	ret.log.Infof("Created instance of the sequence %v", ret.GetLongName())
 	return &ret, nil
+}
+
+func (seq *TransferSequence) GetLongName() string {
+	return fmt.Sprintf("%v(%v)", seq.params.GetUID(), seq.name)
 }
 
 func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirmer.Confirmer, error) {
@@ -157,7 +162,7 @@ func (seq *TransferSequence) processStartUpdate(bundleData *bundle_source.FirstB
 		updType = sender_update.SENDER_UPD_START_CONTINUE
 	}
 	seq.log.Debugf("Update '%v' for %v index = %v",
-		updType, seq.params.GetUID(), bundleData.Index)
+		updType, seq.GetLongName(), bundleData.Index)
 
 	processUpdate(
 		"local",
@@ -190,7 +195,7 @@ func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.Confirmer
 
 	updType := confirmerUpdType2Sender(updConf.UpdateType)
 	seq.log.Debugf("Update '%v' for %v index = %v",
-		updType, seq.params.GetUID(), index)
+		updType, seq.GetLongName(), index)
 	processUpdate(
 		"local",
 		&sender_update.SenderUpdate{
