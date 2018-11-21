@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/go-zeromq/zmq4"
-	"github.com/lunfardo314/tanglebeat1/lib"
+	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/prometheus/client_golang/prometheus"
 	"strings"
 	"time"

@@ -5,7 +5,7 @@ package main
 import (
 	"fmt"
 	"github.com/iotaledger/iota.go/trinary"
-	"github.com/lunfardo314/tanglebeat1/lib"
+	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
