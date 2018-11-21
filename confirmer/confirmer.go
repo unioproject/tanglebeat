@@ -69,6 +69,12 @@ func (conf *Confirmer) errorf(f string, p ...interface{}) {
 	}
 }
 
+func (conf *Confirmer) warningf(f string, p ...interface{}) {
+	if conf.Log != nil {
+		conf.Log.Warningf(f, p...)
+	}
+}
+
 type dummy struct{}
 
 func (*dummy) IncErrorCount(api *API) {}
@@ -125,10 +131,17 @@ func (conf *Confirmer) RunConfirm(bundleTrytes []Trytes) (chan *ConfirmerUpdate,
 
 	// wait until any bundle with the hash is confirmed
 	go func() {
+		started := time.Now()
+		conf.debugf("CONFIRMER: confirmer task started")
 		defer conf.debugf("CONFIRMER: confirmer task ended")
 		defer cancelFun()
 
 		for {
+			since := time.Now().Sub(started)
+			if since > 15*time.Minute {
+				conf.warningf("----- CONFIRMER: it takes longer than %v to confirm the bundle", since)
+				time.Sleep(5 * time.Second)
+			}
 			if confirmed, err := conf.isBundleHashConfirmed(bhash); err != nil {
 				conf.errorf("CONFIRMER:isBundleHashConfirmed: %v", err)
 			} else {
