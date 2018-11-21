@@ -104,10 +104,10 @@ func initTransferBundleGenerator(name string, params *senderParamsYAML, logger *
 	_idx, err = strconv.Atoi(string(b))
 	if err != nil {
 		idx = 0
-		ret.log.Infof("Starting from index 0")
+		ret.log.Infof("%v: Starting from index = 0", name)
 	} else {
 		idx = uint64(_idx)
-		ret.log.Infof("Last idx %v have been read from %v", ret.index, fname)
+		ret.log.Infof("%v: last idx %v have been read from %v", name, idx, fname)
 	}
 
 	if idx > params.Index0 {
@@ -116,7 +116,7 @@ func initTransferBundleGenerator(name string, params *senderParamsYAML, logger *
 		ret.index = params.Index0
 	}
 
-	ret.log.Infof("Created transfer bundle generator ('traveling iota') transfer generator instance with UID = %v", params.GetUID())
+	ret.log.Infof("%v: created transfer bundle generator ('traveling iota')", name)
 	return &ret, nil
 }
 
@@ -131,21 +131,21 @@ func (gen *transferBundleGenerator) runGenerator() {
 	// error count will be used to stop producing bundles if exceeds SeqRestartAfterErr
 	var errorCount uint64
 
-	defer gen.log.Debugf("Leaving Transfer BundleTrytes Generator routine")
+	defer gen.log.Debugf("%v: leaving Transfer BundleTrytes Generator routine", gen.name)
 
 	addr = ""
 	balanceZeroWaitSec := 2
 	for {
 		if gen.params.SeqRestartAfterErr > 0 && errorCount >= gen.params.SeqRestartAfterErr {
-			gen.log.Errorf("TransferBundles @ index = %v: error count limit of %d API errors exceed. Closing output channel",
-				gen.index, gen.params.SeqRestartAfterErr)
+			gen.log.Errorf("%v: TransferBundles @ index = %v: error count limit of %d API errors exceed. Closing output channel",
+				gen.name, gen.index, gen.params.SeqRestartAfterErr)
 			close(gen.chanOut)
 			return //>>>>>>>>>>>>>>>>> leaving loop
 		}
 		if addr == "" {
 			addr, err = gen.getAddress(gen.index)
 			if err != nil {
-				gen.log.Errorf("Can't get address index = %v: %v", gen.index, err)
+				gen.log.Errorf("%v: can't get address index = %v: %v", gen.name, gen.index, err)
 				time.Sleep(5 * time.Second)
 				continue
 			}
@@ -157,7 +157,7 @@ func (gen *transferBundleGenerator) runGenerator() {
 			}
 		}
 		if err != nil {
-			gen.log.Errorf("idx = %v: %v", gen.index, err)
+			gen.log.Errorf("%v: idx = %v: %v", gen.name, gen.index, err)
 			time.Sleep(5 * time.Second)
 			errorCount += 1
 			continue
@@ -166,7 +166,7 @@ func (gen *transferBundleGenerator) runGenerator() {
 		case balance == 0 && spent:
 			// used, just go to next
 			if err = gen.saveIndex(); err != nil {
-				gen.log.Errorf("Transfer Bundles: saveIndex: %v", err)
+				gen.log.Errorf("Transfer Bundles: '%v' saveIndex: %v", gen.name, err)
 				time.Sleep(5 * time.Second)
 				errorCount += 1
 				continue
@@ -179,15 +179,15 @@ func (gen *transferBundleGenerator) runGenerator() {
 		case balance == 0 && !spent:
 			// nogo
 			// loops until balance != 0
-			gen.log.Infof("Transfer Bundles: index = %v, balance == 0, not spent. Wait %v sec for balance to become non zero",
-				gen.index, balanceZeroWaitSec)
+			gen.log.Infof("Transfer Bundles: '%v' index = %v, balance == 0, not spent. Wait %v sec for balance to become non zero",
+				gen.name, gen.index, balanceZeroWaitSec)
 			time.Sleep(time.Duration(balanceZeroWaitSec) * time.Second)
 			balanceZeroWaitSec = lib.Min(balanceZeroWaitSec+2, 15)
 
 		case balance != 0:
 			bundleData, err = gen.findBundleToConfirm(addr)
 			if err != nil {
-				gen.log.Errorf("Transfer Bundles: findBundleToConfirm returned: %v", err)
+				gen.log.Errorf("Transfer Bundles '%v': findBundleToConfirm returned: %v", gen.name, err)
 				time.Sleep(5 * time.Second)
 				errorCount += 1
 				continue
@@ -196,21 +196,22 @@ func (gen *transferBundleGenerator) runGenerator() {
 				// didn't find any ready to confirm, initialize new transfer
 				bundleData, err = gen.sendToNext(addr)
 				if err != nil {
-					gen.log.Errorf("Transfer Bundles: sendToNext returned: %v", err)
+					gen.log.Errorf("Transfer Bundles: '%v' sendToNext returned: %v", gen.name, err)
 					time.Sleep(5 * time.Second)
 					errorCount += 1
 					continue
 				}
 				isNew = true
-				gen.log.Debugf("Transfer Bundles: Initialized new transfer idx=%v->%v, %v->",
-					gen.index, gen.index+1, addr)
+				gen.log.Debugf("Transfer Bundles: '%v' Initialized new transfer idx=%v->%v, %v->",
+					gen.name, gen.index, gen.index+1, addr)
 			} else {
 				isNew = false
-				gen.log.Debugf("Transfer Bundles: Found existing transfer to confirm idx=%v->%v, %v->",
-					gen.index, gen.index+1, addr)
+				gen.log.Debugf("Transfer Bundles '%v': Found existing transfer to confirm idx=%v->%v, %v->",
+					gen.name, gen.index, gen.index+1, addr)
 			}
 			if bundleData == nil {
-				gen.log.Errorf("Transfer Bundles: internal inconsistency. Wait 5 sec. idx = %v", gen.index)
+				gen.log.Errorf("Transfer Bundles '%v': internal inconsistency. Wait 5 sec. idx = %v",
+					gen.name, gen.index)
 				time.Sleep(5 * time.Second)
 				errorCount += 1
 				continue
@@ -218,7 +219,7 @@ func (gen *transferBundleGenerator) runGenerator() {
 			// have to parse first transaction to get the bundle hash
 			tx0, err := AsTransactionObject(bundleData.BundleTrytes[0])
 			if err != nil {
-				gen.log.Errorf("Transfer Bundles: AsTransactionObject returned: %v", err)
+				gen.log.Errorf("Transfer Bundles: '%v' AsTransactionObject returned: %v", gen.name, err)
 				time.Sleep(5 * time.Second)
 				continue
 			}
@@ -232,18 +233,18 @@ func (gen *transferBundleGenerator) runGenerator() {
 
 			errorCount = 0 // so far everything seems to be ok --> reset error count
 
-			gen.log.Debugf("Transfer Bundles: send bundle to confirmer and wait until bundle hash %v confirmed. idx = %v",
-				bundleData.BundleHash, gen.index)
+			gen.log.Debugf("Transfer Bundles: '%v' send bundle to confirmer and wait until bundle hash %v confirmed. idx = %v",
+				gen.name, bundleData.BundleHash, gen.index)
 
 			// wait until any transaction with the bundle hash becomes confirmed
 			// note, that during rettach transaction can change but the bundle hash remains the same
 			// returns 0 if error count didn't exceed limit
 			errorCount = gen.waitUntilBundleConfirmed(bundleData.BundleHash)
 			if errorCount == 0 {
-				gen.log.Debugf("Transfer Bundles: bundle confirmed. idx = %v", gen.index)
+				gen.log.Debugf("Transfer Bundles: '%v' bundle confirmed. idx = %v", gen.name, gen.index)
 				err = gen.saveIndex()
 				if err != nil {
-					gen.log.Errorf("Transfer Bundles: saveIndex: %v", err)
+					gen.log.Errorf("Transfer Bundles: '%v' saveIndex: %v", gen.name, err)
 					time.Sleep(5 * time.Second)
 				}
 				// moving to next even if balance is still not zero (sometimes happens)
@@ -261,49 +262,47 @@ func (gen *transferBundleGenerator) runGenerator() {
 const sleepEveryLoop = 5 * time.Second
 
 func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash Hash) uint64 {
-	gen.log.Debugf("waitUntilBundleConfirmed: start waiting for the bundle to be confirmed")
+	gen.log.Debugf("waitUntilBundleConfirmed: '%v' start waiting for the bundle to be confirmed", gen.name)
+	defer gen.log.Debugf("waitUntilBundleConfirmed: '%v' bundle just confirmed", gen.name)
 
 	startWaiting := time.Now()
-	count := 0
 	var sinceWaiting time.Duration
 	var errorCount uint64
 
-	for confirmed := false; !confirmed; count++ {
+	for count := 0; ; count++ {
 		if gen.params.SeqRestartAfterErr > 0 && errorCount >= gen.params.SeqRestartAfterErr {
 			return errorCount
 		}
 		time.Sleep(sleepEveryLoop)
 		sinceWaiting = time.Since(startWaiting)
 		if count%5 == 0 {
-			gen.log.Debugf("waitUntilBundleConfirmed: time since waiting: %v", sinceWaiting)
+			gen.log.Debugf("'%v': waitUntilBundleConfirmed: time since waiting: %v", sinceWaiting, gen.name)
 		}
 		txHashes, err := gen.iotaAPI.FindTransactions(FindTransactionsQuery{
 			Bundles: Hashes{bundleHash},
 		})
 		if err != nil {
-			gen.log.Errorf("waitUntilBundleConfirmed: FindTransactions returned: %v. Time since waiting: %v",
-				err, sinceWaiting)
+			gen.log.Errorf("'%v' waitUntilBundleConfirmed: FindTransactions returned: %v. Time since waiting: %v",
+				gen.name, err, sinceWaiting)
 			AEC.IncErrorCount(gen.iotaAPI)
 			errorCount += 1
 			continue
 		}
-
 		states, err := gen.iotaAPI.GetLatestInclusion(txHashes)
 		if err != nil {
-			gen.log.Errorf("waitUntilBundleConfirmed: GetLatestInclusion returned: %v. Time since waiting: %v",
-				err, sinceWaiting)
+			gen.log.Errorf("'%v' waitUntilBundleConfirmed: GetLatestInclusion returned: %v. Time since waiting: %v",
+				gen.name, err, sinceWaiting)
 			AEC.IncErrorCount(gen.iotaAPI)
 			errorCount += 1
 			continue
 		}
 		for _, conf := range states {
 			if conf {
-				confirmed = true
+				return 0
 			}
 		}
 		errorCount = 0 // reset error count
 	}
-	return 0
 }
 
 func (gen *transferBundleGenerator) isSpentAddr(address Hash) (bool, error) {
