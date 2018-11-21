@@ -6,7 +6,7 @@ import (
 	"github.com/iotaledger/iota.go/bundle"
 	"github.com/iotaledger/iota.go/transaction"
 	"github.com/iotaledger/iota.go/trinary"
-	"github.com/lunfardo314/tanglebeat1/lib"
+	"github.com/lunfardo314/tanglebeat/lib"
 	"strings"
 	"time"
 )

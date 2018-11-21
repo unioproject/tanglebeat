@@ -5,7 +5,7 @@ import (
 	. "github.com/iotaledger/iota.go/api"
 	. "github.com/iotaledger/iota.go/transaction"
 	. "github.com/iotaledger/iota.go/trinary"
-	"github.com/lunfardo314/tanglebeat1/lib"
+	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/op/go-logging"
 	"strings"
 	"sync"

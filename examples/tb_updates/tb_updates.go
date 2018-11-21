@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/lunfardo314/tanglebeat1/sender_update"
+	"github.com/lunfardo314/tanglebeat/sender_update"
 )
 
 // tanglebeat client example

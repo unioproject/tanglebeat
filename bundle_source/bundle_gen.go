@@ -11,7 +11,7 @@ import (
 // 'address' is an input  address of the transfer (if it is a transfer)
 //
 // Traveling IOTA -style of BundleTrytes source produces sequences of transfer bundles, each
-// spends whole palances from the previous address to the next
+// spends whole balances from the previous address to the next
 // It produces new budnles only upon and immediately after confirmation of the previous transfer.
 //
 // BundleTrytes source in principle it can be any BundleTrytes generator,

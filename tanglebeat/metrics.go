@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/lunfardo314/tanglebeat1/sender_update"
+	"github.com/lunfardo314/tanglebeat/sender_update"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"

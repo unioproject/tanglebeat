@@ -3,8 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/lunfardo314/tanglebeat1/confirmer"
-	"github.com/lunfardo314/tanglebeat1/sender_update"
+	"github.com/lunfardo314/tanglebeat/confirmer"
+	"github.com/lunfardo314/tanglebeat/sender_update"
 )
 
 func confirmerUpdType2Sender(confUpdType confirmer.UpdateType) sender_update.SenderUpdateType {
