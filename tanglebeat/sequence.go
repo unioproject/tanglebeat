@@ -140,8 +140,11 @@ func (seq *TransferSequence) Run() {
 					seq.processConfirmerUpdate(
 						updConf, bundleData.Addr, bundleData.Index, bundleHash, bundleData.StartTime)
 				}
+				seq.log.Debug("Trace 1")
 			}
+			seq.log.Debug("Trace 2")
 		}
+		seq.log.Debug("Trace 3")
 	}
 	// at this point *seq.bundleSource is closed. It can happen when generator closes channel due to API errors
 	// The strategy at the moment is to exit the program with errors altogether. It will be restarted by systemd
