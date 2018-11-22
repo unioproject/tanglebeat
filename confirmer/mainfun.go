@@ -78,14 +78,9 @@ func (conf *Confirmer) promote() error {
 	nowis := time.Now()
 	conf.numPromote += 1
 	if conf.PromoteChain {
-		// vienintele tx turi buti tail
-		tail, err := AsTransactionObject(btrytes[0])
+		tail, err := lib.TailFromBundleTrytes(btrytes)
 		if err != nil {
-			conf.AEC.IncErrorCount(conf.IotaAPI)
 			return err
-		}
-		if !IsTailTransaction(tail) {
-			return errors.New("can't get tail of the bundle. Inconsistency")
 		}
 		conf.nextTailHashToPromote = tail.Hash
 	}
