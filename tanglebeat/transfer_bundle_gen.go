@@ -217,29 +217,29 @@ func (gen *transferBundleGenerator) runGenerator() {
 				continue
 			}
 			// have to parse first transaction to get the bundle hash
-			tx0, err := AsTransactionObject(bundleData.BundleTrytes[0])
+			tail, err := lib.TailFromBundleTrytes(bundleData.BundleTrytes)
 			if err != nil {
 				gen.log.Errorf("Transfer Bundles: '%v' AsTransactionObject returned: %v", gen.name, err)
 				time.Sleep(5 * time.Second)
 				continue
 			}
+			gen.log.Debugf("Transfer Bundles: '%v': Sending bundle to confirm. bundle hash: %v tail: %v",
+				gen.name, tail.Bundle, tail.Hash)
 			// ---------------------- send bundle to confirm
 			bundleData.Addr = addr
 			bundleData.Index = gen.index
 			bundleData.IsNew = isNew
-			bundleData.BundleHash = tx0.Bundle
 			gen.chanOut <- bundleData /// here blocks until picked up in the sequence
 			// ---------------------- send bundle to confirm
+			gen.log.Debugf("Transfer Bundles: '%v' just sent bundle to confirmer and wait until bundle hash %v confirmed. idx = %v",
+				gen.name, tail.Bundle, gen.index)
 
 			errorCount = 0 // so far everything seems to be ok --> reset error count
-
-			gen.log.Debugf("Transfer Bundles: '%v' send bundle to confirmer and wait until bundle hash %v confirmed. idx = %v",
-				gen.name, bundleData.BundleHash, gen.index)
 
 			// wait until any transaction with the bundle hash becomes confirmed
 			// note, that during rettach transaction can change but the bundle hash remains the same
 			// returns 0 if error count didn't exceed limit
-			errorCount = gen.waitUntilBundleConfirmed(bundleData.BundleHash)
+			errorCount = gen.waitUntilBundleConfirmed(tail.Bundle)
 			if errorCount == 0 {
 				gen.log.Debugf("Transfer Bundles: '%v' bundle confirmed. idx = %v", gen.name, gen.index)
 				err = gen.saveIndex()
@@ -270,13 +270,13 @@ func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash Hash) ui
 	var errorCount uint64
 
 	for count := 0; ; count++ {
-		if gen.params.SeqRestartAfterErr > 0 && errorCount >= gen.params.SeqRestartAfterErr {
+		if 0 < gen.params.SeqRestartAfterErr && gen.params.SeqRestartAfterErr < errorCount {
 			return errorCount
 		}
 		time.Sleep(sleepEveryLoop)
 		sinceWaiting = time.Since(startWaiting)
 		if count%5 == 0 {
-			gen.log.Debugf("'%v': waitUntilBundleConfirmed: time since waiting: %v", sinceWaiting, gen.name)
+			gen.log.Debugf("'%v': waitUntilBundleConfirmed: time since waiting: %v", gen.name, sinceWaiting)
 		}
 		txHashes, err := gen.iotaAPI.FindTransactions(FindTransactionsQuery{
 			Bundles: Hashes{bundleHash},

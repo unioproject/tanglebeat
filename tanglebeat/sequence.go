@@ -12,6 +12,7 @@ import (
 	"github.com/lunfardo314/tanglebeat/sender_update"
 	"github.com/op/go-logging"
 	"os"
+	"time"
 )
 
 // TODO make Sequences more abstract
@@ -123,11 +124,18 @@ func (seq *TransferSequence) Run() {
 	var bundleHash Trytes
 
 	for bundleData := range *seq.bundleSource {
-		seq.processStartUpdate(bundleData)
+		tail, err := lib.TailFromBundleTrytes(bundleData.BundleTrytes)
+		if err != nil {
+			seq.log.Errorf("RunConfirm for '%v' returned: %v", seq.GetLongName(), err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		seq.log.Debugf("Run sequence '%v': start confirming bundle %v", seq.GetLongName(), tail.Bundle)
+		seq.processStartUpdate(bundleData, tail.Bundle)
 
 		//run confirmed task and listen to updates
 		if chUpdate, err := seq.confirmer.RunConfirm(bundleData.BundleTrytes); err != nil {
-			seq.log.Errorf("RunConfirm for '%v' returned: %v", seq.GetLongName(), err)
+			seq.log.Errorf("Run sequence '%v': RunConfirm returned: %v", seq.GetLongName(), err)
 		} else {
 			for updConf := range chUpdate {
 				// summing up with stats collected during findOrCreateBundleToConfirm
@@ -155,7 +163,7 @@ func (seq *TransferSequence) Run() {
 
 const securityLevel = 2
 
-func (seq *TransferSequence) processStartUpdate(bundleData *bundle_source.FirstBundleData) {
+func (seq *TransferSequence) processStartUpdate(bundleData *bundle_source.FirstBundleData, bundleHash Hash) {
 	var updType sender_update.SenderUpdateType
 	if bundleData.IsNew {
 		updType = sender_update.SENDER_UPD_START_SEND
@@ -174,7 +182,7 @@ func (seq *TransferSequence) processStartUpdate(bundleData *bundle_source.FirstB
 			UpdType:               updType,
 			Index:                 bundleData.Index,
 			Addr:                  bundleData.Addr,
-			Bundle:                bundleData.BundleHash,
+			Bundle:                bundleHash,
 			StartTs:               bundleData.StartTime,
 			UpdateTs:              bundleData.StartTime,
 			NumAttaches:           bundleData.NumAttach,
