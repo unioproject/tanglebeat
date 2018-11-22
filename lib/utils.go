@@ -3,9 +3,9 @@ package lib
 import (
 	"errors"
 	"fmt"
-	"github.com/iotaledger/iota.go/kerl"
-	"github.com/iotaledger/iota.go/transaction"
-	"github.com/iotaledger/iota.go/trinary"
+	. "github.com/iotaledger/iota.go/kerl"
+	. "github.com/iotaledger/iota.go/transaction"
+	. "github.com/iotaledger/iota.go/trinary"
 	"time"
 )
 
@@ -14,14 +14,14 @@ func UnixMs(t time.Time) uint64 {
 }
 
 // calculates hash of the same length
-func KerlTrytes(s trinary.Trytes) (trinary.Trytes, error) {
-	k := kerl.NewKerl()
+func KerlTrytes(s Trytes) (Trytes, error) {
+	k := NewKerl()
 	if k == nil {
 		return "", errors.New(fmt.Sprintf("Couldn't initialize Kerl instance"))
 	}
 	var err error
-	var trits trinary.Trits
-	if trits, err = trinary.TrytesToTrits(s); err != nil {
+	var trits Trits
+	if trits, err = TrytesToTrits(s); err != nil {
 		return "", err
 	}
 	err = k.Absorb(trits)
@@ -34,7 +34,7 @@ func KerlTrytes(s trinary.Trytes) (trinary.Trytes, error) {
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("Squeeze() failed: %v", err))
 	}
-	return trinary.TritsToTrytes(ts)
+	return TritsToTrytes(ts)
 
 }
 
@@ -52,7 +52,7 @@ func Max(a, b int) int {
 	return b
 }
 
-func TrytesInSet(a trinary.Trytes, list []trinary.Trytes) bool {
+func TrytesInSet(a Trytes, list []Trytes) bool {
 	for _, b := range list {
 		if b == a {
 			return true
@@ -71,7 +71,7 @@ func StringInSlice(a string, list []string) bool {
 }
 
 // check consistency of the indices of the set and return error if not consistent
-func CheckBundle(txSet []transaction.Transaction) error {
+func CheckBundle(txSet []Transaction) error {
 	if len(txSet) == 0 {
 		return errors.New("BundleTrytes is empty")
 	}
@@ -115,11 +115,11 @@ func CheckBundle(txSet []transaction.Transaction) error {
 // check consistency of the indices of the set and return sorted slice.
 // if finds inconsistency, returns same set and error
 //
-func CheckAndSortTxSetAsBundle(txSet []*transaction.Transaction) ([]*transaction.Transaction, error) {
+func CheckAndSortTxSetAsBundle(txSet []*Transaction) ([]*Transaction, error) {
 	if len(txSet) == 0 {
 		return nil, nil
 	}
-	ret := make([]*transaction.Transaction, len(txSet))
+	ret := make([]*Transaction, len(txSet))
 	filled := make([]bool, len(txSet))
 	lastIndex := txSet[0].LastIndex
 	bundleHash := txSet[0].Bundle
@@ -153,13 +153,13 @@ func CheckAndSortTxSetAsBundle(txSet []*transaction.Transaction) ([]*transaction
 	return ret, nil
 }
 
-func TransactionSetToBundleTrytes(txSet []*transaction.Transaction) ([]trinary.Trytes, error) {
+func TransactionSetToBundleTrytes(txSet []*Transaction) ([]Trytes, error) {
 	if len(txSet) == 0 {
 		return nil, nil
 	}
-	ret := make([]trinary.Trytes, 0, len(txSet))
+	ret := make([]Trytes, 0, len(txSet))
 	for _, tx := range txSet {
-		tr, err := transaction.TransactionToTrytes(tx)
+		tr, err := TransactionToTrytes(tx)
 		if err != nil {
 			return nil, err
 		}
@@ -169,7 +169,7 @@ func TransactionSetToBundleTrytes(txSet []*transaction.Transaction) ([]trinary.T
 }
 
 // by hash find specific tx in a set of transaction
-func FindTxByHash(hash trinary.Trytes, txList []transaction.Transaction) (*transaction.Transaction, bool) {
+func FindTxByHash(hash Trytes, txList []Transaction) (*Transaction, bool) {
 	for _, tx := range txList {
 		if tx.Hash == hash {
 			return &tx, true
@@ -178,7 +178,7 @@ func FindTxByHash(hash trinary.Trytes, txList []transaction.Transaction) (*trans
 	return nil, false
 }
 
-func FindTxByHashP(hash trinary.Trytes, txList []*transaction.Transaction) (*transaction.Transaction, bool) {
+func FindTxByHashP(hash Trytes, txList []*Transaction) (*Transaction, bool) {
 	for _, tx := range txList {
 		if tx.Hash == hash {
 			return tx, true
@@ -187,11 +187,24 @@ func FindTxByHashP(hash trinary.Trytes, txList []*transaction.Transaction) (*tra
 	return nil, false
 }
 
-func FindTail(txs transaction.Transactions) *transaction.Transaction {
+func FindTail(txs Transactions) *Transaction {
 	for i := range txs {
-		if transaction.IsTailTransaction(&txs[i]) {
+		if IsTailTransaction(&txs[i]) {
 			return &txs[i]
 		}
 	}
 	return nil
+}
+
+func TailFromBundleTrytes(bundleTrytes []Trytes) (*Transaction, error) {
+	// find tail
+	txs, err := AsTransactionObjects(bundleTrytes, nil)
+	if err != nil {
+		return nil, err
+	}
+	tail := FindTail(txs)
+	if tail == nil {
+		return nil, errors.New("can't find tail")
+	}
+	return tail, nil
 }

@@ -1,9 +1,7 @@
 package confirmer
 
 import (
-	"errors"
 	. "github.com/iotaledger/iota.go/api"
-	. "github.com/iotaledger/iota.go/transaction"
 	. "github.com/iotaledger/iota.go/trinary"
 	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/op/go-logging"
@@ -36,7 +34,6 @@ type Confirmer struct {
 	mutex      sync.Mutex //task state access sync
 	// confirmer task state
 	lastBundleTrytes      []Trytes
-	lastTail              Transaction
 	nextForceReattachTime time.Time
 	numAttach             uint64
 	nextPromoTime         time.Time
@@ -84,22 +81,15 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (Hash, chan *Co
 	//	return nil, nil, errors.New(fmt.Sprintf("Attempt to run confirmer with wrong bundle: %v", err))
 	//}
 
-	// find tail
-	txs, err := AsTransactionObjects(bundleTrytes, nil)
+	tail, err := lib.TailFromBundleTrytes(bundleTrytes)
 	if err != nil {
 		return "", nil, nil, err
 	}
-	tail := lib.FindTail(txs)
-	if tail == nil {
-		return "", nil, nil, errors.New("Can't find tail")
-	}
-
 	nowis := time.Now()
 	conf.lastBundleTrytes = bundleTrytes
-	conf.lastTail = *tail
 	conf.nextForceReattachTime = nowis.Add(time.Duration(conf.ForceReattachAfterMin) * time.Minute)
 	conf.nextPromoTime = nowis
-	conf.nextTailHashToPromote = conf.lastTail.Hash
+	conf.nextTailHashToPromote = tail.Hash
 	conf.isNotPromotable = false
 	conf.chanUpdate = make(chan *ConfirmerUpdate)
 	conf.numAttach = 0
@@ -109,13 +99,12 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (Hash, chan *Co
 	if conf.AEC == nil {
 		conf.AEC = &dummy{}
 	}
-	bhash := conf.lastTail.Bundle
 
 	cancelPromo := conf.goPromote()
 	cancelReattach := conf.goReattach()
 
-	return bhash, conf.chanUpdate, func() {
-		conf.Log.Debugf("CONFIRMER: canceling confirmer task for %v", bhash)
+	return tail.Bundle, conf.chanUpdate, func() {
+		conf.Log.Debugf("CONFIRMER: canceling confirmer task for %v", tail.Bundle)
 		cancelPromo()
 		cancelReattach()
 		close(conf.chanUpdate)
@@ -208,9 +197,22 @@ func (conf *Confirmer) checkConsistency(tailHash Hash) (bool, error) {
 	return consistent, nil
 }
 
-func (conf *Confirmer) checkIfToPromote() (bool, error) {
+func (conf *Confirmer) promoteIfNeeded() (bool, error) {
 	conf.mutex.Lock()
 	defer conf.mutex.Unlock()
+
+	toPromote, err := conf.checkIfToPromote()
+	if err != nil {
+		return false, err
+	}
+	if !toPromote {
+		return false, nil
+	}
+	err = conf.promote()
+	return err == nil, err
+}
+
+func (conf *Confirmer) checkIfToPromote() (bool, error) {
 
 	if conf.isNotPromotable || time.Now().Before(conf.nextPromoTime) {
 		// if not promotable, routine will be idle until reattached
@@ -227,34 +229,28 @@ func (conf *Confirmer) checkIfToPromote() (bool, error) {
 
 func (conf *Confirmer) goPromote() func() {
 	chCancel := make(chan struct{})
-	h := conf.lastTail.Hash
 
 	var wg sync.WaitGroup
 	go func() {
-		conf.debugf("CONFIRMER: started promoter routine for bundle hash %v", h)
-		defer conf.debugf("CONFIRMER: ended promoter routine for bundle hash %v", h)
+		conf.debugf("CONFIRMER: started promoter routine. Tail to promote = %v", conf.nextTailHashToPromote)
+		defer conf.debugf("CONFIRMER: ended promoter routine for bundle hash %v", conf.nextTailHashToPromote)
 
 		wg.Add(1)
 		defer wg.Done()
 
 		var err error
-		var toPromote bool
+		var promoted bool
 		for {
-			toPromote, err = conf.checkIfToPromote()
-			if err == nil && toPromote {
-
-				conf.mutex.Lock()
-				err = conf.promote()
-				conf.mutex.Unlock()
-
-				if err != nil {
-					conf.sendConfirmerUpdate(UPD_NO_ACTION, err)
-				} else {
+			promoted, err = conf.promoteIfNeeded()
+			if err != nil {
+				conf.sendConfirmerUpdate(UPD_NO_ACTION, err)
+			} else {
+				if promoted {
 					conf.sendConfirmerUpdate(UPD_PROMOTE, nil)
 				}
 			}
 			if err != nil {
-				conf.errorf("CONFIRMER: promotion routine: %v. Sleep 5 sec", err)
+				conf.errorf("CONFIRMER: promotion routine: %v. Sleep 5 sec: ", err)
 				time.Sleep(5 * time.Second)
 			}
 			select {
@@ -272,12 +268,11 @@ func (conf *Confirmer) goPromote() func() {
 
 func (conf *Confirmer) goReattach() func() {
 	chCancel := make(chan struct{})
-	h := conf.lastTail.Hash
 
 	var wg sync.WaitGroup
 	go func() {
-		conf.debugf("CONFIRMER: started reattacher routine for bundle hash %v", h)
-		defer conf.debugf("CONFIRMER: ended reattacher routine bundle hash %v", h)
+		conf.debugf("CONFIRMER: started reattacher routine")
+		defer conf.debugf("CONFIRMER: ended reattacher routine")
 
 		wg.Add(1)
 		defer wg.Done()

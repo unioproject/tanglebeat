@@ -2,22 +2,24 @@ package confirmer
 
 import (
 	"errors"
-	"github.com/iotaledger/iota.go/api"
-	"github.com/iotaledger/iota.go/bundle"
-	"github.com/iotaledger/iota.go/transaction"
-	"github.com/iotaledger/iota.go/trinary"
+	. "github.com/iotaledger/iota.go/api"
+	. "github.com/iotaledger/iota.go/bundle"
+	. "github.com/iotaledger/iota.go/transaction"
+	. "github.com/iotaledger/iota.go/trinary"
 	"github.com/lunfardo314/tanglebeat/lib"
 	"strings"
 	"time"
 )
 
-func (conf *Confirmer) attachToTangle(trunkHash, branchHash trinary.Hash, trytes []trinary.Trytes) ([]trinary.Trytes, error) {
+func (conf *Confirmer) attachToTangle(trunkHash, branchHash Hash, trytes []Trytes) ([]Trytes, error) {
 	ret, err := conf.IotaAPIaTT.AttachToTangle(trunkHash, branchHash, 14, trytes)
 	if err != nil {
 		conf.AEC.IncErrorCount(conf.IotaAPIaTT)
 	}
 	return ret, err
 }
+
+var all9 = Trytes(strings.Repeat("9", 81))
 
 func (conf *Confirmer) promote() error {
 	var err error
@@ -28,17 +30,16 @@ func (conf *Confirmer) promote() error {
 		} else {
 			m = "blowball"
 		}
-		conf.Log.Debugf("CONFIRMER: promoting '%v' every ~%v sec if bundle is consistent. Tag = '%v'",
-			m, conf.PromoteEverySec, conf.TxTagPromote)
+		conf.Log.Debugf("CONFIRMER: promoting '%v'. Tag = '%v'. Tail = %v",
+			m, conf.TxTagPromote, conf.nextTailHashToPromote)
 	}
-	all9 := trinary.Trytes(strings.Repeat("9", 81))
-	transfers := bundle.Transfers{{
+	transfers := Transfers{{
 		Address: all9,
 		Value:   0,
 		Tag:     conf.TxTagPromote,
 	}}
 	ts := lib.UnixMs(time.Now())
-	prepTransferOptions := api.PrepareTransfersOptions{
+	prepTransferOptions := PrepareTransfersOptions{
 		Timestamp: &ts,
 	}
 	bundleTrytesPrep, err := conf.IotaAPI.PrepareTransfers(all9, transfers, prepTransferOptions)
@@ -78,24 +79,27 @@ func (conf *Confirmer) promote() error {
 	conf.numPromote += 1
 	if conf.PromoteChain {
 		// vienintele tx turi buti tail
-		tail, err := transaction.AsTransactionObject(btrytes[0])
+		tail, err := AsTransactionObject(btrytes[0])
 		if err != nil {
 			conf.AEC.IncErrorCount(conf.IotaAPI)
 			return err
 		}
-		if !transaction.IsTailTransaction(tail) {
-			return errors.New("can't get tail of the bundle")
+		if !IsTailTransaction(tail) {
+			return errors.New("can't get tail of the bundle. Inconsistency")
 		}
 		conf.nextTailHashToPromote = tail.Hash
 	}
+	conf.Log.Debugf("CONFIRMER: finished promoting. Next tail to promote = %v", conf.nextTailHashToPromote)
 	conf.nextPromoTime = nowis.Add(time.Duration(conf.PromoteEverySec) * time.Second)
 	return nil
 }
 
 func (conf *Confirmer) reattach() error {
 	var err error
-	if conf.Log != nil {
-		conf.Log.Debugf("CONFIRMER: reattaching")
+	if curTail, err := lib.TailFromBundleTrytes(conf.lastBundleTrytes); err != nil {
+		conf.errorf("CONFIRMER:reattach %v", err)
+	} else {
+		conf.debugf("CONFIRMER: reattaching. tail hash: %v bundle: %v", curTail.Hash, curTail.Bundle)
 	}
 	st := lib.UnixMs(time.Now())
 	gttaResp, err := conf.IotaAPIgTTA.GetTransactionsToApprove(3)
@@ -105,21 +109,13 @@ func (conf *Confirmer) reattach() error {
 	}
 	conf.totalDurationGTTAMsec += lib.UnixMs(time.Now()) - st
 
-	var btrytes []trinary.Trytes
+	var btrytes []Trytes
 	btrytes, err = conf.attachToTangle(
 		gttaResp.TrunkTransaction,
 		gttaResp.BranchTransaction,
 		conf.lastBundleTrytes)
 	if err != nil {
 		return err
-	}
-	tmpTxs, err := transaction.AsTransactionObjects(btrytes, nil)
-	if err != nil {
-		return err
-	}
-	tail := lib.FindTail(tmpTxs)
-	if tail == nil {
-		return errors.New("FindTail: inconsistency")
 	}
 	_, err = conf.IotaAPI.BroadcastTransactions(btrytes...)
 	if err != nil {
@@ -131,12 +127,16 @@ func (conf *Confirmer) reattach() error {
 		conf.AEC.IncErrorCount(conf.IotaAPI)
 		return err
 	}
+	var newTail *Transaction
+	if newTail, err = lib.TailFromBundleTrytes(btrytes); err != nil {
+		return err
+	}
+	conf.debugf("CONFIRMER: finished reattaching. New tail hash %v", newTail.Hash)
 	nowis := time.Now()
 	conf.numAttach += 1
 	conf.lastBundleTrytes = btrytes
-	conf.lastTail = *tail
 	conf.nextForceReattachTime = nowis.Add(time.Duration(conf.ForceReattachAfterMin) * time.Minute)
-	conf.nextTailHashToPromote = tail.Hash
+	conf.nextTailHashToPromote = newTail.Hash
 	conf.nextPromoTime = nowis // start promoting immediately
 	conf.isNotPromotable = false
 	return nil
