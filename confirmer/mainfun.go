@@ -1,7 +1,6 @@
 package confirmer
 
 import (
-	"errors"
 	. "github.com/iotaledger/iota.go/api"
 	. "github.com/iotaledger/iota.go/bundle"
 	. "github.com/iotaledger/iota.go/transaction"
