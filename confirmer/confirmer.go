@@ -100,11 +100,11 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (Hash, chan *Co
 		conf.AEC = &dummy{}
 	}
 
-	cancelPromo := conf.goPromote()
-	cancelReattach := conf.goReattach()
+	cancelPromo := conf.goPromote(tail.Bundle)
+	cancelReattach := conf.goReattach(tail.Bundle)
 
 	return tail.Bundle, conf.chanUpdate, func() {
-		conf.Log.Debugf("CONFIRMER: canceling confirmer task for %v", tail.Bundle)
+		conf.Log.Debugf("CONFIRMER: canceling confirmer task for bundle %v", tail.Bundle)
 		cancelPromo()
 		cancelReattach()
 		close(conf.chanUpdate)
@@ -227,13 +227,13 @@ func (conf *Confirmer) checkIfToPromote() (bool, error) {
 	return consistent, nil
 }
 
-func (conf *Confirmer) goPromote() func() {
+func (conf *Confirmer) goPromote(bundleHash Hash) func() {
 	chCancel := make(chan struct{})
 
 	var wg sync.WaitGroup
 	go func() {
-		conf.debugf("CONFIRMER: started promoter routine. Tail to promote = %v", conf.nextTailHashToPromote)
-		defer conf.debugf("CONFIRMER: ended promoter routine for bundle hash %v", conf.nextTailHashToPromote)
+		conf.debugf("CONFIRMER: started promoter routine  for bundle hash %v", bundleHash)
+		defer conf.debugf("CONFIRMER: finished promoter routine for bundle hash %v", bundleHash)
 
 		wg.Add(1)
 		defer wg.Done()
@@ -266,13 +266,13 @@ func (conf *Confirmer) goPromote() func() {
 	}
 }
 
-func (conf *Confirmer) goReattach() func() {
+func (conf *Confirmer) goReattach(bundleHash Hash) func() {
 	chCancel := make(chan struct{})
 
 	var wg sync.WaitGroup
 	go func() {
-		conf.debugf("CONFIRMER: started reattacher routine")
-		defer conf.debugf("CONFIRMER: ended reattacher routine")
+		conf.debugf("CONFIRMER: started reattacher routine. Bundle = %v", bundleHash)
+		defer conf.debugf("CONFIRMER: finished reattacher routine. Bundle = %v", bundleHash)
 
 		wg.Add(1)
 		defer wg.Done()
