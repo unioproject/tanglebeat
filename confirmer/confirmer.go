@@ -117,8 +117,8 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 		conf.Log.Debugf("CONFIRMER: canceling confirmer task for bundle %v", tail.Bundle)
 		cancelPromo()
 		cancelReattach()
-		close(conf.chanUpdate)
 		conf.invalidateTaskState() // por las dudas
+		close(conf.chanUpdate)     // stop update channel
 	}, nil
 }
 
