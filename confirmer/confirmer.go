@@ -34,6 +34,7 @@ type Confirmer struct {
 	mutex      sync.Mutex //task state access sync
 	// confirmer task state
 	lastBundleTrytes      []Trytes
+	bundleHash            Hash
 	nextForceReattachTime time.Time
 	numAttach             uint64
 	nextPromoTime         time.Time
@@ -76,17 +77,18 @@ type dummy struct{}
 
 func (*dummy) IncErrorCount(api *API) {}
 
-func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (Hash, chan *ConfirmerUpdate, func(), error) {
+func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *ConfirmerUpdate, func(), error) {
 	//if err := lib.CheckBundle(bundle); err != nil {
 	//	return nil, nil, errors.New(fmt.Sprintf("Attempt to run confirmer with wrong bundle: %v", err))
 	//}
 
 	tail, err := lib.TailFromBundleTrytes(bundleTrytes)
 	if err != nil {
-		return "", nil, nil, err
+		return nil, nil, err
 	}
 	nowis := time.Now()
 	conf.lastBundleTrytes = bundleTrytes
+	conf.bundleHash = tail.Bundle
 	conf.nextForceReattachTime = nowis.Add(time.Duration(conf.ForceReattachAfterMin) * time.Minute)
 	conf.nextPromoTime = nowis
 	conf.nextTailHashToPromote = tail.Hash
@@ -103,7 +105,7 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (Hash, chan *Co
 	cancelPromo := conf.goPromote(tail.Bundle)
 	cancelReattach := conf.goReattach(tail.Bundle)
 
-	return tail.Bundle, conf.chanUpdate, func() {
+	return conf.chanUpdate, func() {
 		conf.Log.Debugf("CONFIRMER: canceling confirmer task for bundle %v", tail.Bundle)
 		cancelPromo()
 		cancelReattach()
@@ -113,7 +115,7 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (Hash, chan *Co
 
 func (conf *Confirmer) RunConfirm(bundleTrytes []Trytes) (chan *ConfirmerUpdate, error) {
 	// start promote and reattach routines
-	bhash, chUpd, cancelFun, err := conf.StartConfirmerTask(bundleTrytes)
+	chUpd, cancelFun, err := conf.StartConfirmerTask(bundleTrytes)
 	if err != nil {
 		return nil, err
 	}
@@ -125,13 +127,11 @@ func (conf *Confirmer) RunConfirm(bundleTrytes []Trytes) (chan *ConfirmerUpdate,
 		defer conf.debugf("CONFIRMER: confirmer task ended")
 		defer cancelFun()
 
-		for {
-			since := time.Now().Sub(started)
-			if since > 15*time.Minute {
-				conf.warningf("----- CONFIRMER: it takes longer than %v to confirm the bundle", since)
-				time.Sleep(5 * time.Second)
+		for count := 0; ; count++ {
+			if count%3 == 0 {
+				conf.debugf("----- CONFIRMER: confirm task for bundle hash %v running already %v", conf.bundleHash, time.Since(started))
 			}
-			confirmed, err := lib.IsBundleHashConfirmed(bhash, conf.IotaAPI)
+			confirmed, err := lib.IsBundleHashConfirmed(conf.bundleHash, conf.IotaAPI)
 			if err != nil {
 				conf.AEC.IncErrorCount(conf.IotaAPI)
 				conf.errorf("CONFIRMER:isBundleHashConfirmed: %v", err)
@@ -275,7 +275,7 @@ func (conf *Confirmer) goReattach(bundleHash Hash) func() {
 				}
 			}
 			if err != nil {
-				conf.errorf("promotion routine: %v", err)
+				conf.errorf("reattach function returned: %v", err)
 			}
 			if err != nil {
 				time.Sleep(5 * time.Second)

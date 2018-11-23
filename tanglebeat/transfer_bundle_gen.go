@@ -274,7 +274,7 @@ const sleepEveryLoop = 5 * time.Second
 // return true if success and false if too many errors occured and checking failed
 func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash Hash) bool {
 	gen.log.Debugf("waitUntilBundleConfirmed: '%v' start waiting for the bundle to be confirmed", gen.name)
-	defer gen.log.Debugf("waitUntilBundleConfirmed: '%v' left", gen.name)
+	defer gen.log.Debugf("waitUntilBundleConfirmed: '%v' %v left", gen.name, bundleHash)
 
 	startWaiting := time.Now()
 	var sinceWaiting time.Duration
@@ -284,7 +284,7 @@ func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash Hash) bo
 		time.Sleep(sleepEveryLoop)
 		sinceWaiting = time.Since(startWaiting)
 		if count%5 == 0 {
-			gen.log.Debugf("'%v': waitUntilBundleConfirmed: time since waiting: %v", gen.name, sinceWaiting)
+			gen.log.Debugf("'%v': waitUntilBundleConfirmed: %v Time since waiting: %v", gen.name, bundleHash, sinceWaiting)
 		}
 		confirmed, err := lib.IsBundleHashConfirmed(bundleHash, gen.iotaAPI)
 		if err != nil {

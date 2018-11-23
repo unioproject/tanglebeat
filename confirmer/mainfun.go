@@ -1,6 +1,7 @@
 package confirmer
 
 import (
+	"errors"
 	. "github.com/iotaledger/iota.go/api"
 	. "github.com/iotaledger/iota.go/bundle"
 	. "github.com/iotaledger/iota.go/transaction"
@@ -29,8 +30,8 @@ func (conf *Confirmer) promote() error {
 		} else {
 			m = "blowball"
 		}
-		conf.Log.Debugf("CONFIRMER: promoting '%v'. Tag = '%v'. Tail = %v",
-			m, conf.TxTagPromote, conf.nextTailHashToPromote)
+		conf.Log.Debugf("CONFIRMER: promoting '%v'. Tag = '%v'. Tail = %v Bundle = %v",
+			m, conf.TxTagPromote, conf.nextTailHashToPromote, conf.bundleHash)
 	}
 	transfers := Transfers{{
 		Address: all9,
@@ -83,7 +84,8 @@ func (conf *Confirmer) promote() error {
 		}
 		conf.nextTailHashToPromote = tail.Hash
 	}
-	conf.Log.Debugf("CONFIRMER: finished promoting. Next tail to promote = %v", conf.nextTailHashToPromote)
+	conf.Log.Debugf("CONFIRMER: finished promoting bundle hash %v. Next tail to promote = %v",
+		conf.bundleHash, conf.nextTailHashToPromote)
 	conf.nextPromoTime = nowis.Add(time.Duration(conf.PromoteEverySec) * time.Second)
 	return nil
 }
@@ -91,9 +93,12 @@ func (conf *Confirmer) promote() error {
 func (conf *Confirmer) reattach() error {
 	var err error
 	if curTail, err := lib.TailFromBundleTrytes(conf.lastBundleTrytes); err != nil {
-		conf.errorf("CONFIRMER:reattach %v", err)
+		return err
 	} else {
-		conf.debugf("CONFIRMER: reattaching. tail hash: %v bundle: %v", curTail.Hash, curTail.Bundle)
+		if curTail.Bundle != conf.bundleHash {
+			// assert
+			return errors.New("CONFIRMER:reattach: inconsistency curTail.Bundle != conf.bundleHash")
+		}
 	}
 	st := lib.UnixMs(time.Now())
 	gttaResp, err := conf.IotaAPIgTTA.GetTransactionsToApprove(3)
