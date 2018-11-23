@@ -295,6 +295,7 @@ func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash Hash) bo
 			if 0 < gen.params.SeqRestartAfterErr && gen.params.SeqRestartAfterErr < errorCount {
 				return false // consecutive errors exceeded limit
 			}
+			continue
 		}
 		if confirmed {
 			return true
