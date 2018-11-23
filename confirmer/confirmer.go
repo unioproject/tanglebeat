@@ -30,9 +30,9 @@ type Confirmer struct {
 	Log                   *logging.Logger
 	AEC                   lib.ErrorCounter
 	// internal
-	chanUpdate chan *ConfirmerUpdate
-	mutex      sync.Mutex //task state access sync
+	mutex sync.Mutex //task state access sync
 	// confirmer task state
+	chanUpdate            chan *ConfirmerUpdate
 	lastBundleTrytes      []Trytes
 	bundleHash            Hash
 	nextForceReattachTime time.Time
@@ -78,15 +78,14 @@ type dummy struct{}
 func (*dummy) IncErrorCount(api *API) {}
 
 func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *ConfirmerUpdate, func(), error) {
-	//if err := lib.CheckBundle(bundle); err != nil {
-	//	return nil, nil, errors.New(fmt.Sprintf("Attempt to run confirmer with wrong bundle: %v", err))
-	//}
-
 	tail, err := lib.TailFromBundleTrytes(bundleTrytes)
 	if err != nil {
 		return nil, nil, err
 	}
 	nowis := time.Now()
+
+	// -----
+	conf.mutex.Lock()
 	conf.lastBundleTrytes = bundleTrytes
 	conf.bundleHash = tail.Bundle
 	conf.nextForceReattachTime = nowis.Add(time.Duration(conf.ForceReattachAfterMin) * time.Minute)
@@ -101,16 +100,36 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 	if conf.AEC == nil {
 		conf.AEC = &dummy{}
 	}
+	conf.mutex.Unlock()
+	// -----
 
 	cancelPromo := conf.goPromote(tail.Bundle)
 	cancelReattach := conf.goReattach(tail.Bundle)
 
 	return conf.chanUpdate, func() {
 		conf.Log.Debugf("CONFIRMER: canceling confirmer task for bundle %v", tail.Bundle)
+
+		// ----
+		conf.mutex.Lock()
 		cancelPromo()
 		cancelReattach()
 		close(conf.chanUpdate)
+		conf.invalidateTaskState() // por las dudas
+		conf.mutex.Unlock()
+		// ----
 	}, nil
+}
+
+func (conf *Confirmer) invalidateTaskState() {
+	conf.chanUpdate = nil
+	conf.lastBundleTrytes = nil
+	conf.bundleHash = ""
+	conf.numAttach = 0
+	conf.nextTailHashToPromote = ""
+	conf.numPromote = 0
+	conf.totalDurationATTMsec = 0
+	conf.totalDurationGTTAMsec = 0
+	conf.isNotPromotable = false
 }
 
 func (conf *Confirmer) RunConfirm(bundleTrytes []Trytes) (chan *ConfirmerUpdate, error) {
@@ -246,6 +265,17 @@ func (conf *Confirmer) goPromote(bundleHash Hash) func() {
 	}
 }
 
+func (conf *Confirmer) reattachIfNeeded() (bool, error) {
+	conf.mutex.Lock()
+	defer conf.mutex.Unlock()
+
+	if conf.isNotPromotable || time.Now().After(conf.nextForceReattachTime) {
+		err := conf.reattach()
+		return err == nil, err
+	}
+	return false, nil
+}
+
 func (conf *Confirmer) goReattach(bundleHash Hash) func() {
 	chCancel := make(chan struct{})
 
@@ -257,31 +287,17 @@ func (conf *Confirmer) goReattach(bundleHash Hash) func() {
 		wg.Add(1)
 		defer wg.Done()
 
-		var err error
-		var sendUpdate bool
 		for {
-			conf.mutex.Lock()
-			if conf.isNotPromotable || time.Now().After(conf.nextForceReattachTime) {
-				err = conf.reattach()
-				sendUpdate = true
-			}
-			conf.mutex.Unlock()
-
-			if sendUpdate {
-				if err != nil {
-					conf.sendConfirmerUpdate(UPD_NO_ACTION, err)
-				} else {
+			reattached, err := conf.reattachIfNeeded()
+			if err != nil {
+				conf.sendConfirmerUpdate(UPD_NO_ACTION, err)
+				conf.errorf("reattach function returned: %v bundle hash = %v", err, bundleHash)
+				time.Sleep(5 * time.Second)
+			} else {
+				if reattached {
 					conf.sendConfirmerUpdate(UPD_REATTACH, nil)
 				}
 			}
-			if err != nil {
-				conf.errorf("reattach function returned: %v", err)
-			}
-			if err != nil {
-				time.Sleep(5 * time.Second)
-			}
-			sendUpdate = false
-			err = nil
 			select {
 			case <-chCancel:
 				return
