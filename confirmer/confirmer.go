@@ -1,6 +1,7 @@
 package confirmer
 
 import (
+	"errors"
 	. "github.com/iotaledger/iota.go/api"
 	. "github.com/iotaledger/iota.go/trinary"
 	"github.com/lunfardo314/tanglebeat/lib"
@@ -32,6 +33,7 @@ type Confirmer struct {
 	// internal
 	mutex sync.Mutex //task state access sync
 	// confirmer task state
+	running               bool
 	chanUpdate            chan *ConfirmerUpdate
 	lastBundleTrytes      []Trytes
 	bundleHash            Hash
@@ -86,6 +88,12 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 
 	// -----
 	conf.mutex.Lock()
+	defer conf.mutex.Unlock()
+
+	if conf.running {
+		return nil, nil, errors.New("Confirmer task is already running")
+	}
+	conf.running = true
 	conf.lastBundleTrytes = bundleTrytes
 	conf.bundleHash = tail.Bundle
 	conf.nextForceReattachTime = nowis.Add(time.Duration(conf.ForceReattachAfterMin) * time.Minute)
@@ -100,7 +108,6 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 	if conf.AEC == nil {
 		conf.AEC = &dummy{}
 	}
-	conf.mutex.Unlock()
 	// -----
 
 	cancelPromo := conf.goPromote(tail.Bundle)
@@ -108,15 +115,10 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 
 	return conf.chanUpdate, func() {
 		conf.Log.Debugf("CONFIRMER: canceling confirmer task for bundle %v", tail.Bundle)
-
-		// ----
-		conf.mutex.Lock()
 		cancelPromo()
 		cancelReattach()
 		close(conf.chanUpdate)
 		conf.invalidateTaskState() // por las dudas
-		conf.mutex.Unlock()
-		// ----
 	}, nil
 }
 
@@ -130,6 +132,7 @@ func (conf *Confirmer) invalidateTaskState() {
 	conf.totalDurationATTMsec = 0
 	conf.totalDurationGTTAMsec = 0
 	conf.isNotPromotable = false
+	conf.running = false
 }
 
 func (conf *Confirmer) RunConfirm(bundleTrytes []Trytes) (chan *ConfirmerUpdate, error) {

@@ -132,12 +132,12 @@ func (seq *TransferSequence) Run() {
 		}
 		bundleHash = tail.Bundle
 
-		seq.log.Debugf("Run sequence '%v': start confirming bundle %v", seq.GetLongName(), bundleHash)
+		seq.log.Debugf("Run sequence '%v': start confirming bundle %v", seq.name, bundleHash)
 		seq.processStartUpdate(bundleData, bundleHash)
 
 		//run confirmed task and listen to updates
 		if chUpdate, err := seq.confirmer.RunConfirm(bundleData.BundleTrytes); err != nil {
-			seq.log.Errorf("Run sequence '%v': RunConfirm returned: %v", seq.GetLongName(), err)
+			seq.log.Errorf("Run sequence '%v': RunConfirm returned: %v", seq.name, err)
 		} else {
 			for updConf := range chUpdate {
 				// summing up with stats collected during findOrCreateBundleToConfirm
@@ -174,7 +174,7 @@ func (seq *TransferSequence) processStartUpdate(bundleData *bundle_source.FirstB
 		updType = sender_update.SENDER_UPD_START_CONTINUE
 	}
 	seq.log.Debugf("Update '%v' for %v index = %v",
-		updType, seq.GetLongName(), bundleData.Index)
+		updType, seq.name, bundleData.Index)
 
 	processUpdate(
 		"local",
