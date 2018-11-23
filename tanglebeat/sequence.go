@@ -130,8 +130,10 @@ func (seq *TransferSequence) Run() {
 			time.Sleep(5 * time.Second)
 			continue
 		}
-		seq.log.Debugf("Run sequence '%v': start confirming bundle %v", seq.GetLongName(), tail.Bundle)
-		seq.processStartUpdate(bundleData, tail.Bundle)
+		bundleHash = tail.Bundle
+
+		seq.log.Debugf("Run sequence '%v': start confirming bundle %v", seq.GetLongName(), bundleHash)
+		seq.processStartUpdate(bundleData, bundleHash)
 
 		//run confirmed task and listen to updates
 		if chUpdate, err := seq.confirmer.RunConfirm(bundleData.BundleTrytes); err != nil {
@@ -150,6 +152,7 @@ func (seq *TransferSequence) Run() {
 						updConf, bundleData.Addr, bundleData.Index, bundleHash, bundleData.StartTime)
 				}
 			}
+			seq.log.Debugf("TransferSequence '%v': finished processing updates for bundle %v", seq.GetLongName(), bundleHash)
 		}
 	}
 	// at this point *seq.bundleSource is closed. It can happen when generator closes channel due to API errors
