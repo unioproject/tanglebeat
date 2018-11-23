@@ -131,7 +131,9 @@ func (conf *Confirmer) RunConfirm(bundleTrytes []Trytes) (chan *ConfirmerUpdate,
 				conf.warningf("----- CONFIRMER: it takes longer than %v to confirm the bundle", since)
 				time.Sleep(5 * time.Second)
 			}
-			if confirmed, err := conf.isBundleHashConfirmed(bhash); err != nil {
+			confirmed, err := lib.IsBundleHashConfirmed(bhash, conf.IotaAPI)
+			if err != nil {
+				conf.AEC.IncErrorCount(conf.IotaAPI)
 				conf.errorf("CONFIRMER:isBundleHashConfirmed: %v", err)
 			} else {
 				if confirmed {
@@ -143,28 +145,6 @@ func (conf *Confirmer) RunConfirm(bundleTrytes []Trytes) (chan *ConfirmerUpdate,
 		}
 	}()
 	return chUpd, nil
-}
-
-func (conf *Confirmer) isBundleHashConfirmed(bundleHash Trytes) (bool, error) {
-	respHashes, err := conf.IotaAPI.FindTransactions(FindTransactionsQuery{
-		Bundles: Hashes{bundleHash},
-	})
-	if err != nil {
-		conf.AEC.IncErrorCount(conf.IotaAPI)
-		return false, err
-	}
-
-	states, err := conf.IotaAPI.GetLatestInclusion(respHashes)
-	if err != nil {
-		conf.AEC.IncErrorCount(conf.IotaAPI)
-		return false, err
-	}
-	for _, conf := range states {
-		if conf {
-			return true, nil
-		}
-	}
-	return false, nil
 }
 
 func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, err error) {
