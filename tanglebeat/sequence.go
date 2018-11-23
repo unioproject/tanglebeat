@@ -136,24 +136,26 @@ func (seq *TransferSequence) Run() {
 		seq.processStartUpdate(bundleData, bundleHash)
 
 		//run confirmed task and listen to updates
-		if chUpdate, err := seq.confirmer.RunConfirm(bundleData.BundleTrytes); err != nil {
+		chUpdate, err := seq.confirmer.StartConfirmerTask(bundleData.BundleTrytes)
+		if err != nil {
 			seq.log.Errorf("Run sequence '%v': RunConfirm returned: %v", seq.name, err)
-		} else {
-			for updConf := range chUpdate {
-				// summing up with stats collected during findOrCreateBundleToConfirm
-				if updConf.Err != nil {
-					seq.log.Errorf("TransferSequence '%v': confirmer reported an error: %v", seq.GetLongName(), updConf.Err)
-				} else {
-					updConf.NumAttaches += bundleData.NumAttach
-					updConf.TotalDurationATTMsec += bundleData.TotalDurationPoWMs
-					updConf.TotalDurationGTTAMsec += bundleData.TotalDurationTipselMs
-
-					seq.processConfirmerUpdate(
-						updConf, bundleData.Addr, bundleData.Index, bundleHash, bundleData.StartTime)
-				}
-			}
-			seq.log.Debugf("TransferSequence '%v': finished processing updates for bundle %v", seq.GetLongName(), bundleHash)
+			continue
 		}
+		// read and process updated from confirmer until task is closed
+		for updConf := range chUpdate {
+			// summing up with stats collected during findOrCreateBundleToConfirm
+			if updConf.Err != nil {
+				seq.log.Errorf("TransferSequence '%v': confirmer reported an error: %v", seq.GetLongName(), updConf.Err)
+			} else {
+				updConf.NumAttaches += bundleData.NumAttach
+				updConf.TotalDurationATTMsec += bundleData.TotalDurationPoWMs
+				updConf.TotalDurationGTTAMsec += bundleData.TotalDurationTipselMs
+
+				seq.processConfirmerUpdate(
+					updConf, bundleData.Addr, bundleData.Index, bundleHash, bundleData.StartTime)
+			}
+		}
+		seq.log.Debugf("TransferSequence '%v': finished processing updates for bundle %v", seq.GetLongName(), bundleHash)
 	}
 	// at this point *seq.bundleSource is closed. It can happen when generator closes channel due to API errors
 	// The strategy at the moment is to exit the program with errors altogether. It will be restarted by systemd
