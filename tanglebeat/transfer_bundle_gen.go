@@ -136,7 +136,7 @@ func (gen *transferBundleGenerator) runGenerator() {
 	addr = ""
 	balanceZeroWaitSec := 2
 	for {
-		if gen.params.SeqRestartAfterErr > 0 && errorCount >= gen.params.SeqRestartAfterErr {
+		if 0 < gen.params.SeqRestartAfterErr && gen.params.SeqRestartAfterErr < errorCount {
 			gen.log.Errorf("%v: TransferBundles @ index = %v: error count limit of %d API errors exceed. Closing output channel",
 				gen.name, gen.index, gen.params.SeqRestartAfterErr)
 			close(gen.chanOut)
