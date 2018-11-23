@@ -3,6 +3,7 @@ package lib
 import (
 	"errors"
 	"fmt"
+	. "github.com/iotaledger/iota.go/api"
 	. "github.com/iotaledger/iota.go/kerl"
 	. "github.com/iotaledger/iota.go/transaction"
 	. "github.com/iotaledger/iota.go/trinary"
@@ -207,4 +208,25 @@ func TailFromBundleTrytes(bundleTrytes []Trytes) (*Transaction, error) {
 		return nil, errors.New("can't find tail")
 	}
 	return tail, nil
+}
+
+// checks if transaction in any bundle with specified hash is confirmed
+func IsBundleHashConfirmed(bundleHash Trytes, api *API) (bool, error) {
+	respHashes, err := api.FindTransactions(FindTransactionsQuery{
+		Bundles: Hashes{bundleHash},
+	})
+	if err != nil {
+		return false, err
+	}
+
+	states, err := api.GetLatestInclusion(respHashes)
+	if err != nil {
+		return false, err
+	}
+	for _, conf := range states {
+		if conf {
+			return true, nil
+		}
+	}
+	return false, nil
 }
