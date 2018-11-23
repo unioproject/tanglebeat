@@ -223,8 +223,9 @@ func (gen *transferBundleGenerator) runGenerator() {
 				time.Sleep(5 * time.Second)
 				continue
 			}
+			bundleHash := tail.Bundle
 			gen.log.Debugf("Transfer Bundles: '%v': Sending bundle to confirm. bundle hash: %v tail: %v",
-				gen.name, tail.Bundle, tail.Hash)
+				gen.name, bundleHash, tail.Hash)
 			// ---------------------- send bundle to confirm
 			bundleData.Addr = addr
 			bundleData.Index = gen.index
@@ -232,16 +233,16 @@ func (gen *transferBundleGenerator) runGenerator() {
 			gen.chanOut <- bundleData /// here blocks until picked up in the sequence
 			// ---------------------- send bundle to confirm
 			gen.log.Debugf("Transfer Bundles: '%v' just sent bundle to confirmer and wait until bundle hash %v confirmed. idx = %v",
-				gen.name, tail.Bundle, gen.index)
+				gen.name, bundleHash, gen.index)
 
 			errorCount = 0 // so far everything seems to be ok --> reset error count
 
 			// wait until any transaction with the bundle hash becomes confirmed
 			// note, that during rettach transaction can change but the bundle hash remains the same
 			// returns 0 if error count didn't exceed limit
-			errorCount = gen.waitUntilBundleConfirmed(tail.Bundle)
+			errorCount = gen.waitUntilBundleConfirmed(bundleHash)
 			if errorCount == 0 {
-				gen.log.Debugf("Transfer Bundles: '%v' bundle confirmed. idx = %v", gen.name, gen.index)
+				gen.log.Debugf("Transfer Bundles: '%v'[%v] bundle %v confirmed", gen.name, gen.index, bundleHash)
 				err = gen.saveIndex()
 				if err != nil {
 					gen.log.Errorf("Transfer Bundles: '%v' saveIndex: %v", gen.name, err)
