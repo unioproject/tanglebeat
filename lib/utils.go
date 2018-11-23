@@ -218,7 +218,6 @@ func IsBundleHashConfirmed(bundleHash Trytes, api *API) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-
 	states, err := api.GetLatestInclusion(respHashes)
 	if err != nil {
 		return false, err
