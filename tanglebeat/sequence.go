@@ -11,6 +11,7 @@ import (
 	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/lunfardo314/tanglebeat/sender_update"
 	"github.com/op/go-logging"
+	"net/http"
 	"os"
 	"time"
 )
@@ -75,9 +76,13 @@ func (seq *TransferSequence) GetLongName() string {
 }
 
 func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirmer.Confirmer, error) {
-	// TODO add timeouts
 	iotaAPI, err := ComposeAPI(
-		HTTPClientSettings{URI: params.IOTANode},
+		HTTPClientSettings{
+			URI: params.IOTANode,
+			Client: &http.Client{
+				Timeout: time.Duration(params.TimeoutAPI) * time.Second,
+			},
+		},
 	)
 	if err != nil {
 		return nil, err
@@ -85,7 +90,12 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 	AEC.registerAPI(iotaAPI, params.IOTANode)
 
 	iotaAPIgTTA, err := ComposeAPI(
-		HTTPClientSettings{URI: params.IOTANodeTipsel},
+		HTTPClientSettings{
+			URI: params.IOTANodeTipsel,
+			Client: &http.Client{
+				Timeout: time.Duration(params.TimeoutTipsel) * time.Second,
+			},
+		},
 	)
 	if err != nil {
 		return nil, err
@@ -93,7 +103,12 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 	AEC.registerAPI(iotaAPIgTTA, params.IOTANodeTipsel)
 
 	iotaAPIaTT, err := ComposeAPI(
-		HTTPClientSettings{URI: params.IOTANodePoW},
+		HTTPClientSettings{
+			URI: params.IOTANodePoW,
+			Client: &http.Client{
+				Timeout: time.Duration(params.TimeoutPoW) * time.Second,
+			},
+		},
 	)
 	if err != nil {
 		return nil, err

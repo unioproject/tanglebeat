@@ -14,6 +14,7 @@ import (
 	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/op/go-logging"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"strconv"
@@ -58,9 +59,13 @@ func initTransferBundleGenerator(name string, params *senderParamsYAML, logger *
 		log:           logger,
 		chanOut:       make(bundle_source.BundleSourceChan),
 	}
-	// TODO specify timeout
 	ret.iotaAPI, err = ComposeAPI(
-		HTTPClientSettings{URI: params.IOTANode},
+		HTTPClientSettings{
+			URI: params.IOTANode,
+			Client: &http.Client{
+				Timeout: time.Duration(params.TimeoutAPI) * time.Second,
+			},
+		},
 	)
 	if err != nil {
 		return nil, err
@@ -70,7 +75,12 @@ func initTransferBundleGenerator(name string, params *senderParamsYAML, logger *
 	AEC.registerAPI(ret.iotaAPI, params.IOTANode)
 
 	ret.iotaAPIgTTA, err = ComposeAPI(
-		HTTPClientSettings{URI: params.IOTANodeTipsel},
+		HTTPClientSettings{
+			URI: params.IOTANodeTipsel,
+			Client: &http.Client{
+				Timeout: time.Duration(params.TimeoutTipsel) * time.Second,
+			},
+		},
 	)
 	//		Timeout: time.Duration(params.TimeoutTipsel) * time.Second,
 	if err != nil {
@@ -80,7 +90,12 @@ func initTransferBundleGenerator(name string, params *senderParamsYAML, logger *
 	AEC.registerAPI(ret.iotaAPIgTTA, params.IOTANodeTipsel)
 
 	ret.iotaAPIaTT, err = ComposeAPI(
-		HTTPClientSettings{URI: params.IOTANodePoW},
+		HTTPClientSettings{
+			URI: params.IOTANodePoW,
+			Client: &http.Client{
+				Timeout: time.Duration(params.TimeoutPoW) * time.Second,
+			},
+		},
 	)
 	//		Timeout: time.Duration(params.TimeoutPoW) * time.Second,
 	if err != nil {
