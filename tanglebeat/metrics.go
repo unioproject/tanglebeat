@@ -6,6 +6,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
+	"time"
 )
 
 var (
@@ -64,12 +65,17 @@ func initExposeToPometheus() {
 	go exposeMetrics(Config.Prometheus.ScrapeTargetPort)
 }
 
+var restarted = time.Now()
 var restartIncreased = false
 
 func updateSenderMetrics(upd *sender_update.SenderUpdate) {
 	if !restartIncreased {
-		restartCounter.Inc()
-		restartIncreased = true
+		if time.Since(restarted) > 30*time.Second {
+			// increase restart counter only 30 sec after restart
+			// to give  time to prometheus to scrape 0 value
+			restartCounter.Inc()
+			restartIncreased = true
+		}
 	}
 	if upd.UpdType != sender_update.SENDER_UPD_CONFIRM {
 		return
