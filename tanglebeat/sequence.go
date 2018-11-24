@@ -113,6 +113,7 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 		ForceReattachAfterMin: params.ForceReattachAfterMin,
 		PromoteChain:          params.PromoteChain,
 		PromoteEverySec:       params.PromoteEverySec,
+		PromoteDisable:        params.PromoteDisable,
 		Log:                   logger,
 		AEC:                   AEC,
 	}

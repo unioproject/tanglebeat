@@ -75,6 +75,7 @@ type senderParamsYAML struct {
 	ForceReattachAfterMin uint64 `yaml:"forceReattachAfterMin"`
 	PromoteChain          bool   `yaml:"promoteChain"`
 	PromoteEverySec       uint64 `yaml:"promoteEverySec"`
+	PromoteDisable        bool   `yaml:"promoteDisable"`
 	SeqRestartAfterErr    uint64 `yaml:"seqRestartAfterErr"`
 }
 
@@ -322,6 +323,9 @@ func getSeqParams(name string) (*senderParamsYAML, error) {
 	}
 	if ret.SeqRestartAfterErr == 0 {
 		ret.SeqRestartAfterErr = Config.Sender.Globals.SeqRestartAfterErr
+	}
+	if Config.Sender.Globals.PromoteDisable {
+		ret.PromoteDisable = true
 	}
 	return &ret, nil
 }

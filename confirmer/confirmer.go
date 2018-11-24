@@ -28,6 +28,7 @@ type Confirmer struct {
 	ForceReattachAfterMin uint64
 	PromoteChain          bool
 	PromoteEverySec       uint64
+	PromoteDisable        bool
 	Log                   *logging.Logger
 	AEC                   lib.ErrorCounter
 	// internal
@@ -85,6 +86,7 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 	if err != nil {
 		return nil, err
 	}
+	bundleHash := tail.Bundle
 	nowis := time.Now()
 
 	conf.mutex.Lock()
@@ -95,7 +97,7 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 	}
 	conf.running = true
 	conf.lastBundleTrytes = bundleTrytes
-	conf.bundleHash = tail.Bundle
+	conf.bundleHash = bundleHash
 	conf.nextForceReattachTime = nowis.Add(time.Duration(conf.ForceReattachAfterMin) * time.Minute)
 	conf.nextPromoTime = nowis
 	conf.nextTailHashToPromote = tail.Hash
@@ -109,8 +111,13 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 		conf.AEC = &dummy{}
 	}
 
-	// starting 3 routines
-	cancelPromo := conf.goPromote()
+	// starting 2 or 3 routines
+	cancelPromo := func() {} // dummy cancel function for promotion routine f promotion is disabled
+	if !conf.PromoteDisable {
+		cancelPromo = conf.goPromote()
+	} else {
+		conf.Log.Debugf("Promotion is disabled, won't start promotion routine for %v", bundleHash)
+	}
 	cancelReattach := conf.goReattach()
 	go conf.waitForConfirmation(cancelPromo, cancelReattach)
 
