@@ -111,13 +111,8 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 		conf.AEC = &dummy{}
 	}
 
-	// starting 2 or 3 routines
-	cancelPromo := func() {} // dummy cancel function for promotion routine f promotion is disabled
-	if !conf.PromoteDisable {
-		cancelPromo = conf.goPromote()
-	} else {
-		conf.Log.Debugf("Promotion is disabled, won't start promotion routine for %v", bundleHash)
-	}
+	// starting 3 routines
+	cancelPromo := conf.goPromote()
 	cancelReattach := conf.goReattach()
 	go conf.waitForConfirmation(cancelPromo, cancelReattach)
 
@@ -194,12 +189,13 @@ func (conf *Confirmer) checkConsistency(tailHash Hash) (bool, error) {
 	return consistent, nil
 }
 
-func (conf *Confirmer) checkIfToPromote() (bool, error) {
-
+// checks for promotability (consistency) and sets 'isNotPromotable' flag
+func (conf *Confirmer) checkIfPromotable() (bool, error) {
 	if conf.isNotPromotable || time.Now().Before(conf.nextPromoTime) {
 		// if not promotable, routine will be idle until reattached
 		return false, nil
 	}
+
 	// check if next tail to promote is consistent. If not, promote will be idle
 	consistent, err := conf.checkConsistency(conf.nextTailHashToPromote)
 	if err != nil {
@@ -209,17 +205,27 @@ func (conf *Confirmer) checkIfToPromote() (bool, error) {
 	return consistent, nil
 }
 
+const checkPromotabilityIfDisabled = time.Duration(15) * time.Second
+
 func (conf *Confirmer) promoteIfNeeded() error {
 	conf.mutex.Lock()
 	defer conf.mutex.Unlock()
 
-	toPromote, err := conf.checkIfToPromote()
+	toPromote, err := conf.checkIfPromotable()
 	if err != nil {
 		return err
 	}
 	if !toPromote {
 		return nil
 	}
+
+	if conf.PromoteDisable {
+		// if promotion disabled, check for promotability every 15 sec
+		// to send signal to reattach if not promotable
+		conf.nextPromoTime = time.Now().Add(checkPromotabilityIfDisabled)
+		return nil
+	}
+	// promotion enabled and it is time to promote
 	err = conf.promote()
 	if err != nil {
 		conf.sendConfirmerUpdate(UPD_NO_ACTION, err)
