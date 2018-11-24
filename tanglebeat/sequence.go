@@ -57,7 +57,7 @@ func NewSequence(name string) (*TransferSequence, error) {
 		return nil, err
 	}
 	ret := TransferSequence{
-		name:         longName,
+		name:         name,
 		params:       params,
 		bundleSource: bundleSource,
 		confirmer:    conf,

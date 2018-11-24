@@ -21,7 +21,7 @@ const (
 	Version                 = "1.01"
 	PREFIX_MODULE           = "tanglebeat"
 	ROTATE_LOG_HOURS        = 12
-	ROTATE_LOG_RETAIN_HOURS = 36
+	ROTATE_LOG_RETAIN_HOURS = 12
 )
 
 var (

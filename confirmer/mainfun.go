@@ -30,7 +30,7 @@ func (conf *Confirmer) promote() error {
 		} else {
 			m = "blowball"
 		}
-		conf.Log.Debugf("CONFIRMER: promoting '%v'. Tag = '%v'. Tail = %v Bundle = %v",
+		conf.Log.Debugf("CONFIRMER-PROMO: promoting '%v'. Tag = '%v'. Tail = %v Bundle = %v",
 			m, conf.TxTagPromote, conf.nextTailHashToPromote, conf.bundleHash)
 	}
 	transfers := Transfers{{
@@ -84,7 +84,7 @@ func (conf *Confirmer) promote() error {
 		}
 		conf.nextTailHashToPromote = tail.Hash
 	}
-	conf.Log.Debugf("CONFIRMER: finished promoting bundle hash %v. Next tail to promote = %v",
+	conf.Log.Debugf("CONFIRMER-PROMO: finished promoting bundle hash %v. Next tail to promote = %v",
 		conf.bundleHash, conf.nextTailHashToPromote)
 	conf.nextPromoTime = nowis.Add(time.Duration(conf.PromoteEverySec) * time.Second)
 	return nil
@@ -97,7 +97,7 @@ func (conf *Confirmer) reattach() error {
 	} else {
 		if curTail.Bundle != conf.bundleHash {
 			// assert
-			return errors.New("CONFIRMER:reattach: inconsistency curTail.Bundle != conf.bundleHash")
+			return errors.New("CONFIRMER-REATT:reattach: inconsistency curTail.Bundle != conf.bundleHash")
 		}
 	}
 	st := lib.UnixMs(time.Now())
@@ -130,7 +130,7 @@ func (conf *Confirmer) reattach() error {
 	if newTail, err = lib.TailFromBundleTrytes(btrytes); err != nil {
 		return err
 	}
-	conf.debugf("CONFIRMER: finished reattaching. New tail hash %v", newTail.Hash)
+	conf.debugf("CONFIRMER-REATT: finished reattaching. New tail hash %v", newTail.Hash)
 	nowis := time.Now()
 	conf.numAttach += 1
 	conf.lastBundleTrytes = btrytes

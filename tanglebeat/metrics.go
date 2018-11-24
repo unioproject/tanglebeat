@@ -14,6 +14,7 @@ var (
 	confDurationSecCounter       *prometheus.CounterVec
 	confPoWDurationSecCounter    *prometheus.CounterVec
 	confTipselDurationSecCounter *prometheus.CounterVec
+	restartCounter               prometheus.Counter
 )
 
 func exposeMetrics(port int) {
@@ -49,16 +50,27 @@ func initExposeToPometheus() {
 		Help: "Sums up total duration it took to do tip selection for confirmation.",
 	}, []string{"seqid", "node_tipsel"})
 
+	restartCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "tanglebeat_restart_counter",
+		Help: "Increases every time program starts",
+	})
 	prometheus.MustRegister(confCounter)
 	prometheus.MustRegister(confDurationSecCounter)
 	prometheus.MustRegister(confPoWCostCounter)
 	prometheus.MustRegister(confPoWDurationSecCounter)
 	prometheus.MustRegister(confTipselDurationSecCounter)
+	prometheus.MustRegister(restartCounter)
 
 	go exposeMetrics(Config.Prometheus.ScrapeTargetPort)
 }
 
+var restartIncreased = false
+
 func updateSenderMetrics(upd *sender_update.SenderUpdate) {
+	if !restartIncreased {
+		restartCounter.Inc()
+		restartIncreased = true
+	}
 	if upd.UpdType != sender_update.SENDER_UPD_CONFIRM {
 		return
 	}
