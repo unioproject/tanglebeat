@@ -571,21 +571,15 @@ func extractBundleTxByTail(tail *Transaction, allTx []Transaction) []*Transactio
 }
 
 func (gen *transferBundleGenerator) isAnyConfirmed(txHashes Hashes) (bool, error) {
-	incl, err := gen.iotaAPI.GetLatestInclusion(txHashes)
+	confirmed, err := lib.IsAnyConfirmed(txHashes, gen.iotaAPI)
 	if err != nil {
 		AEC.IncErrorCount(gen.iotaAPI)
-		return false, err
 	}
-	for _, ok := range incl {
-		if ok {
-			return true, nil
-		}
-	}
-	return false, nil
+	return confirmed, err
 }
 
-func (gen *transferBundleGenerator) findTransactionObjects(query FindTransactionsQuery) (Transactions, error) {
-	// TODO tx cache
+// correct but probably have problems with many transactions
+func (gen *transferBundleGenerator) findTransactionObjectsOld(query FindTransactionsQuery) (Transactions, error) {
 	ftHashes, err := gen.iotaAPI.FindTransactions(query)
 	if err != nil {
 		AEC.IncErrorCount(gen.iotaAPI)
@@ -597,4 +591,14 @@ func (gen *transferBundleGenerator) findTransactionObjects(query FindTransaction
 		return nil, err
 	}
 	return AsTransactionObjects(rawTrytes, nil)
+}
+
+// new one works with big number of transactions
+func (gen *transferBundleGenerator) findTransactionObjects(query FindTransactionsQuery) (Transactions, error) {
+	ret, err := lib.FindTransactionObjects(query, gen.iotaAPI)
+	if err != nil {
+		AEC.IncErrorCount(gen.iotaAPI)
+		return nil, err
+	}
+	return ret, nil
 }
