@@ -120,34 +120,36 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 // will wait confirmation of the bundle and cancel other routines when confirmed
 func (conf *Confirmer) waitForConfirmation(cancelPromo, cancelReattach func()) {
 	started := time.Now()
-	conf.debugf("CONFIRMER: 'wait confirmation' routine started for %v", conf.bundleHash)
-	defer conf.debugf("CONFIRMER: 'wait confirmation' routine ended for %v", conf.bundleHash)
+	conf.debugf("CONFIRMER-WAIT: 'wait confirmation' routine started for %v", conf.bundleHash)
+	defer conf.debugf("CONFIRMER-WAIT: 'wait confirmation' routine ended for %v", conf.bundleHash)
 
 	bundleHash := conf.bundleHash
 	for count := 0; ; count++ {
 		if count%3 == 0 {
-			conf.debugf("----- CONFIRMER: confirm task for bundle hash %v running already %v", bundleHash, time.Since(started))
+			conf.debugf("CONFIRMER-WAIT: confirm task for bundle hash %v running already %v", bundleHash, time.Since(started))
 		}
 		confirmed, err := lib.IsBundleHashConfirmed(bundleHash, conf.IotaAPI)
 		if err != nil {
 			conf.AEC.IncErrorCount(conf.IotaAPI)
-			conf.errorf("CONFIRMER:isBundleHashConfirmed: %v", err)
+			conf.errorf("CONFIRMER-WAIT: isBundleHashConfirmed returned %v", err)
 		} else {
 			if confirmed {
+				conf.Log.Debugf("CONFIRMER-WAIT: confirmed bundle %v", bundleHash)
+
 				conf.mutex.Lock()
 				conf.sendConfirmerUpdate(UPD_CONFIRM, nil)
 				conf.running = false
 				conf.mutex.Unlock()
 
-				conf.Log.Debugf("CONFIRMER: canceling confirmer task for bundle %v", bundleHash)
+				conf.Log.Debugf("CONFIRMER-WAIT: canceling confirmer task for bundle %v", bundleHash)
 				cancelPromo()
 				cancelReattach()
 				conf.wg.Wait()
 
-				conf.Log.Debugf("CONFIRMER: stopped promoter and reattacher routines for bundle %v", bundleHash)
+				conf.Log.Debugf("CONFIRMER-WAIT: stopped promoter and reattacher routines for bundle %v", bundleHash)
 
 				close(conf.chanUpdate) // stop update channel
-				conf.Log.Debugf("CONFIRMER: closed update channel for bundle %v", bundleHash)
+				conf.Log.Debugf("CONFIRMER-WAIT: closed update channel for bundle %v", bundleHash)
 				return //>>>>>>>>>>>>>>
 			}
 		}
@@ -222,15 +224,15 @@ func (conf *Confirmer) goPromote() func() {
 	chCancel := make(chan struct{})
 
 	go func() {
-		conf.debugf("CONFIRMER: started promoter routine  for bundle hash %v", conf.bundleHash)
-		defer conf.debugf("CONFIRMER: finished promoter routine for bundle hash %v", conf.bundleHash)
+		conf.debugf("CONFIRMER-PROMO: started promoter routine  for bundle hash %v", conf.bundleHash)
+		defer conf.debugf("CONFIRMER-PROMO: finished promoter routine for bundle hash %v", conf.bundleHash)
 
 		conf.wg.Add(1)
 		defer conf.wg.Done()
 
 		for {
 			if err := conf.promoteIfNeeded(); err != nil {
-				conf.errorf("CONFIRMER: promotion routine: %v. Sleep 5 sec: ", err)
+				conf.errorf("CONFIRMER-PROMO: promotion routine: %v. Sleep 5 sec: ", err)
 				time.Sleep(5 * time.Second)
 			}
 			select {
@@ -265,8 +267,8 @@ func (conf *Confirmer) goReattach() func() {
 	chCancel := make(chan struct{})
 
 	go func() {
-		conf.debugf("CONFIRMER: started reattacher routine. Bundle = %v", conf.bundleHash)
-		defer conf.debugf("CONFIRMER: finished reattacher routine. Bundle = %v", conf.bundleHash)
+		conf.debugf("CONFIRMER-REATT: started reattacher routine. Bundle = %v", conf.bundleHash)
+		defer conf.debugf("CONFIRMER-REATT: finished reattacher routine. Bundle = %v", conf.bundleHash)
 
 		conf.wg.Add(1)
 		defer conf.wg.Done()
