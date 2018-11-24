@@ -128,7 +128,9 @@ func (conf *Confirmer) waitForConfirmation(cancelPromo, cancelReattach func()) {
 		if count%3 == 0 {
 			conf.debugf("CONFIRMER-WAIT: confirm task for bundle hash %v running already %v", bundleHash, time.Since(started))
 		}
+		conf.debugf("------- CONFIRMER-WAIT BEFORE IsBundleHashConfirmed")
 		confirmed, err := lib.IsBundleHashConfirmed(bundleHash, conf.IotaAPI)
+		conf.debugf("------- CONFIRMER-WAIT AFTER IsBundleHashConfirmed %v %v", confirmed, err)
 		if err != nil {
 			conf.AEC.IncErrorCount(conf.IotaAPI)
 			conf.errorf("CONFIRMER-WAIT: isBundleHashConfirmed returned %v", err)
