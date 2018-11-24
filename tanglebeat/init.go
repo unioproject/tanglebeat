@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	Version                 = "1.01"
+	Version                 = "1.02"
 	PREFIX_MODULE           = "tanglebeat"
 	ROTATE_LOG_HOURS        = 12
 	ROTATE_LOG_RETAIN_HOURS = 12
