@@ -12,6 +12,7 @@ import (
 	. "github.com/iotaledger/iota.go/trinary"
 	"github.com/lunfardo314/tanglebeat/bundle_source"
 	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/lunfardo314/tanglebeat/stopwatch"
 	"github.com/op/go-logging"
 	"io/ioutil"
 	"net/http"
@@ -248,6 +249,9 @@ func (gen *transferBundleGenerator) runGenerator() {
 			gen.log.Debugf("Transfer Bundles: '%v': Sending bundle to confirm. bundle hash: %v tail: %v",
 				gen.name, bundleHash, tail.Hash)
 			// ---------------------- send bundle to confirm
+			// start stopwatch for the bundle. The beginning of the send is not
+			stopwatch.Start(bundleHash)
+
 			bundleData.Addr = addr
 			bundleData.Index = gen.index
 			bundleData.IsNew = isNew
@@ -263,6 +267,9 @@ func (gen *transferBundleGenerator) runGenerator() {
 			// returns 0 if error count didn't exceed limit
 			success := gen.waitUntilBundleConfirmed(bundleHash)
 			if success {
+				// stop the stopwatch for the bundle
+				stopwatch.Stop(bundleHash)
+
 				gen.log.Debugf("Transfer Bundles: '%v'[%v] bundle %v confirmed", gen.name, gen.index, bundleHash)
 				gen.saveIndex()
 				// moving to next even if balance is still not zero (sometimes happens)

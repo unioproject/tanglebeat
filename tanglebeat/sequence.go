@@ -10,6 +10,7 @@ import (
 	"github.com/lunfardo314/tanglebeat/confirmer"
 	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/lunfardo314/tanglebeat/sender_update"
+	"github.com/lunfardo314/tanglebeat/stopwatch"
 	"github.com/op/go-logging"
 	"net/http"
 	"os"
@@ -226,6 +227,15 @@ func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.Confirmer
 	updType := confirmerUpdType2Sender(updConf.UpdateType)
 	seq.log.Debugf("Update '%v' for %v index = %v",
 		updType, seq.GetLongName(), index)
+	updateTs := lib.UnixMs(time.Now())
+	if updConf.UpdateType == confirmer.UPD_CONFIRM {
+
+		// close the stopwatch and get the earliest value
+		_, stopped, ok := stopwatch.Get(bundleHash)
+		if ok {
+			updateTs = stopped
+		}
+	}
 	processUpdate(
 		"local",
 		&sender_update.SenderUpdate{
@@ -237,7 +247,7 @@ func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.Confirmer
 			Addr:                  addr,
 			Bundle:                bundleHash,
 			StartTs:               sendingStarted,
-			UpdateTs:              lib.UnixMs(updConf.UpdateTime),
+			UpdateTs:              updateTs,
 			NumAttaches:           updConf.NumAttaches,
 			NumPromotions:         updConf.NumPromotions,
 			NodePOW:               seq.params.IOTANodePoW,

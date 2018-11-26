@@ -5,6 +5,7 @@ import (
 	. "github.com/iotaledger/iota.go/api"
 	. "github.com/iotaledger/iota.go/trinary"
 	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/lunfardo314/tanglebeat/stopwatch"
 	"github.com/op/go-logging"
 	"strings"
 	"sync"
@@ -139,6 +140,9 @@ func (conf *Confirmer) waitForConfirmation(cancelPromoCheck, cancelPromo, cancel
 			conf.errorf("CONFIRMER-WAIT: isBundleHashConfirmed returned %v", err)
 		} else {
 			if confirmed {
+				// stop the stopwatch for the bundle
+				stopwatch.Stop(bundleHash)
+
 				conf.Log.Debugf("CONFIRMER-WAIT: confirmed bundle %v", bundleHash)
 
 				conf.mutex.Lock()
