@@ -180,8 +180,6 @@ func configDebugging() {
 	}
 }
 
-// TODO rotating log
-
 func configMasterLogging() {
 	var logWriter io.Writer
 

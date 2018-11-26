@@ -111,16 +111,17 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 		conf.AEC = &dummy{}
 	}
 
-	// starting 3 routines
+	// starting 4 routines
+	cancelPromoCheck := conf.goPromotabilityCheck()
 	cancelPromo := conf.goPromote()
 	cancelReattach := conf.goReattach()
-	go conf.waitForConfirmation(cancelPromo, cancelReattach)
+	go conf.waitForConfirmation(cancelPromoCheck, cancelPromo, cancelReattach)
 
 	return conf.chanUpdate, nil
 }
 
 // will wait confirmation of the bundle and cancel other routines when confirmed
-func (conf *Confirmer) waitForConfirmation(cancelPromo, cancelReattach func()) {
+func (conf *Confirmer) waitForConfirmation(cancelPromoCheck, cancelPromo, cancelReattach func()) {
 	started := time.Now()
 	conf.debugf("CONFIRMER-WAIT: 'wait confirmation' routine started for %v", conf.bundleHash)
 	defer conf.debugf("CONFIRMER-WAIT: 'wait confirmation' routine ended for %v", conf.bundleHash)
@@ -146,6 +147,7 @@ func (conf *Confirmer) waitForConfirmation(cancelPromo, cancelReattach func()) {
 				conf.mutex.Unlock()
 
 				conf.Log.Debugf("CONFIRMER-WAIT: canceling confirmer task for bundle %v", bundleHash)
+				cancelPromoCheck()
 				cancelPromo()
 				cancelReattach()
 				conf.wg.Wait()
@@ -189,44 +191,49 @@ func (conf *Confirmer) checkConsistency(tailHash Hash) (bool, error) {
 	return consistent, nil
 }
 
-// checks for promotability (consistency) and sets 'isNotPromotable' flag
-func (conf *Confirmer) checkIfPromotable() (bool, error) {
-	if conf.isNotPromotable || time.Now().Before(conf.nextPromoTime) {
-		// if not promotable, routine will be idle until reattached
-		return false, nil
-	}
+const promotabilityCheckPeriod = 3 * time.Second
 
-	// check if next tail to promote is consistent. If not, promote will be idle
-	consistent, err := conf.checkConsistency(conf.nextTailHashToPromote)
-	if err != nil {
-		return false, err
+func (conf *Confirmer) goPromotabilityCheck() func() {
+	chCancel := make(chan struct{})
+	go func() {
+		conf.debugf("CONFIRMER-PROMOCHECK: started promotability checker routine for bundle hash %v", conf.bundleHash)
+		defer conf.debugf("CONFIRMER-PROMOCHECK: finished promotability checker routine for bundle hash %v", conf.bundleHash)
+
+		conf.wg.Add(1)
+		defer conf.wg.Done()
+		var err error
+		var consistent bool
+		for {
+			select {
+			case <-chCancel:
+				return
+			case <-time.After(promotabilityCheckPeriod):
+				consistent, err = conf.checkConsistency(conf.nextTailHashToPromote)
+				if err != nil {
+					conf.Log.Errorf("CONFIRMER-PROMOCHECK: checkConsistency returned: %v", err)
+					time.Sleep(5 * time.Second)
+				} else {
+					conf.mutex.Lock()
+					conf.isNotPromotable = !consistent
+					conf.mutex.Unlock()
+				}
+			}
+		}
+	}()
+	return func() {
+		close(chCancel)
 	}
-	conf.isNotPromotable = !consistent
-	return consistent, nil
 }
-
-const checkPromotabilityIfDisabled = time.Duration(15) * time.Second
 
 func (conf *Confirmer) promoteIfNeeded() error {
 	conf.mutex.Lock()
 	defer conf.mutex.Unlock()
 
-	toPromote, err := conf.checkIfPromotable()
-	if err != nil {
-		return err
-	}
-	if !toPromote {
+	if conf.isNotPromotable || time.Now().Before(conf.nextPromoTime) {
+		// if not promotable, routine will be idle until reattached
 		return nil
 	}
-
-	if conf.PromoteDisable {
-		// if promotion disabled, check for promotability every 15 sec
-		// to send signal to reattach if not promotable
-		conf.nextPromoTime = time.Now().Add(checkPromotabilityIfDisabled)
-		return nil
-	}
-	// promotion enabled and it is time to promote
-	err = conf.promote()
+	err := conf.promote()
 	if err != nil {
 		conf.sendConfirmerUpdate(UPD_NO_ACTION, err)
 	} else {
@@ -236,8 +243,12 @@ func (conf *Confirmer) promoteIfNeeded() error {
 }
 
 func (conf *Confirmer) goPromote() func() {
-	chCancel := make(chan struct{})
+	if conf.PromoteDisable {
+		conf.debugf("CONFIRMER-PROMO: promotion is disabled, promo routine won't be started")
+		return func() {} // routine is not started, empty cancel function is returned
+	}
 
+	chCancel := make(chan struct{})
 	go func() {
 		conf.debugf("CONFIRMER-PROMO: started promoter routine  for bundle hash %v", conf.bundleHash)
 		defer conf.debugf("CONFIRMER-PROMO: finished promoter routine for bundle hash %v", conf.bundleHash)
