@@ -308,9 +308,9 @@ func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash Hash) bo
 		if count%5 == 0 {
 			gen.log.Debugf("'%v': waitUntilBundleConfirmed: %v Time since waiting: %v", gen.name, bundleHash, sinceWaiting)
 		}
-		gen.log.Debugf("------- TransferBundleGen: BEFORE IsBundleHashConfirmed")
+		//gen.log.Debugf("------- TransferBundleGen: BEFORE IsBundleHashConfirmed")
 		confirmed, err := lib.IsBundleHashConfirmed(bundleHash, gen.iotaAPI)
-		gen.log.Debugf("------- TransferBundleGen: AFTER IsBundleHashConfirmed %v %v", confirmed, err)
+		//gen.log.Debugf("------- TransferBundleGen: AFTER IsBundleHashConfirmed %v %v", confirmed, err)
 		if err != nil {
 			AEC.IncErrorCount(gen.iotaAPI)
 			errorCount += 1
