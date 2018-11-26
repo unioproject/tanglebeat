@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/lunfardo314/tanglebeat/metricszmq"
 	"os"
 	"time"
 )
@@ -39,7 +40,7 @@ func main() {
 	}
 	if Config.Prometheus.Enabled && Config.Prometheus.ZmqMetrics.Enabled {
 		log.Infof("Starting ZMQ metrics updater")
-		initMetricsZMQ()
+		metricszmq.InitMetricsZMQ(Config.Prometheus.ZmqMetrics.ZMQUri, log)
 		enabled = true
 	}
 	if Config.Sender.Enabled {
