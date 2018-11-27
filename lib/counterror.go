@@ -3,5 +3,5 @@ package lib
 import "github.com/iotaledger/iota.go/api"
 
 type ErrorCounter interface {
-	IncErrorCount(api *api.API)
+	CountError(api *api.API, err error) bool
 }

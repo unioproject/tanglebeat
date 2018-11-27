@@ -43,6 +43,9 @@ func (aec *apiErrorCount) getEndpoint(api *API) string {
 	return ret
 }
 
-func (aec *apiErrorCount) IncErrorCount(api *API) {
-	aec.apiErrorCounter.With(prometheus.Labels{"endpoint": aec.getEndpoint(api)}).Inc()
+func (aec *apiErrorCount) CountError(api *API, err error) bool {
+	if err != nil {
+		aec.apiErrorCounter.With(prometheus.Labels{"endpoint": aec.getEndpoint(api)}).Inc()
+	}
+	return err != nil
 }
