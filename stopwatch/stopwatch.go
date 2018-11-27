@@ -18,6 +18,7 @@ type stopwatchEntry struct {
 var stopwatches = make(map[string]stopwatchEntry)
 var mutex sync.Mutex
 
+// created stopwatch entry. Returns false if already exist
 func Start(name string) bool {
 	mutex.Lock()
 	defer mutex.Unlock()
@@ -43,17 +44,33 @@ func Stop(name string) bool {
 	return true
 }
 
-func Get(name string) (uint64, uint64, bool) {
-	mutex.Lock()
-	defer mutex.Unlock()
-
+func _get(name string) (uint64, uint64, bool) {
 	entry, ok := stopwatches[name]
 	if !ok {
 		return 0, 0, false
 	}
 	started := entry.started
-	stopped := entry.stopped
-	delete(stopwatches, name)
+	var stopped uint64
+	if entry.stopped == 0 {
+		stopped = lib.UnixMs(time.Now())
+	} else {
+		stopped = entry.stopped
+	}
 	return started, stopped, true
+}
 
+func Get(name string) (uint64, uint64, bool) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	return _get(name)
+}
+
+func GetAndRemove(name string) (uint64, uint64, bool) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	started, stopped, succ := _get(name)
+	if succ {
+		delete(stopwatches, name)
+	}
+	return started, stopped, succ
 }
