@@ -80,7 +80,7 @@ func (conf *Confirmer) warningf(f string, p ...interface{}) {
 
 type dummy struct{}
 
-func (*dummy) IncErrorCount(api *API) {}
+func (*dummy) CountError(api *API, err error) bool { return false }
 
 func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *ConfirmerUpdate, error) {
 	tail, err := lib.TailFromBundleTrytes(bundleTrytes)
@@ -135,8 +135,7 @@ func (conf *Confirmer) waitForConfirmation(cancelPromoCheck, cancelPromo, cancel
 		//conf.debugf("------- CONFIRMER-WAIT BEFORE IsBundleHashConfirmed")
 		confirmed, err := lib.IsBundleHashConfirmed(bundleHash, conf.IotaAPI)
 		//conf.debugf("------- CONFIRMER-WAIT AFTER IsBundleHashConfirmed %v %v", confirmed, err)
-		if err != nil {
-			conf.AEC.IncErrorCount(conf.IotaAPI)
+		if conf.AEC.CountError(conf.IotaAPI, err) {
 			conf.errorf("CONFIRMER-WAIT: isBundleHashConfirmed returned %v", err)
 		} else {
 			if confirmed {
@@ -182,8 +181,7 @@ func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, err error) {
 
 func (conf *Confirmer) checkConsistency(tailHash Hash) (bool, error) {
 	consistent, info, err := conf.IotaAPI.CheckConsistency(tailHash)
-	if err != nil {
-		conf.AEC.IncErrorCount(conf.IotaAPI)
+	if conf.AEC.CountError(conf.IotaAPI, err) {
 		return false, err
 	}
 	if !consistent && strings.Contains(info, "not solid") {
