@@ -168,8 +168,7 @@ func (seq *TransferSequence) Run() {
 				updConf.TotalDurationATTMsec += bundleData.TotalDurationPoWMs
 				updConf.TotalDurationGTTAMsec += bundleData.TotalDurationTipselMs
 
-				seq.processConfirmerUpdate(
-					updConf, bundleData.Addr, bundleData.Index, bundleHash, bundleData.StartTime)
+				seq.processConfirmerUpdate(updConf, bundleData.Addr, bundleData.Index, bundleHash)
 			}
 		}
 		seq.log.Debugf("TransferSequence '%v': finished processing updates for bundle %v", seq.GetLongName(), bundleHash)
@@ -195,6 +194,10 @@ func (seq *TransferSequence) processStartUpdate(bundleData *bundle_source.FirstB
 	seq.log.Debugf("Update '%v' for %v index = %v",
 		updType, seq.name, bundleData.Index)
 
+	startTs, updateTs, ok := stopwatch.Get(bundleHash)
+	if !ok {
+		seq.log.Errorf("No stopwatch entry for bundle hash %v", bundleHash)
+	}
 	processUpdate(
 		"local",
 		&sender_update.SenderUpdate{
@@ -205,8 +208,8 @@ func (seq *TransferSequence) processStartUpdate(bundleData *bundle_source.FirstB
 			Index:                 bundleData.Index,
 			Addr:                  bundleData.Addr,
 			Bundle:                bundleHash,
-			StartTs:               bundleData.StartTime,
-			UpdateTs:              bundleData.StartTime,
+			StartTs:               startTs,
+			UpdateTs:              updateTs,
 			NumAttaches:           bundleData.NumAttach,
 			NumPromotions:         0,
 			NodePOW:               seq.params.IOTANodePoW,
@@ -222,23 +225,21 @@ func (seq *TransferSequence) processStartUpdate(bundleData *bundle_source.FirstB
 }
 
 func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.ConfirmerUpdate,
-	addr Hash, index uint64, bundleHash Hash, sendingStarted uint64) {
+	addr Hash, index uint64, bundleHash Hash) {
 
 	updType := confirmerUpdType2Sender(updConf.UpdateType)
 	seq.log.Debugf("Update '%v' for %v index = %v",
 		updType, seq.GetLongName(), index)
-	updateTs := lib.UnixMs(time.Now())
-	startTs := sendingStarted
-	if updConf.UpdateType == confirmer.UPD_CONFIRM {
 
-		// close the stopwatch and get the earliest value
-		started, stopped, ok := stopwatch.GetAndRemove(bundleHash)
-		if ok {
-			startTs = started
-			updateTs = stopped
-			seq.log.Debugf("------- TRACE stopwatch results start = %d stop = %d duration = %d",
-				startTs, updateTs, updateTs-startTs)
-		}
+	var started, end uint64
+	var ok bool
+	if updConf.UpdateType == confirmer.UPD_CONFIRM {
+		started, end, ok = stopwatch.GetAndRemove(bundleHash)
+	} else {
+		started, end, ok = stopwatch.Get(bundleHash)
+	}
+	if !ok {
+		seq.log.Errorf("processConfirmerUpdate: No stopwatch entry for %v", bundleHash)
 	}
 	processUpdate(
 		"local",
@@ -250,8 +251,8 @@ func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.Confirmer
 			Index:                 index,
 			Addr:                  addr,
 			Bundle:                bundleHash,
-			StartTs:               startTs,
-			UpdateTs:              updateTs,
+			StartTs:               started,
+			UpdateTs:              end,
 			NumAttaches:           updConf.NumAttaches,
 			NumPromotions:         updConf.NumPromotions,
 			NodePOW:               seq.params.IOTANodePoW,
