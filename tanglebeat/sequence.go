@@ -228,12 +228,16 @@ func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.Confirmer
 	seq.log.Debugf("Update '%v' for %v index = %v",
 		updType, seq.GetLongName(), index)
 	updateTs := lib.UnixMs(time.Now())
+	startTs := sendingStarted
 	if updConf.UpdateType == confirmer.UPD_CONFIRM {
 
 		// close the stopwatch and get the earliest value
-		_, stopped, ok := stopwatch.Get(bundleHash)
+		started, stopped, ok := stopwatch.GetAndRemove(bundleHash)
 		if ok {
+			startTs = started
 			updateTs = stopped
+			seq.log.Debugf("------- TRACE stopwatch results start = %d stop = %d duration = %d",
+				startTs, updateTs, updateTs-startTs)
 		}
 	}
 	processUpdate(
@@ -246,7 +250,7 @@ func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.Confirmer
 			Index:                 index,
 			Addr:                  addr,
 			Bundle:                bundleHash,
-			StartTs:               sendingStarted,
+			StartTs:               startTs,
 			UpdateTs:              updateTs,
 			NumAttaches:           updConf.NumAttaches,
 			NumPromotions:         updConf.NumPromotions,
