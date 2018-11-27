@@ -249,7 +249,8 @@ func (gen *transferBundleGenerator) runGenerator() {
 			gen.log.Debugf("Transfer Bundles: '%v': Sending bundle to confirm. bundle hash: %v tail: %v",
 				gen.name, bundleHash, tail.Hash)
 			// ---------------------- send bundle to confirm
-			// start stopwatch for the bundle. The beginning of the send is not
+			// start stopwatch for the bundle. The creation of the originating bundle
+			// won't be included into overall duration
 			stopwatch.Start(bundleHash)
 
 			bundleData.Addr = addr
@@ -373,10 +374,9 @@ func (gen *transferBundleGenerator) saveIndex() bool {
 
 func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr Trytes, balance uint64,
 	seed Trytes, fromIndex uint64) (*bundle_source.FirstBundleData, error) {
-	// fromIndex is required to calculate inputs, cant specifiy inputs explicitely to PrepareTransfers
+
 	ret := &bundle_source.FirstBundleData{
 		NumAttach: 1,
-		StartTime: lib.UnixMs(time.Now()),
 	}
 	//------ prepare transfer
 	transfers := Transfers{{
@@ -532,7 +532,6 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_sour
 
 	// none is confirmed hence no matter which one
 	// select the oldest one by Timestamp
-	// TODO  use attachmentTimestamp instead
 	maxTail := tails[0]
 	maxTime := maxTail.Timestamp
 	for _, tail := range tails {
@@ -562,7 +561,6 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_sour
 	ret := &bundle_source.FirstBundleData{
 		BundleTrytes: bundleTrytes,
 		NumAttach:    uint64(len(tails)),
-		StartTime:    lib.UnixMs(time.Now()), // won't be using tx timestamp as time at all
 	}
 	return ret, nil
 }
