@@ -39,6 +39,23 @@ type ConfigStructYAML struct {
 	Sender                senderYAML                `yaml:"sender"`
 	Prometheus            prometheusYAML            `yaml:"prometheus"`
 	SenderUpdateCollector senderUpdateCollectorYAML `yaml:"senderUpdateCollector"`
+	ExitProgram           exitProgramYAML           `yaml:"exitProgram"`
+}
+
+type exitProgramCondition int
+
+const (
+	EXIT_NEVER              exitProgramCondition = 0
+	EXIT_1MIN_COUNT_EXEEDS  exitProgramCondition = 1
+	EXIT_10MIN_COUNT_EXEEDS exitProgramCondition = 2
+	EXIT_CONSECUTIVE_ERRORS exitProgramCondition = 3
+)
+
+type exitProgramYAML struct {
+	Enabled   bool                 `yaml:"enabled"`
+	Threshold int                  `yaml:"threshold"`
+	Condition exitProgramCondition `yaml:"condition"`
+	RC        exitProgramCondition `yaml:"rc"`
 }
 
 type loggingConfigYAML struct {
