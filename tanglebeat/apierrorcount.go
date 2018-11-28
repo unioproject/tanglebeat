@@ -105,10 +105,12 @@ func (aec *apiErrorCount) checkErrorCounter() {
 }
 
 func (aec *apiErrorCount) check1minCondition() {
-	if !Config.ExitProgram.Enabled || !Config.ExitProgram.Exit1min.Enabled {
+	if !Config.ExitProgram.Enabled {
 		return
 	}
-	ago1min := time.Now().Add(-1 * time.Minute)
+	if !Config.ExitProgram.Exit1min.Enabled {
+		return
+	}
 	count := 0
 	for _, ts := range aec.errorTs {
 		if count >= Config.ExitProgram.Exit1min.Threshold {
@@ -116,17 +118,19 @@ func (aec *apiErrorCount) check1minCondition() {
 				Config.ExitProgram.Exit1min.Threshold)
 			os.Exit(Config.ExitProgram.Exit1min.RC)
 		}
-		if ts.After(ago1min) {
+		if time.Since(ts) < 1*time.Minute {
 			count += 1
 		}
 	}
 }
 
 func (aec *apiErrorCount) check10minCondition() {
-	if !Config.ExitProgram.Enabled || !Config.ExitProgram.Exit1min.Enabled {
+	if !Config.ExitProgram.Enabled {
 		return
 	}
-	ago10min := time.Now().Add(-10 * time.Minute)
+	if !Config.ExitProgram.Exit1min.Enabled {
+		return
+	}
 	count := 0
 	for _, ts := range aec.errorTs {
 		if count >= Config.ExitProgram.Exit10min.Threshold {
@@ -134,7 +138,7 @@ func (aec *apiErrorCount) check10minCondition() {
 				Config.ExitProgram.Exit1min.Threshold)
 			os.Exit(Config.ExitProgram.Exit10min.RC)
 		}
-		if ts.After(ago10min) {
+		if time.Since(ts) < 10*time.Minute {
 			count += 1
 		}
 	}
