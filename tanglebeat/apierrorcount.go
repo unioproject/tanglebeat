@@ -81,10 +81,9 @@ func (aec *apiErrorCount) cleanOldErrors() {
 	defer aec.mutex.Unlock()
 
 	if len(aec.errorTs) > 100 {
-		ago10m := time.Now().Add(-10 * time.Minute)
 		tmp := make([]time.Time, 0, len(aec.errorTs))
 		for _, ts := range aec.errorTs {
-			if !ts.Before(ago10m) {
+			if time.Since(ts) < 10*time.Minute {
 				tmp = append(tmp, ts)
 			}
 		}
