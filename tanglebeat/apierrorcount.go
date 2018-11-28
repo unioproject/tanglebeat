@@ -113,8 +113,8 @@ func (aec *apiErrorCount) check1minCondition() {
 	count := 0
 	for _, ts := range aec.errorTs {
 		if count >= Config.ExitProgram.Exit1min.Threshold {
-			log.Criticalf("------------- Exiting program due to 'error count in 1 min exceeded %d'",
-				Config.ExitProgram.Exit1min.Threshold)
+			log.Criticalf("------------- Exiting program due to 'error count in 1 min exceeded %d' RC = %d",
+				Config.ExitProgram.Exit1min.Threshold, Config.ExitProgram.Exit1min.RC)
 			os.Exit(Config.ExitProgram.Exit1min.RC)
 		}
 		if time.Since(ts) < 1*time.Minute {
@@ -133,8 +133,8 @@ func (aec *apiErrorCount) check10minCondition() {
 	count := 0
 	for _, ts := range aec.errorTs {
 		if count >= Config.ExitProgram.Exit10min.Threshold {
-			log.Criticalf("------------- Exiting program due to 'error count in 10 min exceeded %d'",
-				Config.ExitProgram.Exit1min.Threshold)
+			log.Criticalf("------------- Exiting program due to 'error count in 10 min exceeded %d' RC = %v",
+				Config.ExitProgram.Exit10min.Threshold, Config.ExitProgram.Exit10min.RC)
 			os.Exit(Config.ExitProgram.Exit10min.RC)
 		}
 		if time.Since(ts) < 10*time.Minute {
