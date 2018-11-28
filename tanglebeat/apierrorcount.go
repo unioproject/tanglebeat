@@ -19,6 +19,20 @@ type apiErrorCount struct {
 
 var AEC *apiErrorCount
 
+func (aec *apiErrorCount) CheckError(api *API, err error) bool {
+	if err != nil {
+		aec.apiErrorCounter.With(prometheus.Labels{"endpoint": aec.getEndpoint(api)}).Inc()
+		aec.addError()
+	}
+	return err != nil
+}
+
+func (aec *apiErrorCount) RegisterAPI(api *API, endpoint string) {
+	aec.mutex.Lock()
+	defer aec.mutex.Unlock()
+	aec.apiEndpoints[api] = endpoint
+}
+
 func init() {
 	// register prometheus metrics
 	AEC = &apiErrorCount{
@@ -50,15 +64,6 @@ func (aec *apiErrorCount) addError() {
 	aec.mutex.Lock()
 	defer aec.mutex.Unlock()
 	aec.errorTs = append(aec.errorTs, time.Now())
-	if len(aec.errorTs) > 10 {
-		log.Debugf("----------------Error count = %v", len(aec.errorTs))
-	}
-}
-
-func (aec *apiErrorCount) RegisterAPI(api *API, endpoint string) {
-	aec.mutex.Lock()
-	defer aec.mutex.Unlock()
-	aec.apiEndpoints[api] = endpoint
 }
 
 func (aec *apiErrorCount) getEndpoint(api *API) string {
@@ -69,14 +74,6 @@ func (aec *apiErrorCount) getEndpoint(api *API) string {
 		return "???"
 	}
 	return ret
-}
-
-func (aec *apiErrorCount) CheckError(api *API, err error) bool {
-	if err != nil {
-		aec.apiErrorCounter.With(prometheus.Labels{"endpoint": aec.getEndpoint(api)}).Inc()
-		aec.addError()
-	}
-	return err != nil
 }
 
 func (aec *apiErrorCount) cleanOldErrors() {
@@ -98,6 +95,10 @@ func (aec *apiErrorCount) cleanOldErrors() {
 func (aec *apiErrorCount) checkErrorCounter() {
 	aec.mutex.Lock()
 	defer aec.mutex.Unlock()
+
+	if len(aec.errorTs) > 10 {
+		log.Debugf("----------------Error count = %v", len(aec.errorTs))
+	}
 
 	aec.check1minCondition()
 	aec.check10minCondition()
