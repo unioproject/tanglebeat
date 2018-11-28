@@ -65,9 +65,6 @@ func NewSequence(name string) (*TransferSequence, error) {
 		confirmer:    conf,
 		log:          logger,
 	}
-	if params.SeqRestartAfterErr > 0 {
-		ret.log.Infof("Exit sequence '%v' after %d consecutive API errors", ret.GetLongName(), params.SeqRestartAfterErr)
-	}
 	ret.log.Infof("Created instance of the sequence %v", ret.GetLongName())
 	return &ret, nil
 }
@@ -88,7 +85,7 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 	if err != nil {
 		return nil, err
 	}
-	AEC.registerAPI(iotaAPI, params.IOTANode)
+	AEC.RegisterAPI(iotaAPI, params.IOTANode)
 
 	iotaAPIgTTA, err := ComposeAPI(
 		HTTPClientSettings{
@@ -101,7 +98,7 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 	if err != nil {
 		return nil, err
 	}
-	AEC.registerAPI(iotaAPIgTTA, params.IOTANodeTipsel)
+	AEC.RegisterAPI(iotaAPIgTTA, params.IOTANodeTipsel)
 
 	iotaAPIaTT, err := ComposeAPI(
 		HTTPClientSettings{
@@ -114,7 +111,7 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 	if err != nil {
 		return nil, err
 	}
-	AEC.registerAPI(iotaAPIaTT, params.IOTANodePoW)
+	AEC.RegisterAPI(iotaAPIaTT, params.IOTANodePoW)
 
 	txTagPromote := Pad(Trytes(params.TxTagPromote), TagTrinarySize/3)
 	err = Validate(ValidateTags(txTagPromote))

@@ -13,7 +13,7 @@ import (
 
 func (conf *Confirmer) attachToTangle(trunkHash, branchHash Hash, trytes []Trytes) ([]Trytes, error) {
 	ret, err := conf.IotaAPIaTT.AttachToTangle(trunkHash, branchHash, 14, trytes)
-	conf.AEC.CountError(conf.IotaAPIaTT, err)
+	conf.AEC.CheckError(conf.IotaAPIaTT, err)
 	return ret, err
 }
 
@@ -41,12 +41,12 @@ func (conf *Confirmer) promote() error {
 		Timestamp: &ts,
 	}
 	bundleTrytesPrep, err := conf.IotaAPI.PrepareTransfers(all9, transfers, prepTransferOptions)
-	if conf.AEC.CountError(conf.IotaAPI, err) {
+	if conf.AEC.CheckError(conf.IotaAPI, err) {
 		return err
 	}
 	st := lib.UnixMs(time.Now())
 	gttaResp, err := conf.IotaAPIgTTA.GetTransactionsToApprove(3)
-	if conf.AEC.CountError(conf.IotaAPIgTTA, err) {
+	if conf.AEC.CheckError(conf.IotaAPIgTTA, err) {
 		return err
 	}
 	conf.totalDurationGTTAMsec += lib.UnixMs(time.Now()) - st
@@ -62,11 +62,11 @@ func (conf *Confirmer) promote() error {
 	conf.totalDurationATTMsec += lib.UnixMs(time.Now()) - st
 
 	_, err = conf.IotaAPI.BroadcastTransactions(btrytes...)
-	if conf.AEC.CountError(conf.IotaAPI, err) {
+	if conf.AEC.CheckError(conf.IotaAPI, err) {
 		return err
 	}
 	_, err = conf.IotaAPI.StoreTransactions(btrytes...)
-	if conf.AEC.CountError(conf.IotaAPI, err) {
+	if conf.AEC.CheckError(conf.IotaAPI, err) {
 		return err
 	}
 	nowis := time.Now()
@@ -96,7 +96,7 @@ func (conf *Confirmer) reattach() error {
 	}
 	st := lib.UnixMs(time.Now())
 	gttaResp, err := conf.IotaAPIgTTA.GetTransactionsToApprove(3)
-	if conf.AEC.CountError(conf.IotaAPIgTTA, err) {
+	if conf.AEC.CheckError(conf.IotaAPIgTTA, err) {
 		return err
 	}
 	conf.totalDurationGTTAMsec += lib.UnixMs(time.Now()) - st
@@ -110,11 +110,11 @@ func (conf *Confirmer) reattach() error {
 		return err
 	}
 	_, err = conf.IotaAPI.BroadcastTransactions(btrytes...)
-	if conf.AEC.CountError(conf.IotaAPI, err) {
+	if conf.AEC.CheckError(conf.IotaAPI, err) {
 		return err
 	}
 	_, err = conf.IotaAPI.StoreTransactions(btrytes...)
-	if conf.AEC.CountError(conf.IotaAPI, err) {
+	if conf.AEC.CheckError(conf.IotaAPI, err) {
 		return err
 	}
 	var newTail *Transaction
