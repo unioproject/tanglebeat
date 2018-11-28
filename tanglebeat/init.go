@@ -177,6 +177,21 @@ func masterConfig(configFilename string) {
 	configMasterLogging()
 	flushMsgBeforeLog()
 	configDebugging()
+
+	if Config.ExitProgram.Enabled {
+		log.Infof("Program exit conditions are ENABLED")
+		if Config.ExitProgram.Exit1min.Enabled {
+			log.Infof("Program will exit with RC = %d if error count exceeds %d in 1 minute",
+				Config.ExitProgram.Exit1min.RC, Config.ExitProgram.Exit1min.Threshold)
+		}
+		if Config.ExitProgram.Exit10min.Enabled {
+			log.Infof("Program will exit with RC = %d if error count exceeds %d in 10 minutes",
+				Config.ExitProgram.Exit10min.RC, Config.ExitProgram.Exit10min.Threshold)
+		}
+	} else {
+		log.Infof("Program exit conditions are DISABLED")
+
+	}
 }
 
 func configDebugging() {
