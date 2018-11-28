@@ -40,7 +40,7 @@ func main() {
 	}
 	if Config.Prometheus.Enabled && Config.Prometheus.ZmqMetrics.Enabled {
 		log.Infof("Starting ZMQ metrics updater")
-		metricszmq.InitMetricsZMQ(Config.Prometheus.ZmqMetrics.ZMQUri, log)
+		metricszmq.InitMetricsZMQ(Config.Prometheus.ZmqMetrics.ZMQUri, log, AEC)
 		enabled = true
 	}
 	if Config.Sender.Enabled {

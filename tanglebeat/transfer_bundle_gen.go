@@ -73,7 +73,7 @@ func initTransferBundleGenerator(name string, params *senderParamsYAML, logger *
 	}
 	// Timeout: time.Duration(params.TimeoutAPI) * time.Second,
 
-	AEC.registerAPI(ret.iotaAPI, params.IOTANode)
+	AEC.RegisterAPI(ret.iotaAPI, params.IOTANode)
 
 	ret.iotaAPIgTTA, err = ComposeAPI(
 		HTTPClientSettings{
@@ -88,7 +88,7 @@ func initTransferBundleGenerator(name string, params *senderParamsYAML, logger *
 		return nil, err
 	}
 
-	AEC.registerAPI(ret.iotaAPIgTTA, params.IOTANodeTipsel)
+	AEC.RegisterAPI(ret.iotaAPIgTTA, params.IOTANodeTipsel)
 
 	ret.iotaAPIaTT, err = ComposeAPI(
 		HTTPClientSettings{
@@ -103,7 +103,7 @@ func initTransferBundleGenerator(name string, params *senderParamsYAML, logger *
 		return nil, err
 	}
 
-	AEC.registerAPI(ret.iotaAPIaTT, params.IOTANodePoW)
+	AEC.RegisterAPI(ret.iotaAPIaTT, params.IOTANodePoW)
 
 	ret.seed = Trytes(params.Seed)
 	ret.txTag = Pad(Trytes(params.TxTag), TagTrinarySize/3)
@@ -165,19 +165,12 @@ func (gen *transferBundleGenerator) runGenerator() {
 	addr = ""
 	balanceZeroWaitSec := 2
 
-	exitLoop := false
-	for !exitLoop {
-
-		exitLoop = 0 < gen.params.SeqRestartAfterErr && gen.params.SeqRestartAfterErr < errorCount
-		if exitLoop {
-			continue // exit immediately
-		}
+	for {
 
 		if addr == "" {
 			addr, err = gen.getAddress(gen.index)
 			if err != nil {
-				gen.log.Errorf("%v: can't get address index = %v: %v", gen.name, gen.index, err)
-				exitLoop = true
+				gen.log.Panicf("%v: can't get address index = %v: %v", gen.name, gen.index, err)
 				continue
 			}
 		}
@@ -266,27 +259,19 @@ func (gen *transferBundleGenerator) runGenerator() {
 			// wait until any transaction with the bundle hash becomes confirmed
 			// note, that during rettach transaction can change but the bundle hash remains the same
 			// returns 0 if error count didn't exceed limit
-			success := gen.waitUntilBundleConfirmed(bundleHash)
-			if success {
-				// stop the stopwatch for the bundle
-				stopwatch.Stop(bundleHash)
+			gen.waitUntilBundleConfirmed(bundleHash)
+			// stop the stopwatch for the bundle
+			stopwatch.Stop(bundleHash)
 
-				gen.log.Debugf("Transfer Bundles: '%v'[%v] bundle %v confirmed", gen.name, gen.index, bundleHash)
-				gen.saveIndex()
-				// moving to next even if balance is still not zero (sometimes happens)
-				// in latter case iotas will be left behind
-				gen.index += 1
-				addr = ""
-				gen.log.Debugf("Transfer Bundles: moving '%v' to the next index -> %v", gen.name, gen.index)
-			}
-
-			if !success {
-				exitLoop = true
-			}
+			gen.log.Debugf("Transfer Bundles: '%v'[%v] bundle %v confirmed", gen.name, gen.index, bundleHash)
+			gen.saveIndex()
+			// moving to next even if balance is still not zero (sometimes happens)
+			// in latter case iotas will be left behind
+			gen.index += 1
+			addr = ""
+			gen.log.Debugf("Transfer Bundles: moving '%v' to the next index -> %v", gen.name, gen.index)
 		}
 	}
-	gen.log.Criticalf("----- Left bundle generating loop due to error limit if %d consecutive errors was exceeded",
-		gen.params.SeqRestartAfterErr)
 }
 
 // returns 0 if error count doesn't reach limit
@@ -294,14 +279,13 @@ func (gen *transferBundleGenerator) runGenerator() {
 const sleepEveryLoop = 5 * time.Second
 
 // loops until confirmation or until failure
-// return true if success and false if too many errors occured and checking failed
-func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash Hash) bool {
+// returns only upon success
+func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash Hash) {
 	gen.log.Debugf("waitUntilBundleConfirmed: '%v' start waiting for the bundle to be confirmed", gen.name)
 	defer gen.log.Debugf("waitUntilBundleConfirmed: '%v' %v left", gen.name, bundleHash)
 
 	startWaiting := time.Now()
 	var sinceWaiting time.Duration
-	var errorCount uint64
 
 	for count := 0; ; count++ {
 		time.Sleep(sleepEveryLoop)
@@ -309,31 +293,23 @@ func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash Hash) bo
 		if count%5 == 0 {
 			gen.log.Debugf("'%v': waitUntilBundleConfirmed: %v Time since waiting: %v", gen.name, bundleHash, sinceWaiting)
 		}
-		//gen.log.Debugf("------- TransferBundleGen: BEFORE IsBundleHashConfirmed")
 		confirmed, err := lib.IsBundleHashConfirmed(bundleHash, gen.iotaAPI)
-
 		//gen.log.Debugf("------- TransferBundleGen: AFTER IsBundleHashConfirmed %v %v", confirmed, err)
-		if AEC.CountError(gen.iotaAPI, err) {
-			errorCount += 1
+		if AEC.CheckError(gen.iotaAPI, err) {
 			gen.log.Errorf("'%v' waitUntilBundleConfirmed: FindTransactions returned: %v. Time since waiting: %v",
 				gen.name, err, sinceWaiting)
-			if 0 < gen.params.SeqRestartAfterErr && gen.params.SeqRestartAfterErr < errorCount {
-				return false // consecutive errors exceeded limit
+		} else {
+			if confirmed {
+				return
 			}
-			continue
 		}
-		if confirmed {
-			return true
-		}
-		errorCount = 0 // reset error count
 	}
-	panic("Shouldn't get here")
 }
 
 func (gen *transferBundleGenerator) isSpentAddr(address Hash) (bool, error) {
 	spent, err := gen.iotaAPI.WereAddressesSpentFrom(address)
 
-	if AEC.CountError(gen.iotaAPI, err) {
+	if AEC.CheckError(gen.iotaAPI, err) {
 		return false, err
 	} else {
 		return spent[0], nil
@@ -343,7 +319,7 @@ func (gen *transferBundleGenerator) isSpentAddr(address Hash) (bool, error) {
 func (gen *transferBundleGenerator) getBalanceAddr(addresses Hashes) (*Balances, error) {
 	balances, err := gen.iotaAPI.GetBalances(addresses, 100)
 
-	if AEC.CountError(gen.iotaAPI, err) {
+	if AEC.CheckError(gen.iotaAPI, err) {
 		return nil, err
 	} else {
 		return balances, nil
@@ -400,7 +376,7 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr Trytes, balance
 	// signing is here
 	bundlePrep, err := gen.iotaAPI.PrepareTransfers(seed, transfers, prepTransferOptions)
 
-	if AEC.CountError(gen.iotaAPI, err) {
+	if AEC.CheckError(gen.iotaAPI, err) {
 		return nil, err
 	}
 	//----- end prepare transfer
@@ -409,7 +385,7 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr Trytes, balance
 	st := lib.UnixMs(time.Now())
 	gttaResp, err := gen.iotaAPIgTTA.GetTransactionsToApprove(3)
 
-	if AEC.CountError(gen.iotaAPIgTTA, err) {
+	if AEC.CheckError(gen.iotaAPIgTTA, err) {
 		return nil, err
 	}
 	ret.TotalDurationTipselMs = lib.UnixMs(time.Now()) - st
@@ -424,7 +400,7 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr Trytes, balance
 		bundlePrep,
 	)
 
-	if AEC.CountError(gen.iotaAPIaTT, err) {
+	if AEC.CheckError(gen.iotaAPIaTT, err) {
 		return nil, err
 	}
 
@@ -432,11 +408,11 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr Trytes, balance
 	// broadcast bundle
 	_, err = gen.iotaAPI.BroadcastTransactions(bundleRet...)
 
-	if AEC.CountError(gen.iotaAPI, err) {
+	if AEC.CheckError(gen.iotaAPI, err) {
 		return nil, err
 	}
 	_, err = gen.iotaAPI.StoreTransactions(bundleRet...)
-	if AEC.CountError(gen.iotaAPI, err) {
+	if AEC.CheckError(gen.iotaAPI, err) {
 		return nil, err
 	}
 	ret.BundleTrytes = bundleRet
@@ -451,7 +427,7 @@ func (gen *transferBundleGenerator) sendToNext(addr Hash) (*bundle_source.FirstB
 	gen.log.Debugf("Inside sendToNext with tag = '%v'. idx=%v. %v --> %v", gen.txTag, gen.index, addr, nextAddr)
 
 	gbResp, err := gen.iotaAPI.GetBalances(Hashes{addr}, 100)
-	if AEC.CountError(gen.iotaAPI, err) {
+	if AEC.CheckError(gen.iotaAPI, err) {
 		return nil, err
 	}
 	balance := gbResp.Balances[0]
@@ -594,18 +570,18 @@ func extractBundleTxByTail(tail *Transaction, allTx []Transaction) []*Transactio
 
 func (gen *transferBundleGenerator) isAnyConfirmed(txHashes Hashes) (bool, error) {
 	confirmed, err := lib.IsAnyConfirmed(txHashes, gen.iotaAPI)
-	AEC.CountError(gen.iotaAPI, err)
+	AEC.CheckError(gen.iotaAPI, err)
 	return confirmed, err
 }
 
 // correct but probably have problems with many transactions
 func (gen *transferBundleGenerator) findTransactionObjectsOld(query FindTransactionsQuery) (Transactions, error) {
 	ftHashes, err := gen.iotaAPI.FindTransactions(query)
-	if AEC.CountError(gen.iotaAPI, err) {
+	if AEC.CheckError(gen.iotaAPI, err) {
 		return nil, err
 	}
 	rawTrytes, err := gen.iotaAPI.GetTrytes(ftHashes...)
-	if AEC.CountError(gen.iotaAPI, err) {
+	if AEC.CheckError(gen.iotaAPI, err) {
 		return nil, err
 	}
 	return AsTransactionObjects(rawTrytes, nil)
@@ -614,7 +590,7 @@ func (gen *transferBundleGenerator) findTransactionObjectsOld(query FindTransact
 // new one works with big number of transactions
 func (gen *transferBundleGenerator) findTransactionObjects(query FindTransactionsQuery) (Transactions, error) {
 	ret, err := lib.FindTransactionObjects(query, gen.iotaAPI)
-	if AEC.CountError(gen.iotaAPI, err) {
+	if AEC.CheckError(gen.iotaAPI, err) {
 		return nil, err
 	}
 	return ret, nil

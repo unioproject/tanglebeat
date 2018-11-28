@@ -42,20 +42,16 @@ type ConfigStructYAML struct {
 	ExitProgram           exitProgramYAML           `yaml:"exitProgram"`
 }
 
-type exitProgramCondition int
-
-const (
-	EXIT_NEVER              exitProgramCondition = 0
-	EXIT_1MIN_COUNT_EXEEDS  exitProgramCondition = 1
-	EXIT_10MIN_COUNT_EXEEDS exitProgramCondition = 2
-	EXIT_CONSECUTIVE_ERRORS exitProgramCondition = 3
-)
+type exitProgramCondition struct {
+	Enabled   bool `yaml:"enabled"`
+	Threshold int  `yaml:"threshold"`
+	RC        int  `yaml:"rc"`
+}
 
 type exitProgramYAML struct {
 	Enabled   bool                 `yaml:"enabled"`
-	Threshold int                  `yaml:"threshold"`
-	Condition exitProgramCondition `yaml:"condition"`
-	RC        exitProgramCondition `yaml:"rc"`
+	Exit1min  exitProgramCondition `yaml:"errorThreshold1min"`
+	Exit10min exitProgramCondition `yaml:"errorThreshold10min"`
 }
 
 type loggingConfigYAML struct {
@@ -93,7 +89,6 @@ type senderParamsYAML struct {
 	PromoteChain          bool   `yaml:"promoteChain"`
 	PromoteEverySec       uint64 `yaml:"promoteEverySec"`
 	PromoteDisable        bool   `yaml:"promoteDisable"`
-	SeqRestartAfterErr    uint64 `yaml:"seqRestartAfterErr"`
 }
 
 type senderUpdateCollectorYAML struct {
@@ -182,6 +177,21 @@ func masterConfig(configFilename string) {
 	configMasterLogging()
 	flushMsgBeforeLog()
 	configDebugging()
+
+	if Config.ExitProgram.Enabled {
+		log.Infof("Program exit conditions are ENABLED")
+		if Config.ExitProgram.Exit1min.Enabled {
+			log.Infof("Program will exit with RC = %d if error count exceeds %d in 1 minute",
+				Config.ExitProgram.Exit1min.RC, Config.ExitProgram.Exit1min.Threshold)
+		}
+		if Config.ExitProgram.Exit10min.Enabled {
+			log.Infof("Program will exit with RC = %d if error count exceeds %d in 10 minutes",
+				Config.ExitProgram.Exit10min.RC, Config.ExitProgram.Exit10min.Threshold)
+		}
+	} else {
+		log.Infof("Program exit conditions are DISABLED")
+
+	}
 }
 
 func configDebugging() {
@@ -335,9 +345,6 @@ func getSeqParams(name string) (*senderParamsYAML, error) {
 	}
 	if ret.PromoteEverySec == 0 {
 		ret.PromoteEverySec = Config.Sender.Globals.PromoteEverySec
-	}
-	if ret.SeqRestartAfterErr == 0 {
-		ret.SeqRestartAfterErr = Config.Sender.Globals.SeqRestartAfterErr
 	}
 	if Config.Sender.Globals.PromoteDisable {
 		ret.PromoteDisable = true
