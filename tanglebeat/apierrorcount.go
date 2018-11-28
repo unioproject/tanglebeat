@@ -127,7 +127,7 @@ func (aec *apiErrorCount) check10minCondition() {
 	if !Config.ExitProgram.Enabled {
 		return
 	}
-	if !Config.ExitProgram.Exit1min.Enabled {
+	if !Config.ExitProgram.Exit10min.Enabled {
 		return
 	}
 	count := 0
