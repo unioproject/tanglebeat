@@ -80,7 +80,9 @@ func (conf *Confirmer) warningf(f string, p ...interface{}) {
 
 type dummy struct{}
 
-func (*dummy) CountError(api *API, err error) bool { return false }
+func (*dummy) CountError(api *API, err error) bool {
+	return err != nil
+}
 
 func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *ConfirmerUpdate, error) {
 	tail, err := lib.TailFromBundleTrytes(bundleTrytes)
