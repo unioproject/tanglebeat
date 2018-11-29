@@ -2,17 +2,10 @@ package multiapi
 
 import (
 	"fmt"
-	. "github.com/iotaledger/iota.go/trinary"
 	"runtime"
 	"testing"
 	"time"
 )
-
-var txs = Hashes{
-	Trytes("ANAJPUJTQEZBQILHHGEAOJGIBREGNCZNAMWIJXQMIQKTIIHBFFPUKGOVPYB9BGYPTASKRYQXFUAUZ9999"),
-	Trytes("ZJZFYYJXIOGPRN9USXAZIXWJDEJRIJEHNBLRFWJFNWXDWAPIBJE9ZMQLZDDVFBJRBNACKFJWX9EOZ9999"),
-	Trytes("TTIQHMOJKQEDBOBASIROLCGBEXPCNVLUHAAOKSMEWIUNAYNMT9QIZTVTWCSYXOZNGGPNMQ9IMTMNA9999"),
-}
 
 func TestMultiAPI_GetLatestInclusion(t *testing.T) {
 	go func() {
@@ -45,7 +38,7 @@ func _getLatestInclusion(t *testing.T) {
 	if err1 == nil && err2 == nil && !equalBoolSlice(resMapi, resOrig) {
 		t.Errorf("Must be equal resuls. Res1 = %v Res2 = %v", resMapi, resOrig)
 	}
-	var res MultiAPIGetLatestInclusionResult
+	var res MultiCallRet
 	resMapi, err1 = mapi.GetLatestInclusion(txs, &res)
 	resOrig, err2 = mapi[0].api.GetLatestInclusion(txs)
 	fmt.Printf("res1 = %v err1 =%v res2 = %v err2 = %v ep = %v\n", resMapi, err1, resOrig, err2, res.Endpoint)

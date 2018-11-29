@@ -1,41 +1,45 @@
 package multiapi
 
 import (
-	"errors"
+	"fmt"
 	. "github.com/iotaledger/iota.go/api"
-	"net/http"
-	"time"
+	. "github.com/iotaledger/iota.go/trinary"
 )
 
-type endpointEntry struct {
-	api      *API
-	endpoint string
+func (mapi MultiAPI) GetLatestInclusion(transactions Hashes, ret ...*MultiCallRet) ([]bool, error) {
+	var callRet *MultiCallRet
+	switch len(ret) {
+	case 0:
+		callRet = nil
+	case 1:
+		callRet = ret[0]
+	default:
+		return nil, fmt.Errorf("wrong number of arguments")
+	}
+	r, err := mapi.__multiCall__("GetLatestInclusion", callRet, transactions)
+	rr, ok := r.([]bool)
+	if !ok {
+		return nil, fmt.Errorf("internal error: wrong type")
+	}
+	return rr, err
 }
 
-type MultiAPI []endpointEntry
-
-func New(endpoints []string, timeout int) (MultiAPI, error) {
-	if len(endpoints) == 0 {
-		return nil, errors.New("Must be at least 1 Endpoint")
-	}
-	if timeout <= 0 {
-		return nil, errors.New("Timeout must be > 0")
-	}
-	ret := make(MultiAPI, 0, len(endpoints))
-
-	for _, ep := range endpoints {
-		api, err := ComposeAPI(
-			HTTPClientSettings{
-				URI: ep,
-				Client: &http.Client{
-					Timeout: time.Duration(timeout) * time.Second,
-				},
-			},
-		)
-		if err != nil {
-			return nil, err
+func (mapi MultiAPI) GetTransactionsToApprove(depth uint64, args ...interface{}) (*TransactionsToApprove, error) {
+	var callRet *MultiCallRet
+	// strip the last one if necessary
+	lenArgs := len(args)
+	if lenArgs > 0 {
+		var ok bool
+		callRet, ok = args[len(args)-1].(*MultiCallRet)
+		// callRet == nil if not provided as last arg
+		if ok {
+			lenArgs = len(args) - 1
 		}
-		ret = append(ret, endpointEntry{api: api, endpoint: ep})
 	}
-	return ret, nil
+	r, err := mapi.__multiCall__("GetTransactionsToApprove", callRet, args[:lenArgs]...)
+	rr, ok := r.(*TransactionsToApprove)
+	if !ok {
+		return nil, fmt.Errorf("internal error: wrong type")
+	}
+	return rr, err
 }
