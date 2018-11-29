@@ -1,0 +1,110 @@
+package multiapi
+
+import (
+	"errors"
+	. "github.com/iotaledger/iota.go/api"
+	. "github.com/iotaledger/iota.go/trinary"
+	"net/http"
+	"sync"
+	"time"
+)
+
+type endpointEntry struct {
+	api      *API
+	endpoint string
+}
+
+type MultiAPI []endpointEntry
+
+func New(endpoints []string, timeout int) (MultiAPI, error) {
+	if len(endpoints) == 0 {
+		return nil, errors.New("Must be at least 1 Endpoint")
+	}
+	if timeout <= 0 {
+		return nil, errors.New("Timeout must be > 0")
+	}
+	ret := make(MultiAPI, 0, len(endpoints))
+
+	for _, ep := range endpoints {
+		api, err := ComposeAPI(
+			HTTPClientSettings{
+				URI: ep,
+				Client: &http.Client{
+					Timeout: time.Duration(timeout) * time.Second,
+				},
+			},
+		)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, endpointEntry{api: api, endpoint: ep})
+	}
+	return ret, nil
+}
+
+type MultiAPIGetLatestInclusionResult struct {
+	States   []bool
+	Err      error
+	Endpoint string
+}
+
+func (mapi MultiAPI) GetLatestInclusion(transactions Hashes, resOrig ...*MultiAPIGetLatestInclusionResult) ([]bool, error) {
+	if len(mapi) == 0 {
+		return nil, errors.New("empty MultiAPI")
+	}
+	if len(mapi) == 1 {
+		res, err := mapi[0].api.GetLatestInclusion(transactions)
+		if len(resOrig) > 0 {
+			*resOrig[0] = MultiAPIGetLatestInclusionResult{
+				States:   res,
+				Err:      err,
+				Endpoint: mapi[0].endpoint,
+			}
+		}
+		return res, err
+	}
+	chInterimResult := make(chan *MultiAPIGetLatestInclusionResult)
+	var wg sync.WaitGroup
+	for _, api := range mapi {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			states, err := api.api.GetLatestInclusion(transactions)
+			chInterimResult <- &MultiAPIGetLatestInclusionResult{
+				States:   states,
+				Err:      err,
+				Endpoint: api.endpoint}
+		}()
+	}
+	// assuming each api has timeout, all go routines has to finish anyway
+	// TODO detect and report leak of goroutines/channels
+	go func() {
+		wg.Wait()
+		close(chInterimResult)
+	}()
+
+	var result *MultiAPIGetLatestInclusionResult
+	var waitResult sync.WaitGroup
+	waitResult.Add(1)
+	go func() {
+		var res *MultiAPIGetLatestInclusionResult
+		var noerr bool
+		// reading all results to get all go routines finish
+		for res = range chInterimResult {
+			if res.Err == nil {
+				result = res
+				noerr = true
+				waitResult.Done() // first result without err is returned
+			}
+		}
+		if !noerr {
+			result = res // if all of them with err != nil, the last one is returned
+			waitResult.Done()
+		}
+	}()
+	waitResult.Wait()
+	if len(resOrig) > 0 {
+		*resOrig[0] = *result
+	}
+	return result.States, result.Err
+}

@@ -21,40 +21,37 @@ func TestMultiAPI_GetLatestInclusion(t *testing.T) {
 	if err == nil {
 		t.Fail()
 	}
-	fmt.Printf("err = %v\n", err)
+	fmt.Printf("Err = %v\n", err)
 
 	mapi, err = New(nil, 10)
 	if err == nil {
 		t.Fail()
 	}
-	fmt.Printf("err = %v\n", err)
+	fmt.Printf("Err = %v\n", err)
 
 	mapi, err = New(endpoints[:1], 10)
 	if err != nil || mapi == nil {
 		t.Fail()
 	}
-	fmt.Printf("err = %v\n", err)
+	fmt.Printf("Err = %v\n", err)
 
-	resMapi, errMapi, idx := mapi.GetLatestInclusion(Hashes{tx})
-	resOrig, errOrig := mapi[0].GetLatestInclusion(Hashes{tx})
+	resMapi, _ := mapi.GetLatestInclusion(Hashes{tx})
+	resOrig, _ := mapi[0].api.GetLatestInclusion(Hashes{tx})
 	if !equalBoolSlice(resMapi, resOrig) {
 		t.Fail()
 	}
-	if errMapi != errOrig {
-		t.Fail()
-	}
-	if idx != 0 {
-		t.Fail()
+	var res MultiAPIGetLatestInclusionResult
+	resMapi, _ = mapi.GetLatestInclusion(Hashes{tx}, &res)
+	if res.Endpoint != mapi[0].endpoint {
+		t.Errorf("Wrong value returned")
 	}
 
 	mapi, err = New(endpoints, 10)
-	for i := 0; i < 10; i++ {
-		resMapi, errMapi, idx = mapi.GetLatestInclusion(Hashes{tx})
-		fmt.Printf("Idx = %d endpoint = %v\n", idx, endpoints[idx])
-		if !equalBoolSlice(resMapi, resOrig) {
-			t.Fail()
-		}
-		if errMapi != errOrig {
+	resMapi, _ = mapi[:1].GetLatestInclusion(Hashes{tx})
+	for i := 0; i < 3; i++ {
+		resMapiTmp, err := mapi[:i].GetLatestInclusion(Hashes{tx}, &res)
+		fmt.Printf("err = %v endpoint = %v\n", err, res.Endpoint)
+		if !equalBoolSlice(resMapiTmp, resMapi) {
 			t.Fail()
 		}
 	}
