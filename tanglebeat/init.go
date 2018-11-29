@@ -366,11 +366,12 @@ func logMemStats() {
 	var mem runtime.MemStats
 
 	runtime.ReadMemStats(&mem)
-	log.Debugf("-------------- DEBUG:MemStats: Alloc = %v MB  TotalAlloc = %v MB Sys = %v MB  NumGC = %v\n",
+	log.Debugf("------- DEBUG:MemStats MB: Alloc=%v TotalAlloc=%v Sys = %v NumGC = %v NumGoroutines = %d\n",
 		bToMb(mem.Alloc),
 		bToMb(mem.TotalAlloc),
 		bToMb(mem.Sys),
 		mem.NumGC,
+		runtime.NumGoroutine(),
 	)
 }
 

@@ -3,56 +3,73 @@ package multiapi
 import (
 	"fmt"
 	. "github.com/iotaledger/iota.go/trinary"
+	"runtime"
 	"testing"
+	"time"
 )
 
-var endpoints = []string{
-	"http://node.iotalt.com:14600",
-	"https://field.deviota.com:443",
-	"https://nodes.thetangle.org:443",
+var txs = Hashes{
+	Trytes("ANAJPUJTQEZBQILHHGEAOJGIBREGNCZNAMWIJXQMIQKTIIHBFFPUKGOVPYB9BGYPTASKRYQXFUAUZ9999"),
+	Trytes("ZJZFYYJXIOGPRN9USXAZIXWJDEJRIJEHNBLRFWJFNWXDWAPIBJE9ZMQLZDDVFBJRBNACKFJWX9EOZ9999"),
+	Trytes("TTIQHMOJKQEDBOBASIROLCGBEXPCNVLUHAAOKSMEWIUNAYNMT9QIZTVTWCSYXOZNGGPNMQ9IMTMNA9999"),
 }
 
-var tx = Trytes("YOL9RXYRQFGGPNOOMRXVJVGQCOKFWZCGUKHCZBZ9POSIWDPEI9IOSTNOZKKTWOGIOPMH9NAQVJXKZ9999")
-
 func TestMultiAPI_GetLatestInclusion(t *testing.T) {
-	var mapi MultiAPI
-	var err error
-	mapi, err = New(endpoints, 0)
-	if err == nil {
-		t.Fail()
+	go func() {
+		for {
+			fmt.Printf("--------- Num goroutines = %d\n", runtime.NumGoroutine())
+			time.Sleep(1 * time.Second)
+		}
+	}()
+	for i := 0; i < 3; i++ {
+		_getLatestInclusion(t)
+		time.Sleep(5 * time.Second)
 	}
-	fmt.Printf("Err = %v\n", err)
+	time.Sleep(5 * time.Minute)
+}
 
-	mapi, err = New(nil, 10)
-	if err == nil {
-		t.Fail()
-	}
-	fmt.Printf("Err = %v\n", err)
-
-	mapi, err = New(endpoints[:1], 10)
+func _getLatestInclusion(t *testing.T) {
+	mapi, err := New(endpoints, 10)
 	if err != nil || mapi == nil {
-		t.Fail()
+		t.Errorf("Must return correct mapi and err==nil")
 	}
-	fmt.Printf("Err = %v\n", err)
 
-	resMapi, _ := mapi.GetLatestInclusion(Hashes{tx})
-	resOrig, _ := mapi[0].api.GetLatestInclusion(Hashes{tx})
-	if !equalBoolSlice(resMapi, resOrig) {
-		t.Fail()
+	for i := range mapi {
+		res, err := mapi[i].api.GetLatestInclusion(txs)
+		fmt.Printf("Original: Result = %v err = %v from %v\n", res, err, mapi[i].endpoint)
+	}
+	fmt.Println("----- Testing MultiAPI")
+	resOrig, err2 := mapi[0].api.GetLatestInclusion(txs)
+	resMapi, err1 := mapi.GetLatestInclusion(txs)
+	fmt.Printf("res1 = %v err1 =%v res2 = %v err2 = %v\n", resMapi, err1, resOrig, err2)
+	if err1 == nil && err2 == nil && !equalBoolSlice(resMapi, resOrig) {
+		t.Errorf("Must be equal resuls. Res1 = %v Res2 = %v", resMapi, resOrig)
 	}
 	var res MultiAPIGetLatestInclusionResult
-	resMapi, _ = mapi.GetLatestInclusion(Hashes{tx}, &res)
-	if res.Endpoint != mapi[0].endpoint {
-		t.Errorf("Wrong value returned")
+	resMapi, err1 = mapi.GetLatestInclusion(txs, &res)
+	resOrig, err2 = mapi[0].api.GetLatestInclusion(txs)
+	fmt.Printf("res1 = %v err1 =%v res2 = %v err2 = %v ep = %v\n", resMapi, err1, resOrig, err2, res.Endpoint)
+	if err1 == nil && err2 == nil && !equalBoolSlice(resMapi, resOrig) {
+		t.Errorf("Must be equal resuls. Res1 = %v Res2 = %v", resMapi, resOrig)
 	}
 
-	mapi, err = New(endpoints, 10)
-	resMapi, _ = mapi[:1].GetLatestInclusion(Hashes{tx})
-	for i := 0; i < 3; i++ {
-		resMapiTmp, err := mapi[:i].GetLatestInclusion(Hashes{tx}, &res)
-		fmt.Printf("err = %v endpoint = %v\n", err, res.Endpoint)
+	resMapi, _ = mapi[:1].GetLatestInclusion(txs, &res)
+	if res.Endpoint != mapi[0].endpoint {
+		t.Errorf("Wrong value of endpoint returned. ep1 = %v ep2 = %v", res.Endpoint, mapi[0].endpoint)
+	}
+
+	mapi, _ = New(endpoints, 10)
+	resMapi, _ = mapi[:1].GetLatestInclusion(txs, &res)
+	fmt.Printf("First result = %v from = %v\n", resMapi, res.Endpoint)
+	if !equalBoolSlice(resOrig, resMapi) {
+		t.Errorf("%v != %v : results must be equal", resOrig, resMapi)
+	}
+
+	for i := 1; i < len(endpoints); i++ {
+		resMapiTmp, _ := mapi[:i].GetLatestInclusion(txs, &res)
+		fmt.Printf("res1 = %v res2 = %v ep = %v\n", resMapi, resMapiTmp, res.Endpoint)
 		if !equalBoolSlice(resMapiTmp, resMapi) {
-			t.Fail()
+			t.Errorf("%v != %v : must be equal to first result", resMapiTmp, resMapi)
 		}
 	}
 }
