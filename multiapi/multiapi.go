@@ -6,40 +6,70 @@ import (
 	. "github.com/iotaledger/iota.go/trinary"
 )
 
-func (mapi MultiAPI) GetLatestInclusion(transactions Hashes, ret ...*MultiCallRet) ([]bool, error) {
-	var callRet *MultiCallRet
-	switch len(ret) {
-	case 0:
-		callRet = nil
-	case 1:
-		callRet = ret[0]
-	default:
-		return nil, fmt.Errorf("wrong number of arguments")
+func getArgs(args []interface{}) ([]interface{}, *MultiCallRet) {
+	lenarg := len(args)
+	if lenarg == 0 {
+		return nil, nil
 	}
-	r, err := mapi.__multiCall__("GetLatestInclusion", callRet, transactions)
+	callRet, ok := args[lenarg-1].(*MultiCallRet)
+	if ok {
+		lenarg -= 1
+	}
+	return args[:lenarg], callRet
+}
+
+func (mapi MultiAPI) GetLatestInclusion(args ...interface{}) ([]bool, error) {
+	funname := "GetLatestInclusion"
+	funargs, callRet := getArgs(args)
+	r, err := mapi.__multiCall__(funname, callRet, funargs...)
+	if err != nil {
+		return nil, err
+	}
 	rr, ok := r.([]bool)
 	if !ok {
-		return nil, fmt.Errorf("internal error: wrong type")
+		return nil, fmt.Errorf("internal error: wrong type in '%v'", funname)
 	}
 	return rr, err
 }
 
-func (mapi MultiAPI) GetTransactionsToApprove(depth uint64, args ...interface{}) (*TransactionsToApprove, error) {
-	var callRet *MultiCallRet
-	// strip the last one if necessary
-	lenArgs := len(args)
-	if lenArgs > 0 {
-		var ok bool
-		callRet, ok = args[len(args)-1].(*MultiCallRet)
-		// callRet == nil if not provided as last arg
-		if ok {
-			lenArgs = len(args) - 1
-		}
+func (mapi MultiAPI) GetTransactionsToApprove(args ...interface{}) (*TransactionsToApprove, error) {
+	funname := "GetTransactionsToApprove"
+	funargs, callRet := getArgs(args)
+	r, err := mapi.__multiCall__(funname, callRet, funargs...)
+	if err != nil {
+		return nil, err
 	}
-	r, err := mapi.__multiCall__("GetTransactionsToApprove", callRet, args[:lenArgs]...)
 	rr, ok := r.(*TransactionsToApprove)
 	if !ok {
-		return nil, fmt.Errorf("internal error: wrong type")
+		return nil, fmt.Errorf("internal error: wrong type in '%v'", funname)
+	}
+	return rr, err
+}
+
+func (mapi MultiAPI) GetBalances(args ...interface{}) (*Balances, error) {
+	funname := "GetBalances"
+	funargs, callRet := getArgs(args)
+	r, err := mapi.__multiCall__(funname, callRet, funargs...)
+	if err != nil {
+		return nil, err
+	}
+	rr, ok := r.(*Balances)
+	if !ok {
+		return nil, fmt.Errorf("internal error: wrong type in '%v'", funname)
+	}
+	return rr, err
+}
+
+func (mapi MultiAPI) FindTransactions(args ...interface{}) (Hashes, error) {
+	funname := "FindTransactions"
+	funargs, callRet := getArgs(args)
+	r, err := mapi.__multiCall__(funname, callRet, funargs...)
+	if err != nil {
+		return nil, err
+	}
+	rr, ok := r.(Hashes)
+	if !ok {
+		return nil, fmt.Errorf("internal error: wrong type in '%v'", funname)
 	}
 	return rr, err
 }

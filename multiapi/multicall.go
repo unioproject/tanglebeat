@@ -5,6 +5,7 @@ import (
 	"fmt"
 	. "github.com/iotaledger/iota.go/api"
 	"sync"
+	"time"
 )
 
 func __polyCall__(api *API, funName string, args ...interface{}) (interface{}, error) {
@@ -22,13 +23,18 @@ type multiCallInterimResult struct {
 }
 
 func (mapi MultiAPI) __multiCall__(funName string, retEndpoint *MultiCallRet, args ...interface{}) (interface{}, error) {
+	started := time.Now()
 	if len(mapi) == 0 {
 		return nil, errors.New("empty MultiAPI")
 	}
 	if len(mapi) == 1 {
 		res, err := __polyCall__(mapi[0].api, funName, args...)
+		if err != nil {
+			return nil, err
+		}
 		if retEndpoint != nil {
 			retEndpoint.Endpoint = mapi[0].endpoint
+			retEndpoint.Duration = time.Since(started)
 		}
 		return res, err
 	}
@@ -74,6 +80,7 @@ func (mapi MultiAPI) __multiCall__(funName string, retEndpoint *MultiCallRet, ar
 	waitResult.Wait()
 	if retEndpoint != nil {
 		retEndpoint.Endpoint = result.endpoint
+		retEndpoint.Duration = time.Since(started)
 	}
 	return *result.ret, result.err
 }

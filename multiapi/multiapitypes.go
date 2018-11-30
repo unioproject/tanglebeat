@@ -16,7 +16,7 @@ type MultiAPI []endpointEntry
 
 type MultiCallRet struct {
 	Endpoint string
-	Duration uint64
+	Duration time.Duration
 }
 
 func New(endpoints []string, timeout int) (MultiAPI, error) {
