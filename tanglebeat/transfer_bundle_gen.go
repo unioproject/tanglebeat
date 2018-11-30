@@ -574,19 +574,6 @@ func (gen *transferBundleGenerator) isAnyConfirmed(txHashes Hashes) (bool, error
 	return confirmed, err
 }
 
-// correct but probably have problems with many transactions
-func (gen *transferBundleGenerator) findTransactionObjectsOld(query FindTransactionsQuery) (Transactions, error) {
-	ftHashes, err := gen.iotaAPI.FindTransactions(query)
-	if AEC.CheckError(gen.iotaAPI, err) {
-		return nil, err
-	}
-	rawTrytes, err := gen.iotaAPI.GetTrytes(ftHashes...)
-	if AEC.CheckError(gen.iotaAPI, err) {
-		return nil, err
-	}
-	return AsTransactionObjects(rawTrytes, nil)
-}
-
 // new one works with big number of transactions
 func (gen *transferBundleGenerator) findTransactionObjects(query FindTransactionsQuery) (Transactions, error) {
 	ret, err := lib.FindTransactionObjects(query, gen.iotaAPI)
