@@ -76,7 +76,7 @@ func (seq *TransferSequence) GetLongName() string {
 func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirmer.Confirmer, error) {
 	iotaAPI, err := ComposeAPI(
 		HTTPClientSettings{
-			URI: params.IOTANode,
+			URI: params.IOTANode[0],
 			Client: &http.Client{
 				Timeout: time.Duration(params.TimeoutAPI) * time.Second,
 			},
@@ -85,11 +85,11 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 	if err != nil {
 		return nil, err
 	}
-	AEC.RegisterAPI(iotaAPI, params.IOTANode)
+	AEC.RegisterAPI(iotaAPI, params.IOTANode[0])
 
 	iotaAPIgTTA, err := ComposeAPI(
 		HTTPClientSettings{
-			URI: params.IOTANodeTipsel,
+			URI: params.IOTANodeTipsel[0],
 			Client: &http.Client{
 				Timeout: time.Duration(params.TimeoutTipsel) * time.Second,
 			},
@@ -98,7 +98,7 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 	if err != nil {
 		return nil, err
 	}
-	AEC.RegisterAPI(iotaAPIgTTA, params.IOTANodeTipsel)
+	AEC.RegisterAPI(iotaAPIgTTA, params.IOTANodeTipsel[0])
 
 	iotaAPIaTT, err := ComposeAPI(
 		HTTPClientSettings{
@@ -210,7 +210,7 @@ func (seq *TransferSequence) processStartUpdate(bundleData *bundle_source.FirstB
 			NumAttaches:           bundleData.NumAttach,
 			NumPromotions:         0,
 			NodePOW:               seq.params.IOTANodePoW,
-			NodeTipsel:            seq.params.IOTANodeTipsel,
+			NodeTipsel:            seq.params.IOTANodeTipsel[0],
 			PromoteEverySec:       seq.params.PromoteEverySec,
 			ForceReattachAfterMin: seq.params.ForceReattachAfterMin,
 			PromoteChain:          seq.params.PromoteChain,
@@ -253,7 +253,7 @@ func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.Confirmer
 			NumAttaches:           updConf.NumAttaches,
 			NumPromotions:         updConf.NumPromotions,
 			NodePOW:               seq.params.IOTANodePoW,
-			NodeTipsel:            seq.params.IOTANodeTipsel,
+			NodeTipsel:            seq.params.IOTANodeTipsel[0],
 			PromoteEverySec:       seq.params.PromoteEverySec,
 			ForceReattachAfterMin: seq.params.ForceReattachAfterMin,
 			PromoteChain:          seq.params.PromoteChain,

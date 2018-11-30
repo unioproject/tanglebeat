@@ -8,6 +8,16 @@ import (
 	"time"
 )
 
+var disabledMultiAPI = false
+
+func DisableMultiAPI() {
+	disabledMultiAPI = true
+}
+
+func MultiApiDisabled() bool {
+	return disabledMultiAPI
+}
+
 func __polyCall__(api *API, funName string, args ...interface{}) (interface{}, error) {
 	fun, ok := funMap[funName]
 	if !ok {
@@ -27,7 +37,7 @@ func (mapi MultiAPI) __multiCall__(funName string, retEndpoint *MultiCallRet, ar
 	if len(mapi) == 0 {
 		return nil, errors.New("empty MultiAPI")
 	}
-	if len(mapi) == 1 {
+	if len(mapi) == 1 || MultiApiDisabled() {
 		res, err := __polyCall__(mapi[0].api, funName, args...)
 		if err != nil {
 			return nil, err

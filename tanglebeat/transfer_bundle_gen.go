@@ -62,7 +62,7 @@ func initTransferBundleGenerator(name string, params *senderParamsYAML, logger *
 	}
 	ret.iotaAPI, err = ComposeAPI(
 		HTTPClientSettings{
-			URI: params.IOTANode,
+			URI: params.IOTANode[0],
 			Client: &http.Client{
 				Timeout: time.Duration(params.TimeoutAPI) * time.Second,
 			},
@@ -73,11 +73,11 @@ func initTransferBundleGenerator(name string, params *senderParamsYAML, logger *
 	}
 	// Timeout: time.Duration(params.TimeoutAPI) * time.Second,
 
-	AEC.RegisterAPI(ret.iotaAPI, params.IOTANode)
+	AEC.RegisterAPI(ret.iotaAPI, params.IOTANode[0])
 
 	ret.iotaAPIgTTA, err = ComposeAPI(
 		HTTPClientSettings{
-			URI: params.IOTANodeTipsel,
+			URI: params.IOTANodeTipsel[0],
 			Client: &http.Client{
 				Timeout: time.Duration(params.TimeoutTipsel) * time.Second,
 			},
@@ -88,7 +88,7 @@ func initTransferBundleGenerator(name string, params *senderParamsYAML, logger *
 		return nil, err
 	}
 
-	AEC.RegisterAPI(ret.iotaAPIgTTA, params.IOTANodeTipsel)
+	AEC.RegisterAPI(ret.iotaAPIgTTA, params.IOTANodeTipsel[0])
 
 	ret.iotaAPIaTT, err = ComposeAPI(
 		HTTPClientSettings{

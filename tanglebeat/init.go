@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/iotaledger/iota.go/trinary"
 	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/lunfardo314/tanglebeat/multiapi"
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -67,28 +68,29 @@ type loggingConfigYAML struct {
 }
 
 type senderYAML struct {
-	Enabled   bool                        `yaml:"enabled"`
-	Globals   senderParamsYAML            `yaml:"globals"`
-	Sequences map[string]senderParamsYAML `yaml:"sequences"`
+	Enabled           bool                        `yaml:"enabled"`
+	DisableMultiCalls bool                        `yaml:"disableMultiCalls"`
+	Globals           senderParamsYAML            `yaml:"globals"`
+	Sequences         map[string]senderParamsYAML `yaml:"sequences"`
 }
 
 type senderParamsYAML struct {
-	externalSource        bool   // tmp TODO
-	Enabled               bool   `yaml:"enabled"`
-	IOTANode              string `yaml:"iotaNode"`
-	IOTANodeTipsel        string `yaml:"iotaNodeTipsel"`
-	IOTANodePoW           string `yaml:"iotaNodePOW"`
-	TimeoutAPI            uint64 `yaml:"apiTimeout"`
-	TimeoutTipsel         uint64 `yaml:"tipselTimeout"`
-	TimeoutPoW            uint64 `yaml:"powTimeout"`
-	Seed                  string `yaml:"seed"`
-	Index0                uint64 `yaml:"index0"`
-	TxTag                 string `yaml:"txTag"`
-	TxTagPromote          string `yaml:"txTagPromote"`
-	ForceReattachAfterMin uint64 `yaml:"forceReattachAfterMin"`
-	PromoteChain          bool   `yaml:"promoteChain"`
-	PromoteEverySec       uint64 `yaml:"promoteEverySec"`
-	PromoteDisable        bool   `yaml:"promoteDisable"`
+	externalSource        bool     // tmp TODO
+	Enabled               bool     `yaml:"enabled"`
+	IOTANode              []string `yaml:"iotaNode"`
+	IOTANodeTipsel        []string `yaml:"iotaNodeTipsel"`
+	IOTANodePoW           string   `yaml:"iotaNodePOW"`
+	TimeoutAPI            uint64   `yaml:"apiTimeout"`
+	TimeoutTipsel         uint64   `yaml:"tipselTimeout"`
+	TimeoutPoW            uint64   `yaml:"powTimeout"`
+	Seed                  string   `yaml:"seed"`
+	Index0                uint64   `yaml:"index0"`
+	TxTag                 string   `yaml:"txTag"`
+	TxTagPromote          string   `yaml:"txTagPromote"`
+	ForceReattachAfterMin uint64   `yaml:"forceReattachAfterMin"`
+	PromoteChain          bool     `yaml:"promoteChain"`
+	PromoteEverySec       uint64   `yaml:"promoteEverySec"`
+	PromoteDisable        bool     `yaml:"promoteDisable"`
 }
 
 type senderUpdateCollectorYAML struct {
@@ -177,6 +179,13 @@ func masterConfig(configFilename string) {
 	configMasterLogging()
 	flushMsgBeforeLog()
 	configDebugging()
+
+	if Config.Sender.DisableMultiCalls {
+		multiapi.DisableMultiAPI()
+		log.Infof("Multi calls to IOTA API are DISABLED")
+	} else {
+		log.Infof("Multi calls to IOTA API are ENABLED")
+	}
 
 	if Config.ExitProgram.Enabled {
 		log.Infof("Program exit conditions are ENABLED")
@@ -313,7 +322,7 @@ func getSeqParams(name string) (*senderParamsYAML, error) {
 	if len(ret.IOTANodePoW) == 0 {
 		ret.IOTANodePoW = Config.Sender.Globals.IOTANodePoW
 		if len(ret.IOTANodePoW) == 0 {
-			ret.IOTANodePoW = ret.IOTANode
+			ret.IOTANodePoW = ret.IOTANode[0] // by default using first of nodes
 		}
 	}
 	if len(ret.TxTag) == 0 {
