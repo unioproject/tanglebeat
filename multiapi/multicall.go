@@ -33,24 +33,34 @@ type multiCallInterimResult struct {
 	endpoint string
 }
 
+func (mapi MultiAPI) __callFirst__(funName string, apiret *MultiCallRet, args ...interface{}) (interface{}, error) {
+	rnd := rand.Int() % 10000
+	debugf("+++++++++++ multiCall %d: '%v' - calling first endpoint", rnd, funName)
+	st := time.Now()
+
+	ret, err := __polyCall__(mapi[0].api, funName, args...)
+
+	apiret.Endpoint = mapi[0].endpoint
+	apiret.Duration = time.Since(st)
+	debugf("+++++++++++ multiCall %d: '%v' finished '%v', %v err = '%v'",
+		rnd, funName, apiret.Endpoint, apiret.Duration, err)
+	return ret, err
+}
+
 func (mapi MultiAPI) __multiCall__(funName string, retEndpoint *MultiCallRet, args ...interface{}) (interface{}, error) {
-	var ret MultiCallRet
+	if len(mapi) == 0 {
+		return nil, errors.New("empty MultiAPI")
+	}
+	var apiret MultiCallRet
+	if len(mapi) == 1 || MultiApiDisabled() {
+		// if there's one endpoint or multiapi is disabled, calling the first in the list
+		return mapi.__callFirst__(funName, &apiret, args...)
+	}
+
 	rnd := rand.Int() % 10000
 	debugf("+++++++++++ multiCall %d: '%v'", rnd, funName)
 
 	started := time.Now()
-	if len(mapi) == 0 {
-		return nil, errors.New("empty MultiAPI")
-	}
-	if len(mapi) == 1 || MultiApiDisabled() {
-		res, err := __polyCall__(mapi[0].api, funName, args...)
-		if err != nil {
-			return nil, err
-		}
-		ret.Endpoint = mapi[0].endpoint
-		ret.Duration = time.Since(started)
-		return res, err
-	}
 	chInterimResult := make(chan *multiCallInterimResult)
 	var wg sync.WaitGroup
 	for i := range mapi {
@@ -91,11 +101,12 @@ func (mapi MultiAPI) __multiCall__(funName string, retEndpoint *MultiCallRet, ar
 		}
 	}()
 	waitResult.Wait()
-	ret.Endpoint = result.endpoint
-	ret.Duration = time.Since(started)
+	apiret.Endpoint = result.endpoint
+	apiret.Duration = time.Since(started)
 	if retEndpoint != nil {
-		*retEndpoint = ret
+		*retEndpoint = apiret
 	}
-	defer debugf("+++++++++++ multiCall %d: %v finish '%v', %v", rnd, funName, ret.Endpoint, ret.Duration)
+	debugf("+++++++++++ multiCall %d: %v finished '%v', %v err = '%v'",
+		rnd, funName, apiret.Endpoint, apiret.Duration, result.err)
 	return *result.ret, result.err
 }

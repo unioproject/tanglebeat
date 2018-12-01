@@ -16,7 +16,6 @@ import (
 	"github.com/lunfardo314/tanglebeat/stopwatch"
 	"github.com/op/go-logging"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path"
 	"strconv"
@@ -37,7 +36,7 @@ type transferBundleGenerator struct {
 
 	iotaMultiAPI     multiapi.MultiAPI
 	iotaMultiAPIgTTA multiapi.MultiAPI
-	iotaAPIaTT       *API
+	iotaMultiAPIaTT  multiapi.MultiAPI
 
 	log     *logging.Logger
 	chanOut bundle_source.BundleSourceChan
@@ -68,25 +67,14 @@ func initTransferBundleGenerator(name string, params *senderParamsYAML, logger *
 	if err != nil {
 		return nil, err
 	}
-	//ret.iotaAPI = ret.iotaMultiAPI.GetAPI()
-	//AEC.RegisterAPI(ret.iotaAPI, params.IOTANode[0])
 
 	// multi APi for tipsel
 	ret.iotaMultiAPIgTTA, err = multiapi.New(params.IOTANodeTipsel, params.TimeoutTipsel)
 	if err != nil {
 		return nil, err
 	}
-	//ret.iotaAPIgTTA = ret.iotaMultiAPIgTTA.GetAPI()
-	//AEC.RegisterAPI(ret.iotaAPIgTTA, params.IOTANodeTipsel[0])
 
-	ret.iotaAPIaTT, err = ComposeAPI(
-		HTTPClientSettings{
-			URI: params.IOTANodePoW,
-			Client: &http.Client{
-				Timeout: time.Duration(params.TimeoutPoW) * time.Second,
-			},
-		},
-	)
+	ret.iotaMultiAPIaTT, err = multiapi.New([]string{params.IOTANodePoW}, params.TimeoutPoW)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +140,6 @@ func (gen *transferBundleGenerator) runGenerator() {
 	balanceZeroWaitSec := 2
 
 	for {
-
 		if addr == "" {
 			addr, err = gen.getAddress(gen.index)
 			if err != nil {
@@ -373,32 +360,28 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr Trytes, balance
 	//----- end prepare transfer
 
 	//------ find two transactions to approve
-	st := lib.UnixMs(time.Now())
-	//gttaResp, err := gen.iotaAPIgTTA.GetTransactionsToApprove(3)
 
-	var mapiRet multiapi.MultiCallRet
-	gttaResp, err := gen.iotaMultiAPIgTTA.GetTransactionsToApprove(3, &mapiRet)
+	var apiret multiapi.MultiCallRet
+	gttaResp, err := gen.iotaMultiAPIgTTA.GetTransactionsToApprove(3, &apiret)
 
-	if AEC.CheckError(mapiRet.Endpoint, err) {
+	if AEC.CheckError(apiret.Endpoint, err) {
 		return nil, err
 	}
-	ret.TotalDurationTipselMs = lib.UnixMs(time.Now()) - st
-
-	st = lib.UnixMs(time.Now())
+	ret.TotalDurationTipselMs = uint64(apiret.Duration / time.Millisecond)
 
 	// do POW by calling attachToTangle
-	bundleRet, err := gen.iotaAPIaTT.AttachToTangle(
+	bundleRet, err := gen.iotaMultiAPIaTT.AttachToTangle(
 		gttaResp.TrunkTransaction,
 		gttaResp.BranchTransaction,
 		14,
 		bundlePrep,
+		&apiret,
 	)
-
-	if AEC.CheckError(gen.params.IOTANodePoW, err) {
+	if AEC.CheckError(apiret.Endpoint, err) {
 		return nil, err
 	}
+	ret.TotalDurationPoWMs = uint64(apiret.Duration / time.Millisecond)
 
-	ret.TotalDurationPoWMs = lib.UnixMs(time.Now()) - st
 	// broadcast bundle
 	// TODO multi api
 	_, err = gen.iotaMultiAPI.GetAPI().BroadcastTransactions(bundleRet...)

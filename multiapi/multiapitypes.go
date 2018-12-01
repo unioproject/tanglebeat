@@ -17,6 +17,7 @@ type MultiAPI []endpointEntry
 type MultiCallRet struct {
 	Endpoint string
 	Duration time.Duration
+	Info     string // used by CheckConsistency
 }
 
 func New(endpoints []string, timeout uint64) (MultiAPI, error) {

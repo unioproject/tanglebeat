@@ -7,14 +7,16 @@ import (
 	. "github.com/iotaledger/iota.go/transaction"
 	. "github.com/iotaledger/iota.go/trinary"
 	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/lunfardo314/tanglebeat/multiapi"
 	"strings"
 	"time"
 )
 
-func (conf *Confirmer) attachToTangle(trunkHash, branchHash Hash, trytes []Trytes) ([]Trytes, error) {
-	ret, err := conf.IotaAPIaTT.AttachToTangle(trunkHash, branchHash, 14, trytes)
-	conf.AEC.CheckError("???", err)
-	return ret, err
+func (conf *Confirmer) attachToTangle(trunkHash, branchHash Hash, trytes []Trytes) ([]Trytes, uint64, error) {
+	var apiret multiapi.MultiCallRet
+	ret, err := conf.IotaMultiAPIaTT.AttachToTangle(trunkHash, branchHash, 14, trytes, &apiret)
+	conf.AEC.CheckError(apiret.Endpoint, err)
+	return ret, uint64(apiret.Duration / time.Millisecond), err
 }
 
 var all9 = Trytes(strings.Repeat("9", 81))
@@ -40,13 +42,15 @@ func (conf *Confirmer) promote() error {
 	prepTransferOptions := PrepareTransfersOptions{
 		Timestamp: &ts,
 	}
-	bundleTrytesPrep, err := conf.IotaAPI.PrepareTransfers(all9, transfers, prepTransferOptions)
-	if conf.AEC.CheckError("???", err) {
+	// TODO multi api
+	bundleTrytesPrep, err := conf.IotaMultiAPI.GetAPI().PrepareTransfers(all9, transfers, prepTransferOptions)
+	if conf.AEC.CheckError(conf.IotaMultiAPI.GetAPIEndpoint(), err) {
 		return err
 	}
+	var apiret multiapi.MultiCallRet
 	st := lib.UnixMs(time.Now())
-	gttaResp, err := conf.IotaAPIgTTA.GetTransactionsToApprove(3)
-	if conf.AEC.CheckError("???", err) {
+	gttaResp, err := conf.IotaMultiAPIgTTA.GetTransactionsToApprove(3, &apiret)
+	if conf.AEC.CheckError(apiret.Endpoint, err) {
 		return err
 	}
 	conf.totalDurationGTTAMsec += lib.UnixMs(time.Now()) - st
@@ -54,19 +58,19 @@ func (conf *Confirmer) promote() error {
 	trunkTxh := conf.nextTailHashToPromote
 	branchTxh := gttaResp.BranchTransaction
 
-	st = lib.UnixMs(time.Now())
-	btrytes, err := conf.attachToTangle(trunkTxh, branchTxh, bundleTrytesPrep)
+	btrytes, duration, err := conf.attachToTangle(trunkTxh, branchTxh, bundleTrytesPrep)
 	if err != nil {
 		return err
 	}
-	conf.totalDurationATTMsec += lib.UnixMs(time.Now()) - st
+	conf.totalDurationATTMsec += duration
 
-	_, err = conf.IotaAPI.BroadcastTransactions(btrytes...)
-	if conf.AEC.CheckError("???", err) {
+	// TODO multi api
+	_, err = conf.IotaMultiAPI.GetAPI().BroadcastTransactions(btrytes...)
+	if conf.AEC.CheckError(conf.IotaMultiAPI.GetAPIEndpoint(), err) {
 		return err
 	}
-	_, err = conf.IotaAPI.StoreTransactions(btrytes...)
-	if conf.AEC.CheckError("???", err) {
+	_, err = conf.IotaMultiAPI.GetAPI().StoreTransactions(btrytes...)
+	if conf.AEC.CheckError(conf.IotaMultiAPI.GetAPIEndpoint(), err) {
 		return err
 	}
 	nowis := time.Now()
@@ -94,27 +98,32 @@ func (conf *Confirmer) reattach() error {
 			return errors.New("CONFIRMER-REATT:reattach: inconsistency curTail.Bundle != conf.bundleHash")
 		}
 	}
-	st := lib.UnixMs(time.Now())
-	gttaResp, err := conf.IotaAPIgTTA.GetTransactionsToApprove(3)
-	if conf.AEC.CheckError("???", err) {
+
+	var apiret multiapi.MultiCallRet
+	gttaResp, err := conf.IotaMultiAPIgTTA.GetTransactionsToApprove(3, &apiret)
+	if conf.AEC.CheckError(apiret.Endpoint, err) {
 		return err
 	}
-	conf.totalDurationGTTAMsec += lib.UnixMs(time.Now()) - st
+	conf.totalDurationGTTAMsec += uint64(apiret.Duration / time.Millisecond)
 
 	var btrytes []Trytes
-	btrytes, err = conf.attachToTangle(
+	var duration uint64
+	btrytes, duration, err = conf.attachToTangle(
 		gttaResp.TrunkTransaction,
 		gttaResp.BranchTransaction,
 		conf.lastBundleTrytes)
 	if err != nil {
 		return err
 	}
-	_, err = conf.IotaAPI.BroadcastTransactions(btrytes...)
-	if conf.AEC.CheckError("???", err) {
+	conf.totalDurationATTMsec += duration
+
+	// TODO multi api
+	_, err = conf.IotaMultiAPI.GetAPI().BroadcastTransactions(btrytes...)
+	if conf.AEC.CheckError(conf.IotaMultiAPI.GetAPIEndpoint(), err) {
 		return err
 	}
-	_, err = conf.IotaAPI.StoreTransactions(btrytes...)
-	if conf.AEC.CheckError("???", err) {
+	_, err = conf.IotaMultiAPI.GetAPI().StoreTransactions(btrytes...)
+	if conf.AEC.CheckError(conf.IotaMultiAPI.GetAPIEndpoint(), err) {
 		return err
 	}
 	var newTail *Transaction

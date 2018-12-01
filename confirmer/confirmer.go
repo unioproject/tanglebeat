@@ -2,9 +2,9 @@ package confirmer
 
 import (
 	"errors"
-	. "github.com/iotaledger/iota.go/api"
 	. "github.com/iotaledger/iota.go/trinary"
 	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/lunfardo314/tanglebeat/multiapi"
 	"github.com/lunfardo314/tanglebeat/stopwatch"
 	"github.com/op/go-logging"
 	"strings"
@@ -22,9 +22,13 @@ const (
 )
 
 type Confirmer struct {
-	IotaAPI               *API
-	IotaAPIgTTA           *API
-	IotaAPIaTT            *API
+	//IotaAPI               *API
+	//IotaAPIgTTA           *API
+
+	IotaMultiAPI     multiapi.MultiAPI
+	IotaMultiAPIgTTA multiapi.MultiAPI
+	IotaMultiAPIaTT  multiapi.MultiAPI
+
 	TxTagPromote          Trytes
 	ForceReattachAfterMin uint64
 	PromoteChain          bool
@@ -129,15 +133,14 @@ func (conf *Confirmer) waitForConfirmation(cancelPromoCheck, cancelPromo, cancel
 	conf.debugf("CONFIRMER-WAIT: 'wait confirmation' routine started for %v", conf.bundleHash)
 	defer conf.debugf("CONFIRMER-WAIT: 'wait confirmation' routine ended for %v", conf.bundleHash)
 
+	var apiret multiapi.MultiCallRet
 	bundleHash := conf.bundleHash
 	for count := 0; ; count++ {
 		if count%3 == 0 {
 			conf.debugf("CONFIRMER-WAIT: confirm task for bundle hash %v running already %v", bundleHash, time.Since(started))
 		}
-		//conf.debugf("------- CONFIRMER-WAIT BEFORE IsBundleHashConfirmed")
-		confirmed, err := lib.IsBundleHashConfirmed(bundleHash, conf.IotaAPI)
-		//conf.debugf("------- CONFIRMER-WAIT AFTER IsBundleHashConfirmed %v %v", confirmed, err)
-		if conf.AEC.CheckError("???", err) {
+		confirmed, err := lib.IsBundleHashConfirmedMulti(bundleHash, conf.IotaMultiAPI, &apiret)
+		if conf.AEC.CheckError(apiret.Endpoint, err) {
 			conf.errorf("CONFIRMER-WAIT: isBundleHashConfirmed returned %v", err)
 		} else {
 			if confirmed {
@@ -182,8 +185,9 @@ func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, err error) {
 }
 
 func (conf *Confirmer) checkConsistency(tailHash Hash) (bool, error) {
-	consistent, info, err := conf.IotaAPI.CheckConsistency(tailHash)
-	if conf.AEC.CheckError("???", err) {
+	var apiret multiapi.MultiCallRet
+	consistent, info, err := conf.IotaMultiAPI.CheckConsistency(tailHash, &apiret)
+	if conf.AEC.CheckError(apiret.Endpoint, err) {
 		return false, err
 	}
 	if !consistent && strings.Contains(info, "not solid") {

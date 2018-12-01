@@ -113,3 +113,31 @@ func (mapi MultiAPI) GetTrytes(args ...interface{}) ([]Trytes, error) {
 	}
 	return rr, err
 }
+
+func (mapi MultiAPI) CheckConsistency(args ...interface{}) (bool, string, error) {
+	funname := "CheckConsistency"
+	funargs, callRet := getArgs(args)
+	r, err := mapi.__multiCall__(funname, callRet, funargs...)
+	if err != nil {
+		return false, "", err
+	}
+	rr, ok := r.(*__checkConsistencyResult)
+	if !ok {
+		return false, "", fmt.Errorf("internal error: wrong type in '%v'", funname)
+	}
+	return rr.consistent, rr.info, err
+}
+
+func (mapi MultiAPI) AttachToTangle(args ...interface{}) ([]Trytes, error) {
+	funname := "AttachToTangle"
+	funargs, callRet := getArgs(args)
+	r, err := mapi.__multiCall__(funname, callRet, funargs...)
+	if err != nil {
+		return nil, err
+	}
+	rr, ok := r.([]Trytes)
+	if !ok {
+		return nil, fmt.Errorf("internal error: wrong type in '%v'", funname)
+	}
+	return rr, err
+}

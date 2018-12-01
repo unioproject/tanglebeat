@@ -13,6 +13,8 @@ var funMap = map[string]func(api *API, args []interface{}) (interface{}, error){
 	"FindTransactions":         __findTransactions__,
 	"WereAddressesSpentFrom":   __wereAddressesSpentFrom__,
 	"GetTrytes":                __getTrytes__,
+	"CheckConsistency":         __checkConsistency__,
+	"AttachToTangle":           __attachToTangle__,
 }
 
 func __getLatestInclusion__(iotaapi *API, args []interface{}) (interface{}, error) {
@@ -109,6 +111,53 @@ func __getTrytes__(iotaapi *API, args []interface{}) (interface{}, error) {
 		txs = append(txs, txh)
 	}
 	return iotaapi.GetTrytes(txs...)
+}
+
+type __checkConsistencyResult struct {
+	consistent bool
+	info       string
+}
+
+func __checkConsistency__(iotaapi *API, args []interface{}) (interface{}, error) {
+	var ok bool
+	if len(args) == 0 {
+		return nil, fmt.Errorf("__polyCall__ '__checkConsistency__': wrong number of arguments. Must be at least 1")
+	}
+	hashes := make([]Hash, 0, len(args))
+	var txh Hash
+	for _, arg := range args {
+		if txh, ok = arg.(Hash); !ok {
+			return nil, fmt.Errorf("__polyCall__ '__checkConsistency__': wrong argument type")
+		}
+		hashes = append(hashes, txh)
+	}
+	var ret __checkConsistencyResult
+	var err error
+	ret.consistent, ret.info, err = iotaapi.CheckConsistency(hashes...)
+	return &ret, err
+}
+
+func __attachToTangle__(iotaapi *API, args []interface{}) (interface{}, error) {
+	var ok bool
+	if len(args) != 4 {
+		return nil, fmt.Errorf("__polyCall__ '__attachToTangle__': wrong number of arguments. Must be 4")
+	}
+	var trunkHash Hash
+	var branchHash Hash
+	var mwm uint64
+	var trytes []Trytes
+
+	if trunkHash, ok = args[0].(Hash); ok {
+		if branchHash, ok = args[1].(Hash); ok {
+			if mwm, ok = toUint64(args[2]); ok {
+				trytes, ok = args[3].([]Trytes)
+			}
+		}
+	}
+	if !ok {
+		return nil, fmt.Errorf("__polyCall__ '__attachToTangle__': wrong argument type")
+	}
+	return iotaapi.AttachToTangle(trunkHash, branchHash, mwm, trytes)
 }
 
 func toUint64(val interface{}) (uint64, bool) {

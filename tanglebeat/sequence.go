@@ -2,17 +2,16 @@ package main
 
 import (
 	"fmt"
-	. "github.com/iotaledger/iota.go/api"
 	. "github.com/iotaledger/iota.go/consts"
 	. "github.com/iotaledger/iota.go/guards/validators"
 	. "github.com/iotaledger/iota.go/trinary"
 	"github.com/lunfardo314/tanglebeat/bundle_source"
 	"github.com/lunfardo314/tanglebeat/confirmer"
 	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/lunfardo314/tanglebeat/multiapi"
 	"github.com/lunfardo314/tanglebeat/sender_update"
 	"github.com/lunfardo314/tanglebeat/stopwatch"
 	"github.com/op/go-logging"
-	"net/http"
 	"os"
 	"time"
 )
@@ -74,38 +73,16 @@ func (seq *TransferSequence) GetLongName() string {
 }
 
 func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirmer.Confirmer, error) {
-	iotaAPI, err := ComposeAPI(
-		HTTPClientSettings{
-			URI: params.IOTANode[0],
-			Client: &http.Client{
-				Timeout: time.Duration(params.TimeoutAPI) * time.Second,
-			},
-		},
-	)
+	iotaMultiAPI, err := multiapi.New(params.IOTANode, params.TimeoutAPI)
+	if err != nil {
+		return nil, err
+	}
+	iotaMultiAPIgTTA, err := multiapi.New(params.IOTANodeTipsel, params.TimeoutTipsel)
 	if err != nil {
 		return nil, err
 	}
 
-	iotaAPIgTTA, err := ComposeAPI(
-		HTTPClientSettings{
-			URI: params.IOTANodeTipsel[0],
-			Client: &http.Client{
-				Timeout: time.Duration(params.TimeoutTipsel) * time.Second,
-			},
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	iotaAPIaTT, err := ComposeAPI(
-		HTTPClientSettings{
-			URI: params.IOTANodePoW,
-			Client: &http.Client{
-				Timeout: time.Duration(params.TimeoutPoW) * time.Second,
-			},
-		},
-	)
+	iotaMultiAPIaTT, err := multiapi.New([]string{params.IOTANodePoW}, params.TimeoutPoW)
 	if err != nil {
 		return nil, err
 	}
@@ -116,9 +93,9 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 		return nil, err
 	}
 	ret := confirmer.Confirmer{
-		IotaAPI:               iotaAPI,
-		IotaAPIaTT:            iotaAPIaTT,
-		IotaAPIgTTA:           iotaAPIgTTA,
+		IotaMultiAPI:          iotaMultiAPI,
+		IotaMultiAPIaTT:       iotaMultiAPIaTT,
+		IotaMultiAPIgTTA:      iotaMultiAPIgTTA,
 		TxTagPromote:          txTagPromote,
 		ForceReattachAfterMin: params.ForceReattachAfterMin,
 		PromoteChain:          params.PromoteChain,
