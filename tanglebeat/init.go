@@ -63,8 +63,8 @@ type loggingConfigYAML struct {
 	LogSequencesSeparately bool   `yaml:"logSequencesSeparately"`
 	LogFormat              string `yaml:"logFormat"`
 	LogFormatDebug         string `yaml:"logFormatDebug"`
-	MemStats               bool   `yaml:"memStats"`
-	MemStatsInterval       int    `yaml:"memStatsInterval"`
+	RuntimeStats           bool   `yaml:"logRuntimeStats"`
+	RuntimeStatsInterval   int    `yaml:"logRuntimeStatsInterval"`
 }
 
 type senderYAML struct {
@@ -204,15 +204,15 @@ func masterConfig(configFilename string) {
 }
 
 func configDebugging() {
-	if Config.Logging.Debug && Config.Logging.MemStats {
-		sl := lib.Max(5, Config.Logging.MemStatsInterval)
+	if Config.Logging.Debug && Config.Logging.RuntimeStats {
+		sl := lib.Max(5, Config.Logging.RuntimeStatsInterval)
 		go func() {
 			for {
-				logMemStats()
+				logRuntimeStats()
 				time.Sleep(time.Duration(sl) * time.Second)
 			}
 		}()
-		log.Infof("Will be logging MemStats every %v sec", sl)
+		log.Infof("Will be logging RuntimeStats every %v sec", sl)
 	}
 }
 
@@ -262,6 +262,9 @@ func configMasterLogging() {
 	masterLoggingBackend.SetLevel(logLevel, "main")
 
 	log.SetBackend(masterLoggingBackend)
+
+	multiapi.SetLog(log)
+
 	logInitialized = true
 }
 
@@ -371,11 +374,11 @@ func getEnabledSeqNames() []string {
 	return ret
 }
 
-func logMemStats() {
+func logRuntimeStats() {
 	var mem runtime.MemStats
 
 	runtime.ReadMemStats(&mem)
-	log.Debugf("------- DEBUG:MemStats MB: Alloc=%v TotalAlloc=%v Sys = %v NumGC = %v NumGoroutines = %d\n",
+	log.Debugf("------- DEBUG:RuntimeStats MB: Alloc = %v TotalAlloc = %v Sys = %v NumGC = %v NumGoroutines = %d\n",
 		bToMb(mem.Alloc),
 		bToMb(mem.TotalAlloc),
 		bToMb(mem.Sys),

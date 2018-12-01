@@ -4,8 +4,20 @@ import (
 	"fmt"
 	. "github.com/iotaledger/iota.go/api"
 	. "github.com/iotaledger/iota.go/trinary"
+	"github.com/op/go-logging"
 )
 
+var log *logging.Logger
+
+func SetLog(logger *logging.Logger) {
+	log = logger
+}
+
+func debugf(format string, args ...interface{}) {
+	if log != nil {
+		log.Debugf(format, args...)
+	}
+}
 func getArgs(args []interface{}) ([]interface{}, *MultiCallRet) {
 	lenarg := len(args)
 	if lenarg == 0 {
@@ -68,6 +80,20 @@ func (mapi MultiAPI) FindTransactions(args ...interface{}) (Hashes, error) {
 		return nil, err
 	}
 	rr, ok := r.(Hashes)
+	if !ok {
+		return nil, fmt.Errorf("internal error: wrong type in '%v'", funname)
+	}
+	return rr, err
+}
+
+func (mapi MultiAPI) WereAddressesSpentFrom(args ...interface{}) ([]bool, error) {
+	funname := "WereAddressesSpentFrom"
+	funargs, callRet := getArgs(args)
+	r, err := mapi.__multiCall__(funname, callRet, funargs...)
+	if err != nil {
+		return nil, err
+	}
+	rr, ok := r.([]bool)
 	if !ok {
 		return nil, fmt.Errorf("internal error: wrong type in '%v'", funname)
 	}

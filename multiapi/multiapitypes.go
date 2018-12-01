@@ -19,7 +19,7 @@ type MultiCallRet struct {
 	Duration time.Duration
 }
 
-func New(endpoints []string, timeout int) (MultiAPI, error) {
+func New(endpoints []string, timeout uint64) (MultiAPI, error) {
 	if len(endpoints) == 0 {
 		return nil, errors.New("Must be at least 1 Endpoint")
 	}
@@ -43,4 +43,11 @@ func New(endpoints []string, timeout int) (MultiAPI, error) {
 		ret = append(ret, endpointEntry{api: api, endpoint: ep})
 	}
 	return ret, nil
+}
+
+func (mapi MultiAPI) GetAPI() *API {
+	if len(endpoints) == 0 {
+		return nil
+	}
+	return mapi[0].api
 }

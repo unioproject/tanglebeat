@@ -50,19 +50,19 @@ func (mapi MultiAPI) __multiCall__(funName string, retEndpoint *MultiCallRet, ar
 	}
 	chInterimResult := make(chan *multiCallInterimResult)
 	var wg sync.WaitGroup
-	for _, api := range mapi {
+	for i := range mapi {
 		wg.Add(1)
-		go func() {
+		// need variable for go routine!!!! https://github.com/golang/go/wiki/CommonMistakes
+		go func(idx int) {
 			defer wg.Done()
-			res, err := __polyCall__(api.api, funName, args...)
+			res, err := __polyCall__(mapi[idx].api, funName, args...)
 			chInterimResult <- &multiCallInterimResult{
 				ret:      &res,
 				err:      err,
-				endpoint: api.endpoint}
-		}()
+				endpoint: mapi[idx].endpoint}
+		}(i)
 	}
 	// assuming each api has timeout, all go routines has to finish anyway
-	// TODO detect and report leak of goroutines/channels
 	go func() {
 		wg.Wait()
 		close(chInterimResult)
@@ -74,7 +74,7 @@ func (mapi MultiAPI) __multiCall__(funName string, retEndpoint *MultiCallRet, ar
 	go func() {
 		var res *multiCallInterimResult
 		var noerr bool
-		// reading all results to get all go routines finish
+		// reading all results to make all go routines to finish
 		for res = range chInterimResult {
 			if !noerr && res.err == nil {
 				result = res

@@ -12,6 +12,7 @@ import (
 	. "github.com/iotaledger/iota.go/trinary"
 	"github.com/lunfardo314/tanglebeat/bundle_source"
 	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/lunfardo314/tanglebeat/multiapi"
 	"github.com/lunfardo314/tanglebeat/stopwatch"
 	"github.com/op/go-logging"
 	"io/ioutil"
@@ -33,11 +34,15 @@ type transferBundleGenerator struct {
 	securityLevel int
 	txTag         Trytes
 	index         uint64
-	iotaAPI       *API
-	iotaAPIgTTA   *API
-	iotaAPIaTT    *API
-	log           *logging.Logger
-	chanOut       bundle_source.BundleSourceChan
+
+	iotaAPI          *API
+	iotaAPIgTTA      *API
+	iotaMultiAPI     multiapi.MultiAPI
+	iotaMultiAPIgTTA multiapi.MultiAPI
+	iotaAPIaTT       *API
+
+	log     *logging.Logger
+	chanOut bundle_source.BundleSourceChan
 }
 
 const UID_LEN = 12
@@ -60,34 +65,20 @@ func initTransferBundleGenerator(name string, params *senderParamsYAML, logger *
 		log:           logger,
 		chanOut:       make(bundle_source.BundleSourceChan),
 	}
-	ret.iotaAPI, err = ComposeAPI(
-		HTTPClientSettings{
-			URI: params.IOTANode[0],
-			Client: &http.Client{
-				Timeout: time.Duration(params.TimeoutAPI) * time.Second,
-			},
-		},
-	)
+	// default multi API
+	ret.iotaMultiAPI, err = multiapi.New(params.IOTANode, params.TimeoutAPI)
 	if err != nil {
 		return nil, err
 	}
-	// Timeout: time.Duration(params.TimeoutAPI) * time.Second,
-
+	ret.iotaAPI = ret.iotaMultiAPI.GetAPI()
 	AEC.RegisterAPI(ret.iotaAPI, params.IOTANode[0])
 
-	ret.iotaAPIgTTA, err = ComposeAPI(
-		HTTPClientSettings{
-			URI: params.IOTANodeTipsel[0],
-			Client: &http.Client{
-				Timeout: time.Duration(params.TimeoutTipsel) * time.Second,
-			},
-		},
-	)
-	//		Timeout: time.Duration(params.TimeoutTipsel) * time.Second,
+	// multi APi for tipsel
+	ret.iotaMultiAPIgTTA, err = multiapi.New(params.IOTANodeTipsel, params.TimeoutTipsel)
 	if err != nil {
 		return nil, err
 	}
-
+	ret.iotaAPIgTTA = ret.iotaMultiAPIgTTA.GetAPI()
 	AEC.RegisterAPI(ret.iotaAPIgTTA, params.IOTANodeTipsel[0])
 
 	ret.iotaAPIaTT, err = ComposeAPI(
@@ -98,7 +89,6 @@ func initTransferBundleGenerator(name string, params *senderParamsYAML, logger *
 			},
 		},
 	)
-	//		Timeout: time.Duration(params.TimeoutPoW) * time.Second,
 	if err != nil {
 		return nil, err
 	}
@@ -307,7 +297,10 @@ func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash Hash) {
 }
 
 func (gen *transferBundleGenerator) isSpentAddr(address Hash) (bool, error) {
-	spent, err := gen.iotaAPI.WereAddressesSpentFrom(address)
+	//spent, err := gen.iotaAPI.WereAddressesSpentFrom(address)
+	var apiret multiapi.MultiCallRet
+	spent, err := gen.iotaMultiAPI.WereAddressesSpentFrom(address, &apiret)
+	gen.log.Debugf("++++++++ got WereAddressesSpentFrom: %v", apiret)
 
 	if AEC.CheckError(gen.iotaAPI, err) {
 		return false, err
@@ -317,7 +310,10 @@ func (gen *transferBundleGenerator) isSpentAddr(address Hash) (bool, error) {
 }
 
 func (gen *transferBundleGenerator) getBalanceAddr(addresses Hashes) (*Balances, error) {
-	balances, err := gen.iotaAPI.GetBalances(addresses, 100)
+	//balances, err := gen.iotaAPI.GetBalances(addresses, 100)
+	var apiret multiapi.MultiCallRet
+	balances, err := gen.iotaMultiAPI.GetBalances(addresses, 100, &apiret)
+	gen.log.Debugf("++++++++ got GetBalances: %v", apiret)
 
 	if AEC.CheckError(gen.iotaAPI, err) {
 		return nil, err
