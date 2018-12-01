@@ -46,8 +46,15 @@ func New(endpoints []string, timeout uint64) (MultiAPI, error) {
 }
 
 func (mapi MultiAPI) GetAPI() *API {
-	if len(endpoints) == 0 {
+	if len(endpoints4test) == 0 {
 		return nil
 	}
 	return mapi[0].api
+}
+
+func (mapi MultiAPI) GetAPIEndpoint() string {
+	if len(endpoints4test) == 0 {
+		return "???"
+	}
+	return mapi[0].endpoint
 }

@@ -26,44 +26,44 @@ func TestMultiAPI_GetLatestInclusion(t *testing.T) {
 }
 
 func _getLatestInclusion(t *testing.T) {
-	mapi, err := New(endpoints, 10)
+	mapi, err := New(endpoints4test, 10)
 	if err != nil || mapi == nil {
 		t.Errorf("Must return correct mapi and err==nil")
 	}
 
 	for i := range mapi {
-		res, err := mapi[i].api.GetLatestInclusion(txs)
+		res, err := mapi[i].api.GetLatestInclusion(txh4test)
 		fmt.Printf("Original: Result = %v err = %v from %v\n", res, err, mapi[i].endpoint)
 	}
 	fmt.Println("----- Testing MultiAPI")
-	resOrig, err2 := mapi[0].api.GetLatestInclusion(txs)
-	resMapi, err1 := mapi.GetLatestInclusion(txs)
+	resOrig, err2 := mapi[0].api.GetLatestInclusion(txh4test)
+	resMapi, err1 := mapi.GetLatestInclusion(txh4test)
 	fmt.Printf("res1 = %v err1 =%v res2 = %v err2 = %v\n", resMapi, err1, resOrig, err2)
 	if err1 == nil && err2 == nil && !equalBoolSlice(resMapi, resOrig) {
 		t.Errorf("Must be equal resuls. Res1 = %v Res2 = %v", resMapi, resOrig)
 	}
 	var res MultiCallRet
-	resMapi, err1 = mapi.GetLatestInclusion(txs, &res)
-	resOrig, err2 = mapi[0].api.GetLatestInclusion(txs)
+	resMapi, err1 = mapi.GetLatestInclusion(txh4test, &res)
+	resOrig, err2 = mapi[0].api.GetLatestInclusion(txh4test)
 	fmt.Printf("res1 = %v err1 =%v res2 = %v err2 = %v ep = %v\n", resMapi, err1, resOrig, err2, res.Endpoint)
 	if err1 == nil && err2 == nil && !equalBoolSlice(resMapi, resOrig) {
 		t.Errorf("Must be equal resuls. Res1 = %v Res2 = %v", resMapi, resOrig)
 	}
 
-	resMapi, _ = mapi[:1].GetLatestInclusion(txs, &res)
+	resMapi, _ = mapi[:1].GetLatestInclusion(txh4test, &res)
 	if res.Endpoint != mapi[0].endpoint {
 		t.Errorf("Wrong value of endpoint returned. ep1 = %v ep2 = %v", res.Endpoint, mapi[0].endpoint)
 	}
 
-	mapi, _ = New(endpoints, 10)
-	resMapi, _ = mapi[:1].GetLatestInclusion(txs, &res)
+	mapi, _ = New(endpoints4test, 10)
+	resMapi, _ = mapi[:1].GetLatestInclusion(txh4test, &res)
 	fmt.Printf("First result = %v from = %v\n", resMapi, res.Endpoint)
 	if !equalBoolSlice(resOrig, resMapi) {
 		t.Errorf("%v != %v : results must be equal", resOrig, resMapi)
 	}
 
-	for i := 1; i < len(endpoints); i++ {
-		resMapiTmp, _ := mapi[:i].GetLatestInclusion(txs, &res)
+	for i := 1; i < len(endpoints4test); i++ {
+		resMapiTmp, _ := mapi[:i].GetLatestInclusion(txh4test, &res)
 		fmt.Printf("res1 = %v res2 = %v ep = %v\n", resMapi, resMapiTmp, res.Endpoint)
 		if !equalBoolSlice(resMapiTmp, resMapi) {
 			t.Errorf("%v != %v : must be equal to first result", resMapiTmp, resMapi)
@@ -74,7 +74,7 @@ func _getLatestInclusion(t *testing.T) {
 func Test_polyCall(t *testing.T) {
 	api, err := ComposeAPI(
 		HTTPClientSettings{
-			URI: endpoints[0],
+			URI: endpoints4test[0],
 			Client: &Client{
 				Timeout: time.Duration(10) * time.Second,
 			},
@@ -83,10 +83,10 @@ func Test_polyCall(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	gliResp1, err1 := api.GetLatestInclusion(txs)
+	gliResp1, err1 := api.GetLatestInclusion(txh4test)
 	fmt.Printf("fun = 'GetLatestInclusion' gliResp = %v err1 = %v\n", gliResp1, err1)
 
-	resp, err2 := __polyCall__(api, "GetLatestInclusion", txs)
+	resp, err2 := __polyCall__(api, "GetLatestInclusion", txh4test)
 	if err2 == nil {
 		gliResp2 := resp.([]bool)
 		fmt.Printf("fun = 'gli' resp = %v err1 = %v\n", gliResp2, err2)
@@ -115,7 +115,7 @@ func Test_polyCall(t *testing.T) {
 func Test_GetBalances(t *testing.T) {
 	api, err := ComposeAPI(
 		HTTPClientSettings{
-			URI: endpoints[0],
+			URI: endpoints4test[0],
 			Client: &Client{
 				Timeout: time.Duration(10) * time.Second,
 			},
@@ -124,19 +124,19 @@ func Test_GetBalances(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	mapi, err := New(endpoints, 10)
+	mapi, err := New(endpoints4test, 10)
 	if err != nil || mapi == nil {
 		t.Errorf("Must return correct mapi and err==nil")
 	}
 
 	started := time.Now()
-	balOrig, errOrig := api.GetBalances(addrs, 100)
+	balOrig, errOrig := api.GetBalances(addresses4test, 100)
 	fmt.Printf("Original GetBalances bal = %v err = %v ep = %v duration = %v\n",
-		balOrig, errOrig, endpoints[0], time.Since(started))
+		balOrig, errOrig, endpoints4test[0], time.Since(started))
 	var res MultiCallRet
-	balMapi, errMapi := mapi.GetBalances(addrs, uint64(100), &res)
+	balMapi, errMapi := mapi.GetBalances(addresses4test, uint64(100), &res)
 	fmt.Printf("MAPI GetBalances bal = %v err = %v res = %v\n", balMapi, errMapi, res)
-	balMapi2, errMapi2 := mapi.GetBalances(addrs, uint64(100))
+	balMapi2, errMapi2 := mapi.GetBalances(addresses4test, uint64(100))
 	fmt.Printf("MAPI GetBalances bal = %v err = %v res = ???\n", balMapi2, errMapi2)
 	if !equalGetBalanceResponses(balMapi, balOrig) {
 		t.Errorf("responses of getBalances not equal")
@@ -146,7 +146,7 @@ func Test_GetBalances(t *testing.T) {
 func Test_FindTransactions(t *testing.T) {
 	api, err := ComposeAPI(
 		HTTPClientSettings{
-			URI: endpoints[0],
+			URI: endpoints4test[0],
 			Client: &Client{
 				Timeout: time.Duration(10) * time.Second,
 			},
@@ -155,25 +155,25 @@ func Test_FindTransactions(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	mapi, err := New(endpoints, 10)
+	mapi, err := New(endpoints4test, 10)
 	if err != nil || mapi == nil {
 		t.Errorf("Must return correct mapi and err==nil")
 	}
 
 	started := time.Now()
 	respOrig, errOrig := api.FindTransactions(FindTransactionsQuery{
-		Addresses: addrs,
+		Addresses: addresses4test,
 	})
 	fmt.Printf("Original FindTransactions resp = %v err = %v ep = %v duration = %v\n",
-		respOrig, errOrig, endpoints[0], time.Since(started))
+		respOrig, errOrig, endpoints4test[0], time.Since(started))
 	var res MultiCallRet
 	respMapi, errMapi := mapi.FindTransactions(FindTransactionsQuery{
-		Addresses: addrs,
+		Addresses: addresses4test,
 	})
 	fmt.Printf("Original FindTransactions resp = %v err = %v ep = %v duration = %v\n",
 		respMapi, errMapi, nil, nil)
 	respMapi, errMapi = mapi.FindTransactions(FindTransactionsQuery{
-		Addresses: addrs,
+		Addresses: addresses4test,
 	}, &res)
 	fmt.Printf("Original FindTransactions resp = %v err = %v ep = %v duration = %v\n",
 		respMapi, errMapi, res.Endpoint, res.Duration)

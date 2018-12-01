@@ -3,7 +3,6 @@
 package main
 
 import (
-	. "github.com/iotaledger/iota.go/api"
 	"github.com/prometheus/client_golang/prometheus"
 	"os"
 	"sync"
@@ -11,33 +10,25 @@ import (
 )
 
 type apiErrorCount struct {
-	apiEndpoints    map[*API]string
-	mutex           sync.Mutex
 	apiErrorCounter *prometheus.CounterVec
+	mutex           sync.Mutex
 	errorTs         []time.Time
 }
 
 var AEC *apiErrorCount
 
-func (aec *apiErrorCount) CheckError(api *API, err error) bool {
+func (aec *apiErrorCount) CheckError(endpoint string, err error) bool {
 	if err != nil {
-		aec.apiErrorCounter.With(prometheus.Labels{"endpoint": aec.getEndpoint(api)}).Inc()
+		aec.apiErrorCounter.With(prometheus.Labels{"endpoint": endpoint}).Inc()
 		aec.addError()
 	}
 	return err != nil
 }
 
-func (aec *apiErrorCount) RegisterAPI(api *API, endpoint string) {
-	aec.mutex.Lock()
-	defer aec.mutex.Unlock()
-	aec.apiEndpoints[api] = endpoint
-}
-
 func init() {
 	// register prometheus metrics
 	AEC = &apiErrorCount{
-		apiEndpoints: make(map[*API]string),
-		errorTs:      make([]time.Time, 0, 10),
+		errorTs: make([]time.Time, 0, 10),
 		apiErrorCounter: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "tanglebeat_iota_api_error_counter",
 			Help: "Increases every time IOTA (iota.go) API returns an error",
@@ -64,16 +55,6 @@ func (aec *apiErrorCount) addError() {
 	aec.mutex.Lock()
 	defer aec.mutex.Unlock()
 	aec.errorTs = append(aec.errorTs, time.Now())
-}
-
-func (aec *apiErrorCount) getEndpoint(api *API) string {
-	aec.mutex.Lock()
-	defer aec.mutex.Unlock()
-	ret, ok := aec.apiEndpoints[api]
-	if !ok {
-		return "???"
-	}
-	return ret
 }
 
 func (aec *apiErrorCount) cleanOldErrors() {

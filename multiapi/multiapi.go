@@ -99,3 +99,17 @@ func (mapi MultiAPI) WereAddressesSpentFrom(args ...interface{}) ([]bool, error)
 	}
 	return rr, err
 }
+
+func (mapi MultiAPI) GetTrytes(args ...interface{}) ([]Trytes, error) {
+	funname := "GetTrytes"
+	funargs, callRet := getArgs(args)
+	r, err := mapi.__multiCall__(funname, callRet, funargs...)
+	if err != nil {
+		return nil, err
+	}
+	rr, ok := r.([]Trytes)
+	if !ok {
+		return nil, fmt.Errorf("internal error: wrong type in '%v'", funname)
+	}
+	return rr, err
+}

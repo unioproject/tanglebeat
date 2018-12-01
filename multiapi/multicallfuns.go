@@ -12,6 +12,7 @@ var funMap = map[string]func(api *API, args []interface{}) (interface{}, error){
 	"GetBalances":              __getBalances__,
 	"FindTransactions":         __findTransactions__,
 	"WereAddressesSpentFrom":   __wereAddressesSpentFrom__,
+	"GetTrytes":                __getTrytes__,
 }
 
 func __getLatestInclusion__(iotaapi *API, args []interface{}) (interface{}, error) {
@@ -92,6 +93,22 @@ func __wereAddressesSpentFrom__(iotaapi *API, args []interface{}) (interface{}, 
 		addrs = append(addrs, addr)
 	}
 	return iotaapi.WereAddressesSpentFrom(addrs...)
+}
+
+func __getTrytes__(iotaapi *API, args []interface{}) (interface{}, error) {
+	var ok bool
+	if len(args) == 0 {
+		return nil, fmt.Errorf("__polyCall__ '__getTrytes__': wrong number of arguments. Must be at least 1")
+	}
+	txs := make([]Hash, 0, len(args))
+	var txh Hash
+	for _, arg := range args {
+		if txh, ok = arg.(Hash); !ok {
+			return nil, fmt.Errorf("__polyCall__ '__getTrytes__': wrong argument type")
+		}
+		txs = append(txs, txh)
+	}
+	return iotaapi.GetTrytes(txs...)
 }
 
 func toUint64(val interface{}) (uint64, bool) {

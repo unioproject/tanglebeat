@@ -85,7 +85,6 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 	if err != nil {
 		return nil, err
 	}
-	AEC.RegisterAPI(iotaAPI, params.IOTANode[0])
 
 	iotaAPIgTTA, err := ComposeAPI(
 		HTTPClientSettings{
@@ -98,7 +97,6 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 	if err != nil {
 		return nil, err
 	}
-	AEC.RegisterAPI(iotaAPIgTTA, params.IOTANodeTipsel[0])
 
 	iotaAPIaTT, err := ComposeAPI(
 		HTTPClientSettings{
@@ -111,7 +109,6 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 	if err != nil {
 		return nil, err
 	}
-	AEC.RegisterAPI(iotaAPIaTT, params.IOTANodePoW)
 
 	txTagPromote := Pad(Trytes(params.TxTagPromote), TagTrinarySize/3)
 	err = Validate(ValidateTags(txTagPromote))

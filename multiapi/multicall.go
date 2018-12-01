@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	. "github.com/iotaledger/iota.go/api"
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -33,6 +34,10 @@ type multiCallInterimResult struct {
 }
 
 func (mapi MultiAPI) __multiCall__(funName string, retEndpoint *MultiCallRet, args ...interface{}) (interface{}, error) {
+	var ret MultiCallRet
+	rnd := rand.Int() % 10000
+	debugf("+++++++++++ multiCall %d: '%v'", rnd, funName)
+
 	started := time.Now()
 	if len(mapi) == 0 {
 		return nil, errors.New("empty MultiAPI")
@@ -42,10 +47,8 @@ func (mapi MultiAPI) __multiCall__(funName string, retEndpoint *MultiCallRet, ar
 		if err != nil {
 			return nil, err
 		}
-		if retEndpoint != nil {
-			retEndpoint.Endpoint = mapi[0].endpoint
-			retEndpoint.Duration = time.Since(started)
-		}
+		ret.Endpoint = mapi[0].endpoint
+		ret.Duration = time.Since(started)
 		return res, err
 	}
 	chInterimResult := make(chan *multiCallInterimResult)
@@ -88,9 +91,11 @@ func (mapi MultiAPI) __multiCall__(funName string, retEndpoint *MultiCallRet, ar
 		}
 	}()
 	waitResult.Wait()
+	ret.Endpoint = result.endpoint
+	ret.Duration = time.Since(started)
 	if retEndpoint != nil {
-		retEndpoint.Endpoint = result.endpoint
-		retEndpoint.Duration = time.Since(started)
+		*retEndpoint = ret
 	}
+	defer debugf("+++++++++++ multiCall %d: %v finish '%v', %v", rnd, funName, ret.Endpoint, ret.Duration)
 	return *result.ret, result.err
 }
