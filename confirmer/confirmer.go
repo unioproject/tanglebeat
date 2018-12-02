@@ -7,6 +7,7 @@ import (
 	"github.com/lunfardo314/tanglebeat/multiapi"
 	"github.com/lunfardo314/tanglebeat/stopwatch"
 	"github.com/op/go-logging"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -36,6 +37,7 @@ type Confirmer struct {
 	PromoteDisable        bool
 	Log                   *logging.Logger
 	AEC                   lib.ErrorCounter
+	slowDownThreshold     int
 	// internal
 	mutex sync.Mutex     //task state access sync
 	wg    sync.WaitGroup // wait until both promote and reattach are finished
@@ -105,6 +107,20 @@ func (*dummy) CheckError(endpoint string, err error) bool {
 	return err != nil
 }
 
+const (
+	loopSleepPeriod                     = 5 * time.Second
+	sleepAfterError                     = 5 * time.Second
+	defaultSlowDownThesholdNumGoroutine = 100
+)
+
+func (conf *Confirmer) getSleepLoopPeriod() time.Duration {
+	sleepPeriod := loopSleepPeriod
+	if runtime.NumGoroutine() > conf.slowDownThreshold {
+		sleepPeriod = sleepPeriod * 2
+	}
+	return sleepPeriod
+}
+
 func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *ConfirmerUpdate, error) {
 	tail, err := lib.TailFromBundleTrytes(bundleTrytes)
 	if err != nil {
@@ -134,6 +150,9 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 	if conf.AEC == nil {
 		conf.AEC = &dummy{}
 	}
+	if conf.slowDownThreshold == 0 {
+		conf.slowDownThreshold = defaultSlowDownThesholdNumGoroutine
+	}
 
 	// starting 4 routines
 	cancelPromoCheck := conf.goPromotabilityCheck()
@@ -145,6 +164,7 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 }
 
 // will wait confirmation of the bundle and cancel other routines when confirmed
+
 func (conf *Confirmer) waitForConfirmation(cancelPromoCheck, cancelPromo, cancelReattach func()) {
 	started := time.Now()
 	conf.debugf("CONFIRMER-WAIT: 'wait confirmation' routine started for %v", conf.bundleHash)
@@ -184,7 +204,7 @@ func (conf *Confirmer) waitForConfirmation(cancelPromoCheck, cancelPromo, cancel
 				return //>>>>>>>>>>>>>>
 			}
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(conf.getSleepLoopPeriod())
 	}
 }
 
@@ -217,8 +237,6 @@ func (conf *Confirmer) checkConsistency(tailHash Hash) (bool, error) {
 	return consistent, nil
 }
 
-const promotabilityCheckPeriod = 3 * time.Second
-
 func (conf *Confirmer) goPromotabilityCheck() func() {
 	chCancel := make(chan struct{})
 	go func() {
@@ -233,11 +251,11 @@ func (conf *Confirmer) goPromotabilityCheck() func() {
 			select {
 			case <-chCancel:
 				return
-			case <-time.After(promotabilityCheckPeriod):
+			case <-time.After(conf.getSleepLoopPeriod()):
 				consistent, err = conf.checkConsistency(conf.nextTailHashToPromote)
 				if err != nil {
 					conf.Log.Errorf("CONFIRMER-PROMOCHECK: checkConsistency returned: %v", err)
-					time.Sleep(5 * time.Second)
+					time.Sleep(sleepAfterError)
 				} else {
 					conf.mutex.Lock()
 					conf.isNotPromotable = !consistent
@@ -285,7 +303,7 @@ func (conf *Confirmer) goPromote() func() {
 		for {
 			if err := conf.promoteIfNeeded(); err != nil {
 				conf.errorf("CONFIRMER-PROMO: promotion routine: %v. Sleep 5 sec: ", err)
-				time.Sleep(5 * time.Second)
+				time.Sleep(sleepAfterError)
 			}
 			select {
 			case <-chCancel:
@@ -329,7 +347,7 @@ func (conf *Confirmer) goReattach() func() {
 			if err := conf.reattachIfNeeded(); err != nil {
 				conf.sendConfirmerUpdate(UPD_NO_ACTION, err)
 				conf.errorf("reattach function returned: %v. Bundle hash = %v", err, conf.bundleHash)
-				time.Sleep(5 * time.Second)
+				time.Sleep(sleepAfterError)
 			}
 			select {
 			case <-chCancel:
