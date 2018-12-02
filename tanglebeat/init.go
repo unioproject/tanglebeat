@@ -70,6 +70,7 @@ type loggingConfigYAML struct {
 type senderYAML struct {
 	Enabled           bool                        `yaml:"enabled"`
 	DisableMultiCalls bool                        `yaml:"disableMultiCalls"`
+	DebugMultiCalls   bool                        `yaml:"debugMultiCalls"`
 	Globals           senderParamsYAML            `yaml:"globals"`
 	Sequences         map[string]senderParamsYAML `yaml:"sequences"`
 }
@@ -263,7 +264,12 @@ func configMasterLogging() {
 
 	log.SetBackend(masterLoggingBackend)
 
-	multiapi.SetLog(log)
+	if Config.Sender.DebugMultiCalls {
+		multiapi.SetLog(log)
+		log.Infof("MultiAPI module: debugging/logging is ENABLED")
+	} else {
+		log.Infof("MultiAPI module: debugging/logging is DISABLED")
+	}
 
 	logInitialized = true
 }

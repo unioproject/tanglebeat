@@ -64,15 +64,12 @@ func (conf *Confirmer) promote() error {
 	}
 	conf.totalDurationATTMsec += duration
 
-	// TODO multi api
-	_, err = conf.IotaMultiAPI.GetAPI().BroadcastTransactions(btrytes...)
-	if conf.AEC.CheckError(conf.IotaMultiAPI.GetAPIEndpoint(), err) {
+	// no multi args!!!
+	_, err = conf.IotaMultiAPI.StoreAndBroadcast(btrytes, &apiret)
+	if conf.AEC.CheckError(apiret.Endpoint, err) {
 		return err
 	}
-	_, err = conf.IotaMultiAPI.GetAPI().StoreTransactions(btrytes...)
-	if conf.AEC.CheckError(conf.IotaMultiAPI.GetAPIEndpoint(), err) {
-		return err
-	}
+
 	nowis := time.Now()
 	conf.numPromote += 1
 	if conf.PromoteChain {
@@ -117,15 +114,12 @@ func (conf *Confirmer) reattach() error {
 	}
 	conf.totalDurationATTMsec += duration
 
-	// TODO multi api
-	_, err = conf.IotaMultiAPI.GetAPI().BroadcastTransactions(btrytes...)
-	if conf.AEC.CheckError(conf.IotaMultiAPI.GetAPIEndpoint(), err) {
+	// no multi args!!!
+	_, err = conf.IotaMultiAPI.StoreAndBroadcast(btrytes, &apiret)
+	if conf.AEC.CheckError(apiret.Endpoint, err) {
 		return err
 	}
-	_, err = conf.IotaMultiAPI.GetAPI().StoreTransactions(btrytes...)
-	if conf.AEC.CheckError(conf.IotaMultiAPI.GetAPIEndpoint(), err) {
-		return err
-	}
+
 	var newTail *Transaction
 	if newTail, err = lib.TailFromBundleTrytes(btrytes); err != nil {
 		return err

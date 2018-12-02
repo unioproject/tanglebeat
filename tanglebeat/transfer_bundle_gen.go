@@ -352,6 +352,7 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr Trytes, balance
 	}
 	// signing is here
 	// do not use MultiAPi because PrepareTransfers won't call to api anyway
+	// TODO multiapi
 	bundlePrep, err := gen.iotaMultiAPI.GetAPI().PrepareTransfers(seed, transfers, prepTransferOptions)
 
 	if AEC.CheckError("local", err) {
@@ -382,16 +383,10 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr Trytes, balance
 	}
 	ret.TotalDurationPoWMs = uint64(apiret.Duration / time.Millisecond)
 
-	// broadcast bundle
-	// TODO multi api
-	_, err = gen.iotaMultiAPI.GetAPI().BroadcastTransactions(bundleRet...)
-
-	if AEC.CheckError(gen.iotaMultiAPI.GetAPIEndpoint(), err) {
-		return nil, err
-	}
-	// TODO multi api
-	_, err = gen.iotaMultiAPI.GetAPI().StoreTransactions(bundleRet...)
-	if AEC.CheckError(gen.iotaMultiAPI.GetAPIEndpoint(), err) {
+	// store and broadcast bundle
+	// no multi args!!!
+	_, err = gen.iotaMultiAPI.StoreAndBroadcast(bundleRet, &apiret)
+	if AEC.CheckError(apiret.Endpoint, err) {
 		return nil, err
 	}
 	ret.BundleTrytes = bundleRet

@@ -186,6 +186,7 @@ func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, err error) {
 
 func (conf *Confirmer) checkConsistency(tailHash Hash) (bool, error) {
 	var apiret multiapi.MultiCallRet
+
 	consistent, info, err := conf.IotaMultiAPI.CheckConsistency(tailHash, &apiret)
 	if conf.AEC.CheckError(apiret.Endpoint, err) {
 		return false, err

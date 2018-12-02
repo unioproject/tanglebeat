@@ -15,6 +15,7 @@ var funMap = map[string]func(api *API, args []interface{}) (interface{}, error){
 	"GetTrytes":                __getTrytes__,
 	"CheckConsistency":         __checkConsistency__,
 	"AttachToTangle":           __attachToTangle__,
+	"StoreAndBroadcast":        __storeAndBroadcast__,
 }
 
 func __getLatestInclusion__(iotaapi *API, args []interface{}) (interface{}, error) {
@@ -118,25 +119,6 @@ type __checkConsistencyResult struct {
 	info       string
 }
 
-func __checkConsistency__(iotaapi *API, args []interface{}) (interface{}, error) {
-	var ok bool
-	if len(args) == 0 {
-		return nil, fmt.Errorf("__polyCall__ '__checkConsistency__': wrong number of arguments. Must be at least 1")
-	}
-	hashes := make([]Hash, 0, len(args))
-	var txh Hash
-	for _, arg := range args {
-		if txh, ok = arg.(Hash); !ok {
-			return nil, fmt.Errorf("__polyCall__ '__checkConsistency__': wrong argument type")
-		}
-		hashes = append(hashes, txh)
-	}
-	var ret __checkConsistencyResult
-	var err error
-	ret.consistent, ret.info, err = iotaapi.CheckConsistency(hashes...)
-	return &ret, err
-}
-
 func __attachToTangle__(iotaapi *API, args []interface{}) (interface{}, error) {
 	var ok bool
 	if len(args) != 4 {
@@ -158,6 +140,36 @@ func __attachToTangle__(iotaapi *API, args []interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("__polyCall__ '__attachToTangle__': wrong argument type")
 	}
 	return iotaapi.AttachToTangle(trunkHash, branchHash, mwm, trytes)
+}
+
+func __checkConsistency__(iotaapi *API, args []interface{}) (interface{}, error) {
+	var ok bool
+	if len(args) == 0 {
+		return nil, fmt.Errorf("__polyCall__ '__checkConsistency__': wrong number of arguments. Must at least 1")
+	}
+	hashes := make([]Hash, len(args))
+	for i := range args {
+		hashes[i], ok = args[i].(Hash)
+		if !ok {
+			return nil, fmt.Errorf("__polyCall__ '__checkConsistency__': wrong argument type")
+		}
+	}
+	var ret __checkConsistencyResult
+	var err error
+	ret.consistent, ret.info, err = iotaapi.CheckConsistency(hashes...)
+	return &ret, err
+}
+
+func __storeAndBroadcast__(iotaapi *API, args []interface{}) (interface{}, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("__polyCall__ '__storeAndBroadcast__': wrong number of arguments. Must be exactly 1")
+	}
+	var ok bool
+	trytes, ok := args[0].([]Trytes)
+	if !ok {
+		return nil, fmt.Errorf("__polyCall__ '__storeAndBroadcast__': wrong argument type")
+	}
+	return iotaapi.StoreAndBroadcast(trytes)
 }
 
 func toUint64(val interface{}) (uint64, bool) {

@@ -19,7 +19,7 @@ func MultiApiDisabled() bool {
 	return disabledMultiAPI
 }
 
-func __polyCall__(api *API, funName string, args ...interface{}) (interface{}, error) {
+func __polyCall__(api *API, funName string, args []interface{}) (interface{}, error) {
 	fun, ok := funMap[funName]
 	if !ok {
 		return nil, fmt.Errorf("__polyCall__: function '%v' is not implemented", funName)
@@ -33,12 +33,12 @@ type multiCallInterimResult struct {
 	endpoint string
 }
 
-func (mapi MultiAPI) __callFirst__(funName string, apiret *MultiCallRet, args ...interface{}) (interface{}, error) {
+func (mapi MultiAPI) __callFirst__(funName string, apiret *MultiCallRet, args []interface{}) (interface{}, error) {
 	rnd := rand.Int() % 10000
 	debugf("+++++++++++ multiCall %d: '%v' - calling first endpoint", rnd, funName)
 	st := time.Now()
 
-	ret, err := __polyCall__(mapi[0].api, funName, args...)
+	ret, err := __polyCall__(mapi[0].api, funName, args)
 
 	apiret.Endpoint = mapi[0].endpoint
 	apiret.Duration = time.Since(st)
@@ -47,14 +47,14 @@ func (mapi MultiAPI) __callFirst__(funName string, apiret *MultiCallRet, args ..
 	return ret, err
 }
 
-func (mapi MultiAPI) __multiCall__(funName string, retEndpoint *MultiCallRet, args ...interface{}) (interface{}, error) {
+func (mapi MultiAPI) __multiCall__(funName string, retEndpoint *MultiCallRet, args []interface{}) (interface{}, error) {
 	if len(mapi) == 0 {
 		return nil, errors.New("empty MultiAPI")
 	}
 	var apiret MultiCallRet
 	if len(mapi) == 1 || MultiApiDisabled() {
 		// if there's one endpoint or multiapi is disabled, calling the first in the list
-		return mapi.__callFirst__(funName, &apiret, args...)
+		return mapi.__callFirst__(funName, &apiret, args)
 	}
 
 	rnd := rand.Int() % 10000
@@ -68,7 +68,7 @@ func (mapi MultiAPI) __multiCall__(funName string, retEndpoint *MultiCallRet, ar
 		// need variable for go routine!!!! https://github.com/golang/go/wiki/CommonMistakes
 		go func(idx int) {
 			defer wg.Done()
-			res, err := __polyCall__(mapi[idx].api, funName, args...)
+			res, err := __polyCall__(mapi[idx].api, funName, args)
 			chInterimResult <- &multiCallInterimResult{
 				ret:      &res,
 				err:      err,
