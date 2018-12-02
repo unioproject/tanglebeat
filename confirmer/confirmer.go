@@ -64,7 +64,7 @@ type ConfirmerUpdate struct {
 	Err                   error
 }
 
-func (ut UpdateType) toString() string {
+func (ut UpdateType) ToString() string {
 	var r string
 	switch ut {
 	case UPD_NO_ACTION:
