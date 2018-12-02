@@ -491,7 +491,7 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_sour
 		}
 	}
 	// collect the bundle by maxTail
-	txSet := extractBundleTxByTail(maxTail, txs)
+	txSet := lib.ExtractBundleTransactionsByTail(maxTail, txs)
 	if txSet == nil {
 		return nil, errors.New(fmt.Sprintf("Can't get bundle from tail hash = %v in addr = %v: %v",
 			maxTail.Hash, addr, err))
@@ -513,33 +513,6 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_sour
 		NumAttach:    uint64(len(tails)),
 	}
 	return ret, nil
-}
-
-// give the tail and transaction set, filers out from the set the bundle of that tail
-// checks consistency of the bundle. Sorts it by index
-
-func extractBundleTxByTail(tail *Transaction, allTx []Transaction) []*Transaction {
-	if !IsTailTransaction(tail) {
-		return nil
-	}
-	// first in a bundle is tail tx
-	var ret []*Transaction
-	tx := tail
-	count := 0
-	// counting and capping steps to avoid eternal loops along trunk (impossible, I know)
-	for {
-		if count >= len(allTx) {
-			return ret
-		}
-		ret = append(ret, tx)
-		var ok bool
-		tx, ok = lib.FindTxByHash(tx.TrunkTransaction, allTx)
-		if !ok {
-			return ret
-		}
-		count++
-	}
-	return ret
 }
 
 func (gen *transferBundleGenerator) isAnyConfirmed(txHashes Hashes) (bool, error) {

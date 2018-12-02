@@ -64,6 +64,23 @@ type ConfirmerUpdate struct {
 	Err                   error
 }
 
+func (ut UpdateType) toString() string {
+	var r string
+	switch ut {
+	case UPD_NO_ACTION:
+		r = "no action"
+	case UPD_REATTACH:
+		r = "reattach"
+	case UPD_PROMOTE:
+		r = "promote"
+	case UPD_CONFIRM:
+		r = "confirm"
+	default:
+		r = "???"
+	}
+	return r
+}
+
 func (conf *Confirmer) debugf(f string, p ...interface{}) {
 	if conf.Log != nil {
 		conf.Log.Debugf(f, p...)
