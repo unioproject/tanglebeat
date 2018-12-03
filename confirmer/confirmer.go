@@ -37,7 +37,7 @@ type Confirmer struct {
 	PromoteDisable        bool
 	Log                   *logging.Logger
 	AEC                   lib.ErrorCounter
-	slowDownThreshold     int
+	SlowDownThreshold     int
 	// internal
 	mutex sync.Mutex     //task state access sync
 	wg    sync.WaitGroup // wait until both promote and reattach are finished
@@ -115,7 +115,7 @@ const (
 
 func (conf *Confirmer) getSleepLoopPeriod() time.Duration {
 	sleepPeriod := loopSleepPeriod
-	if runtime.NumGoroutine() > conf.slowDownThreshold {
+	if runtime.NumGoroutine() > conf.SlowDownThreshold {
 		sleepPeriod = sleepPeriod * 2
 	}
 	return sleepPeriod
@@ -150,8 +150,8 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 	if conf.AEC == nil {
 		conf.AEC = &dummy{}
 	}
-	if conf.slowDownThreshold == 0 {
-		conf.slowDownThreshold = defaultSlowDownThesholdNumGoroutine
+	if conf.SlowDownThreshold == 0 {
+		conf.SlowDownThreshold = defaultSlowDownThesholdNumGoroutine
 	}
 
 	// starting 4 routines
