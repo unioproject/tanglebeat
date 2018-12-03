@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/iotaledger/iota.go/trinary"
 	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/lunfardo314/tanglebeat/multiapi"
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -18,7 +19,7 @@ import (
 )
 
 const (
-	Version                 = "1.03"
+	Version                 = "1.1"
 	PREFIX_MODULE           = "tanglebeat"
 	ROTATE_LOG_HOURS        = 12
 	ROTATE_LOG_RETAIN_HOURS = 12
@@ -62,33 +63,35 @@ type loggingConfigYAML struct {
 	LogSequencesSeparately bool   `yaml:"logSequencesSeparately"`
 	LogFormat              string `yaml:"logFormat"`
 	LogFormatDebug         string `yaml:"logFormatDebug"`
-	MemStats               bool   `yaml:"memStats"`
-	MemStatsInterval       int    `yaml:"memStatsInterval"`
+	RuntimeStats           bool   `yaml:"logRuntimeStats"`
+	RuntimeStatsInterval   int    `yaml:"logRuntimeStatsInterval"`
 }
 
 type senderYAML struct {
-	Enabled   bool                        `yaml:"enabled"`
-	Globals   senderParamsYAML            `yaml:"globals"`
-	Sequences map[string]senderParamsYAML `yaml:"sequences"`
+	Enabled           bool                        `yaml:"enabled"`
+	DisableMultiCalls bool                        `yaml:"disableMultiCalls"`
+	DebugMultiCalls   bool                        `yaml:"debugMultiCalls"`
+	Globals           senderParamsYAML            `yaml:"globals"`
+	Sequences         map[string]senderParamsYAML `yaml:"sequences"`
 }
 
 type senderParamsYAML struct {
-	externalSource        bool   // tmp TODO
-	Enabled               bool   `yaml:"enabled"`
-	IOTANode              string `yaml:"iotaNode"`
-	IOTANodeTipsel        string `yaml:"iotaNodeTipsel"`
-	IOTANodePoW           string `yaml:"iotaNodePOW"`
-	TimeoutAPI            uint64 `yaml:"apiTimeout"`
-	TimeoutTipsel         uint64 `yaml:"tipselTimeout"`
-	TimeoutPoW            uint64 `yaml:"powTimeout"`
-	Seed                  string `yaml:"seed"`
-	Index0                uint64 `yaml:"index0"`
-	TxTag                 string `yaml:"txTag"`
-	TxTagPromote          string `yaml:"txTagPromote"`
-	ForceReattachAfterMin uint64 `yaml:"forceReattachAfterMin"`
-	PromoteChain          bool   `yaml:"promoteChain"`
-	PromoteEverySec       uint64 `yaml:"promoteEverySec"`
-	PromoteDisable        bool   `yaml:"promoteDisable"`
+	externalSource        bool     // tmp TODO
+	Enabled               bool     `yaml:"enabled"`
+	IOTANode              []string `yaml:"iotaNode"`
+	IOTANodeTipsel        []string `yaml:"iotaNodeTipsel"`
+	IOTANodePoW           string   `yaml:"iotaNodePOW"`
+	TimeoutAPI            uint64   `yaml:"apiTimeout"`
+	TimeoutTipsel         uint64   `yaml:"tipselTimeout"`
+	TimeoutPoW            uint64   `yaml:"powTimeout"`
+	Seed                  string   `yaml:"seed"`
+	Index0                uint64   `yaml:"index0"`
+	TxTag                 string   `yaml:"txTag"`
+	TxTagPromote          string   `yaml:"txTagPromote"`
+	ForceReattachAfterMin uint64   `yaml:"forceReattachAfterMin"`
+	PromoteChain          bool     `yaml:"promoteChain"`
+	PromoteEverySec       uint64   `yaml:"promoteEverySec"`
+	PromoteDisable        bool     `yaml:"promoteDisable"`
 }
 
 type senderUpdateCollectorYAML struct {
@@ -178,6 +181,13 @@ func masterConfig(configFilename string) {
 	flushMsgBeforeLog()
 	configDebugging()
 
+	if Config.Sender.DisableMultiCalls {
+		multiapi.DisableMultiAPI()
+		log.Infof("Multi calls to IOTA API are DISABLED")
+	} else {
+		log.Infof("Multi calls to IOTA API are ENABLED")
+	}
+
 	if Config.ExitProgram.Enabled {
 		log.Infof("Program exit conditions are ENABLED")
 		if Config.ExitProgram.Exit1min.Enabled {
@@ -195,15 +205,15 @@ func masterConfig(configFilename string) {
 }
 
 func configDebugging() {
-	if Config.Logging.Debug && Config.Logging.MemStats {
-		sl := lib.Max(5, Config.Logging.MemStatsInterval)
+	if Config.Logging.Debug && Config.Logging.RuntimeStats {
+		sl := lib.Max(5, Config.Logging.RuntimeStatsInterval)
 		go func() {
 			for {
-				logMemStats()
+				logRuntimeStats()
 				time.Sleep(time.Duration(sl) * time.Second)
 			}
 		}()
-		log.Infof("Will be logging MemStats every %v sec", sl)
+		log.Infof("Will be logging RuntimeStats every %v sec", sl)
 	}
 }
 
@@ -253,6 +263,14 @@ func configMasterLogging() {
 	masterLoggingBackend.SetLevel(logLevel, "main")
 
 	log.SetBackend(masterLoggingBackend)
+
+	if Config.Sender.DebugMultiCalls {
+		multiapi.SetLog(log)
+		log.Infof("MultiAPI module: debugging/logging is ENABLED")
+	} else {
+		log.Infof("MultiAPI module: debugging/logging is DISABLED")
+	}
+
 	logInitialized = true
 }
 
@@ -313,7 +331,7 @@ func getSeqParams(name string) (*senderParamsYAML, error) {
 	if len(ret.IOTANodePoW) == 0 {
 		ret.IOTANodePoW = Config.Sender.Globals.IOTANodePoW
 		if len(ret.IOTANodePoW) == 0 {
-			ret.IOTANodePoW = ret.IOTANode
+			ret.IOTANodePoW = ret.IOTANode[0] // by default using first of nodes
 		}
 	}
 	if len(ret.TxTag) == 0 {
@@ -362,15 +380,16 @@ func getEnabledSeqNames() []string {
 	return ret
 }
 
-func logMemStats() {
+func logRuntimeStats() {
 	var mem runtime.MemStats
 
 	runtime.ReadMemStats(&mem)
-	log.Debugf("-------------- DEBUG:MemStats: Alloc = %v MB  TotalAlloc = %v MB Sys = %v MB  NumGC = %v\n",
+	log.Debugf("------- DEBUG:RuntimeStats MB: Alloc = %v TotalAlloc = %v Sys = %v NumGC = %v NumGoroutines = %d\n",
 		bToMb(mem.Alloc),
 		bToMb(mem.TotalAlloc),
 		bToMb(mem.Sys),
 		mem.NumGC,
+		runtime.NumGoroutine(),
 	)
 }
 

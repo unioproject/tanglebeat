@@ -1,84 +1,160 @@
 package multiapi
 
 import (
-	"errors"
+	"fmt"
 	. "github.com/iotaledger/iota.go/api"
 	. "github.com/iotaledger/iota.go/trinary"
-	"net/http"
-	"sync"
-	"time"
+	"github.com/op/go-logging"
 )
 
-type MultiAPI []*API
+var log *logging.Logger
 
-func New(endpoints []string, timeout int) (MultiAPI, error) {
-	if len(endpoints) == 0 {
-		return nil, errors.New("Must be at least 1 endpoint")
-	}
-	if timeout <= 0 {
-		return nil, errors.New("Timeout must be > 0")
-	}
-	ret := make(MultiAPI, 0, len(endpoints))
-
-	for _, ep := range endpoints {
-		api, err := ComposeAPI(
-			HTTPClientSettings{
-				URI: ep,
-				Client: &http.Client{
-					Timeout: time.Duration(timeout) * time.Second,
-				},
-			},
-		)
-		if err != nil {
-			return nil, err
-		}
-		ret = append(ret, api)
-	}
-	return ret, nil
+func SetLog(logger *logging.Logger) {
+	log = logger
 }
 
-type resultGetLatestInclusion struct {
-	states []bool
-	err    error
-	apiIdx int
+func debugf(format string, args ...interface{}) {
+	if log != nil {
+		log.Debugf(format, args...)
+	}
+}
+func getArgs(args []interface{}) ([]interface{}, *MultiCallRet) {
+	lenarg := len(args)
+	if lenarg == 0 {
+		return nil, nil
+	}
+	callRet, ok := args[lenarg-1].(*MultiCallRet)
+	if ok {
+		lenarg -= 1
+	}
+	return args[:lenarg], callRet
 }
 
-func (mapi MultiAPI) GetLatestInclusion(transactions Hashes) ([]bool, error, int) {
-	if len(mapi) == 0 {
-		return nil, errors.New("empty MultiAPI"), -1
+func (mapi MultiAPI) GetLatestInclusion(args ...interface{}) ([]bool, error) {
+	funname := "GetLatestInclusion"
+	funargs, callRet := getArgs(args)
+	r, err := mapi.__multiCall__(funname, callRet, funargs)
+	if err != nil {
+		return nil, err
 	}
-	if len(mapi) == 1 {
-		res, err := mapi[0].GetLatestInclusion(transactions)
-		return res, err, 0
+	rr, ok := r.([]bool)
+	if !ok {
+		return nil, fmt.Errorf("internal error: wrong type in '%v'", funname)
 	}
-	chInterimResult := make(chan *resultGetLatestInclusion)
-	var wg sync.WaitGroup
-	for idx, api := range mapi {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			states, err := api.GetLatestInclusion(transactions)
-			chInterimResult <- &resultGetLatestInclusion{states: states, err: err, apiIdx: idx}
-		}()
-	}
-	// assuming each api has timeout, all go routines has to finish anyway
-	// TODO detect and report leak of goroutines/channels
-	go func() {
-		wg.Wait()
-		close(chInterimResult)
-	}()
+	return rr, err
+}
 
-	var result *resultGetLatestInclusion
-	var waitResult sync.WaitGroup
-	waitResult.Add(1)
-	go func() {
-		defer waitResult.Done()
-		for result = range chInterimResult {
-			if result.err == nil {
-				return
-			}
-		}
-	}()
-	waitResult.Wait()
-	return result.states, result.err, result.apiIdx
+func (mapi MultiAPI) GetTransactionsToApprove(args ...interface{}) (*TransactionsToApprove, error) {
+	funname := "GetTransactionsToApprove"
+	funargs, callRet := getArgs(args)
+	r, err := mapi.__multiCall__(funname, callRet, funargs)
+	if err != nil {
+		return nil, err
+	}
+	rr, ok := r.(*TransactionsToApprove)
+	if !ok {
+		return nil, fmt.Errorf("internal error: wrong type in '%v'", funname)
+	}
+	return rr, err
+}
+
+func (mapi MultiAPI) GetBalances(args ...interface{}) (*Balances, error) {
+	funname := "GetBalances"
+	funargs, callRet := getArgs(args)
+	r, err := mapi.__multiCall__(funname, callRet, funargs)
+	if err != nil {
+		return nil, err
+	}
+	rr, ok := r.(*Balances)
+	if !ok {
+		return nil, fmt.Errorf("internal error: wrong type in '%v'", funname)
+	}
+	return rr, err
+}
+
+func (mapi MultiAPI) FindTransactions(args ...interface{}) (Hashes, error) {
+	funname := "FindTransactions"
+	funargs, callRet := getArgs(args)
+	r, err := mapi.__multiCall__(funname, callRet, funargs)
+	if err != nil {
+		return nil, err
+	}
+	rr, ok := r.(Hashes)
+	if !ok {
+		return nil, fmt.Errorf("internal error: wrong type in '%v'", funname)
+	}
+	return rr, err
+}
+
+func (mapi MultiAPI) WereAddressesSpentFrom(args ...interface{}) ([]bool, error) {
+	funname := "WereAddressesSpentFrom"
+	funargs, callRet := getArgs(args)
+	r, err := mapi.__multiCall__(funname, callRet, funargs)
+	if err != nil {
+		return nil, err
+	}
+	rr, ok := r.([]bool)
+	if !ok {
+		return nil, fmt.Errorf("internal error: wrong type in '%v'", funname)
+	}
+	return rr, err
+}
+
+func (mapi MultiAPI) GetTrytes(args ...interface{}) ([]Trytes, error) {
+	funname := "GetTrytes"
+	funargs, callRet := getArgs(args)
+	r, err := mapi.__multiCall__(funname, callRet, funargs)
+	if err != nil {
+		return nil, err
+	}
+	rr, ok := r.([]Trytes)
+	if !ok {
+		return nil, fmt.Errorf("internal error: wrong type in '%v'", funname)
+	}
+	return rr, err
+}
+
+func (mapi MultiAPI) AttachToTangle(args ...interface{}) ([]Trytes, error) {
+	funname := "AttachToTangle"
+	funargs, callRet := getArgs(args)
+	r, err := mapi.__multiCall__(funname, callRet, funargs)
+	if err != nil {
+		return nil, err
+	}
+	rr, ok := r.([]Trytes)
+	if !ok {
+		return nil, fmt.Errorf("internal error: wrong type in '%v'", funname)
+	}
+	return rr, err
+}
+
+// NOTE: CheckConsistency for MultiAPI has not variable arguments!!!!
+func (mapi MultiAPI) CheckConsistency(args ...interface{}) (bool, string, error) {
+	funname := "CheckConsistency"
+	funargs, apiret := getArgs(args)
+	r, err := mapi.__multiCall__(funname, apiret, funargs)
+	if err != nil {
+		return false, "", err
+	}
+	rr, ok := r.(*__checkConsistencyResult)
+	if !ok {
+		return false, "", fmt.Errorf("internal error: wrong type in '%v'", funname)
+	}
+	return rr.consistent, rr.info, err
+}
+
+// NOTE: StoreAndBroadcast for MultiAPI has different types of arguments!!!!
+func (mapi MultiAPI) StoreAndBroadcast(args ...interface{}) ([]Trytes, error) {
+	funname := "StoreAndBroadcast"
+	funargs, apiret := getArgs(args)
+	r, err := mapi.__multiCall__(funname, apiret, funargs) // passing funargs as one argument
+	if err != nil {
+		return nil, err
+	}
+	rr, ok := r.([]Trytes)
+	if !ok {
+		return nil, fmt.Errorf("internal error: wrong type in '%v'", funname)
+	}
+	return rr, err
+
 }

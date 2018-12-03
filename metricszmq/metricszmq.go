@@ -58,7 +58,7 @@ func startReadingIRIZmq(uri string, aec lib.ErrorCounter) error {
 
 		for {
 			msg, err := socket.Recv()
-			if aec.CheckError(nil, err) {
+			if aec.CheckError("ZMQ", err) {
 				logLocal.Errorf("reading ZMQ socket: socket.Recv() returned %v", err)
 				time.Sleep(5 * time.Second)
 				continue
@@ -84,8 +84,6 @@ func startReadingIRIZmq(uri string, aec lib.ErrorCounter) error {
 var logLocal *logging.Logger
 
 func InitMetricsZMQ(uri string, logParam *logging.Logger, aec lib.ErrorCounter) error {
-	aec.RegisterAPI(nil, "ZMQ")
-
 	logLocal = logParam
 	zmqMetricsTxCounter = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "tanglebeat_tx_counter",

@@ -12,10 +12,10 @@ import (
 	. "github.com/iotaledger/iota.go/trinary"
 	"github.com/lunfardo314/tanglebeat/bundle_source"
 	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/lunfardo314/tanglebeat/multiapi"
 	"github.com/lunfardo314/tanglebeat/stopwatch"
 	"github.com/op/go-logging"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path"
 	"strconv"
@@ -33,11 +33,13 @@ type transferBundleGenerator struct {
 	securityLevel int
 	txTag         Trytes
 	index         uint64
-	iotaAPI       *API
-	iotaAPIgTTA   *API
-	iotaAPIaTT    *API
-	log           *logging.Logger
-	chanOut       bundle_source.BundleSourceChan
+
+	iotaMultiAPI     multiapi.MultiAPI
+	iotaMultiAPIgTTA multiapi.MultiAPI
+	iotaMultiAPIaTT  multiapi.MultiAPI
+
+	log     *logging.Logger
+	chanOut bundle_source.BundleSourceChan
 }
 
 const UID_LEN = 12
@@ -60,50 +62,22 @@ func initTransferBundleGenerator(name string, params *senderParamsYAML, logger *
 		log:           logger,
 		chanOut:       make(bundle_source.BundleSourceChan),
 	}
-	ret.iotaAPI, err = ComposeAPI(
-		HTTPClientSettings{
-			URI: params.IOTANode,
-			Client: &http.Client{
-				Timeout: time.Duration(params.TimeoutAPI) * time.Second,
-			},
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-	// Timeout: time.Duration(params.TimeoutAPI) * time.Second,
-
-	AEC.RegisterAPI(ret.iotaAPI, params.IOTANode)
-
-	ret.iotaAPIgTTA, err = ComposeAPI(
-		HTTPClientSettings{
-			URI: params.IOTANodeTipsel,
-			Client: &http.Client{
-				Timeout: time.Duration(params.TimeoutTipsel) * time.Second,
-			},
-		},
-	)
-	//		Timeout: time.Duration(params.TimeoutTipsel) * time.Second,
+	// default multi API
+	ret.iotaMultiAPI, err = multiapi.New(params.IOTANode, params.TimeoutAPI)
 	if err != nil {
 		return nil, err
 	}
 
-	AEC.RegisterAPI(ret.iotaAPIgTTA, params.IOTANodeTipsel)
-
-	ret.iotaAPIaTT, err = ComposeAPI(
-		HTTPClientSettings{
-			URI: params.IOTANodePoW,
-			Client: &http.Client{
-				Timeout: time.Duration(params.TimeoutPoW) * time.Second,
-			},
-		},
-	)
-	//		Timeout: time.Duration(params.TimeoutPoW) * time.Second,
+	// multi APi for tipsel
+	ret.iotaMultiAPIgTTA, err = multiapi.New(params.IOTANodeTipsel, params.TimeoutTipsel)
 	if err != nil {
 		return nil, err
 	}
 
-	AEC.RegisterAPI(ret.iotaAPIaTT, params.IOTANodePoW)
+	ret.iotaMultiAPIaTT, err = multiapi.New([]string{params.IOTANodePoW}, params.TimeoutPoW)
+	if err != nil {
+		return nil, err
+	}
 
 	ret.seed = Trytes(params.Seed)
 	ret.txTag = Pad(Trytes(params.TxTag), TagTrinarySize/3)
@@ -166,7 +140,6 @@ func (gen *transferBundleGenerator) runGenerator() {
 	balanceZeroWaitSec := 2
 
 	for {
-
 		if addr == "" {
 			addr, err = gen.getAddress(gen.index)
 			if err != nil {
@@ -293,9 +266,11 @@ func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash Hash) {
 		if count%5 == 0 {
 			gen.log.Debugf("'%v': waitUntilBundleConfirmed: %v Time since waiting: %v", gen.name, bundleHash, sinceWaiting)
 		}
-		confirmed, err := lib.IsBundleHashConfirmed(bundleHash, gen.iotaAPI)
-		//gen.log.Debugf("------- TransferBundleGen: AFTER IsBundleHashConfirmed %v %v", confirmed, err)
-		if AEC.CheckError(gen.iotaAPI, err) {
+		//confirmed, err := lib.IsBundleHashConfirmed(bundleHash, gen.iotaAPI)
+		var retMapi multiapi.MultiCallRet
+		confirmed, err := lib.IsBundleHashConfirmedMulti(bundleHash, gen.iotaMultiAPI, &retMapi)
+
+		if AEC.CheckError(retMapi.Endpoint, err) {
 			gen.log.Errorf("'%v' waitUntilBundleConfirmed: FindTransactions returned: %v. Time since waiting: %v",
 				gen.name, err, sinceWaiting)
 		} else {
@@ -307,9 +282,10 @@ func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash Hash) {
 }
 
 func (gen *transferBundleGenerator) isSpentAddr(address Hash) (bool, error) {
-	spent, err := gen.iotaAPI.WereAddressesSpentFrom(address)
+	var apiret multiapi.MultiCallRet
+	spent, err := gen.iotaMultiAPI.WereAddressesSpentFrom(address, &apiret)
 
-	if AEC.CheckError(gen.iotaAPI, err) {
+	if AEC.CheckError(apiret.Endpoint, err) {
 		return false, err
 	} else {
 		return spent[0], nil
@@ -317,9 +293,10 @@ func (gen *transferBundleGenerator) isSpentAddr(address Hash) (bool, error) {
 }
 
 func (gen *transferBundleGenerator) getBalanceAddr(addresses Hashes) (*Balances, error) {
-	balances, err := gen.iotaAPI.GetBalances(addresses, 100)
+	var apiret multiapi.MultiCallRet
+	balances, err := gen.iotaMultiAPI.GetBalances(addresses, 100, &apiret)
 
-	if AEC.CheckError(gen.iotaAPI, err) {
+	if AEC.CheckError(apiret.Endpoint, err) {
 		return nil, err
 	} else {
 		return balances, nil
@@ -374,45 +351,42 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr Trytes, balance
 		Timestamp: &ts,
 	}
 	// signing is here
-	bundlePrep, err := gen.iotaAPI.PrepareTransfers(seed, transfers, prepTransferOptions)
+	// do not use MultiAPi because PrepareTransfers won't call to api anyway
+	// TODO multiapi
+	bundlePrep, err := gen.iotaMultiAPI.GetAPI().PrepareTransfers(seed, transfers, prepTransferOptions)
 
-	if AEC.CheckError(gen.iotaAPI, err) {
+	if AEC.CheckError("local", err) {
 		return nil, err
 	}
 	//----- end prepare transfer
 
 	//------ find two transactions to approve
-	st := lib.UnixMs(time.Now())
-	gttaResp, err := gen.iotaAPIgTTA.GetTransactionsToApprove(3)
 
-	if AEC.CheckError(gen.iotaAPIgTTA, err) {
+	var apiret multiapi.MultiCallRet
+	gttaResp, err := gen.iotaMultiAPIgTTA.GetTransactionsToApprove(3, &apiret)
+
+	if AEC.CheckError(apiret.Endpoint, err) {
 		return nil, err
 	}
-	ret.TotalDurationTipselMs = lib.UnixMs(time.Now()) - st
-
-	st = lib.UnixMs(time.Now())
+	ret.TotalDurationTipselMs = uint64(apiret.Duration / time.Millisecond)
 
 	// do POW by calling attachToTangle
-	bundleRet, err := gen.iotaAPIaTT.AttachToTangle(
+	bundleRet, err := gen.iotaMultiAPIaTT.AttachToTangle(
 		gttaResp.TrunkTransaction,
 		gttaResp.BranchTransaction,
 		14,
 		bundlePrep,
+		&apiret,
 	)
-
-	if AEC.CheckError(gen.iotaAPIaTT, err) {
+	if AEC.CheckError(apiret.Endpoint, err) {
 		return nil, err
 	}
+	ret.TotalDurationPoWMs = uint64(apiret.Duration / time.Millisecond)
 
-	ret.TotalDurationPoWMs = lib.UnixMs(time.Now()) - st
-	// broadcast bundle
-	_, err = gen.iotaAPI.BroadcastTransactions(bundleRet...)
-
-	if AEC.CheckError(gen.iotaAPI, err) {
-		return nil, err
-	}
-	_, err = gen.iotaAPI.StoreTransactions(bundleRet...)
-	if AEC.CheckError(gen.iotaAPI, err) {
+	// store and broadcast bundle
+	// no multi args!!!
+	_, err = gen.iotaMultiAPI.StoreAndBroadcast(bundleRet, &apiret)
+	if AEC.CheckError(apiret.Endpoint, err) {
 		return nil, err
 	}
 	ret.BundleTrytes = bundleRet
@@ -426,8 +400,8 @@ func (gen *transferBundleGenerator) sendToNext(addr Hash) (*bundle_source.FirstB
 	}
 	gen.log.Debugf("Inside sendToNext with tag = '%v'. idx=%v. %v --> %v", gen.txTag, gen.index, addr, nextAddr)
 
-	gbResp, err := gen.iotaAPI.GetBalances(Hashes{addr}, 100)
-	if AEC.CheckError(gen.iotaAPI, err) {
+	gbResp, err := gen.getBalanceAddr(Hashes{addr})
+	if err != nil {
 		return nil, err
 	}
 	balance := gbResp.Balances[0]
@@ -517,7 +491,7 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_sour
 		}
 	}
 	// collect the bundle by maxTail
-	txSet := extractBundleTxByTail(maxTail, txs)
+	txSet := lib.ExtractBundleTransactionsByTail(maxTail, txs)
 	if txSet == nil {
 		return nil, errors.New(fmt.Sprintf("Can't get bundle from tail hash = %v in addr = %v: %v",
 			maxTail.Hash, addr, err))
@@ -541,56 +515,20 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_sour
 	return ret, nil
 }
 
-// give the tail and transaction set, filers out from the set the bundle of that tail
-// checks consistency of the bundle. Sorts it by index
-
-func extractBundleTxByTail(tail *Transaction, allTx []Transaction) []*Transaction {
-	if !IsTailTransaction(tail) {
-		return nil
-	}
-	// first in a bundle is tail tx
-	var ret []*Transaction
-	tx := tail
-	count := 0
-	// counting and capping steps to avoid eternal loops along trunk (impossible, I know)
-	for {
-		if count >= len(allTx) {
-			return ret
-		}
-		ret = append(ret, tx)
-		var ok bool
-		tx, ok = lib.FindTxByHash(tx.TrunkTransaction, allTx)
-		if !ok {
-			return ret
-		}
-		count++
-	}
-	return ret
-}
-
 func (gen *transferBundleGenerator) isAnyConfirmed(txHashes Hashes) (bool, error) {
-	confirmed, err := lib.IsAnyConfirmed(txHashes, gen.iotaAPI)
-	AEC.CheckError(gen.iotaAPI, err)
+	//confirmed, err := lib.IsAnyConfirmed(txHashes, gen.iotaAPI)
+	var apiret multiapi.MultiCallRet
+	confirmed, err := lib.IsAnyConfirmedMulti(txHashes, gen.iotaMultiAPI, &apiret)
+	AEC.CheckError(apiret.Endpoint, err)
 	return confirmed, err
-}
-
-// correct but probably have problems with many transactions
-func (gen *transferBundleGenerator) findTransactionObjectsOld(query FindTransactionsQuery) (Transactions, error) {
-	ftHashes, err := gen.iotaAPI.FindTransactions(query)
-	if AEC.CheckError(gen.iotaAPI, err) {
-		return nil, err
-	}
-	rawTrytes, err := gen.iotaAPI.GetTrytes(ftHashes...)
-	if AEC.CheckError(gen.iotaAPI, err) {
-		return nil, err
-	}
-	return AsTransactionObjects(rawTrytes, nil)
 }
 
 // new one works with big number of transactions
 func (gen *transferBundleGenerator) findTransactionObjects(query FindTransactionsQuery) (Transactions, error) {
-	ret, err := lib.FindTransactionObjects(query, gen.iotaAPI)
-	if AEC.CheckError(gen.iotaAPI, err) {
+	//ret, err := lib.FindTransactionObjects(query, gen.iotaAPI)
+	var apiret multiapi.MultiCallRet
+	ret, err := lib.FindTransactionObjectsMulti(query, gen.iotaMultiAPI, &apiret)
+	if AEC.CheckError(apiret.Endpoint, err) {
 		return nil, err
 	}
 	return ret, nil

@@ -2,11 +2,12 @@ package confirmer
 
 import (
 	"errors"
-	. "github.com/iotaledger/iota.go/api"
 	. "github.com/iotaledger/iota.go/trinary"
 	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/lunfardo314/tanglebeat/multiapi"
 	"github.com/lunfardo314/tanglebeat/stopwatch"
 	"github.com/op/go-logging"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -22,9 +23,13 @@ const (
 )
 
 type Confirmer struct {
-	IotaAPI               *API
-	IotaAPIgTTA           *API
-	IotaAPIaTT            *API
+	//IotaAPI               *API
+	//IotaAPIgTTA           *API
+
+	IotaMultiAPI     multiapi.MultiAPI
+	IotaMultiAPIgTTA multiapi.MultiAPI
+	IotaMultiAPIaTT  multiapi.MultiAPI
+
 	TxTagPromote          Trytes
 	ForceReattachAfterMin uint64
 	PromoteChain          bool
@@ -32,6 +37,7 @@ type Confirmer struct {
 	PromoteDisable        bool
 	Log                   *logging.Logger
 	AEC                   lib.ErrorCounter
+	slowDownThreshold     int
 	// internal
 	mutex sync.Mutex     //task state access sync
 	wg    sync.WaitGroup // wait until both promote and reattach are finished
@@ -60,6 +66,23 @@ type ConfirmerUpdate struct {
 	Err                   error
 }
 
+func (ut UpdateType) ToString() string {
+	var r string
+	switch ut {
+	case UPD_NO_ACTION:
+		r = "no action"
+	case UPD_REATTACH:
+		r = "reattach"
+	case UPD_PROMOTE:
+		r = "promote"
+	case UPD_CONFIRM:
+		r = "confirm"
+	default:
+		r = "???"
+	}
+	return r
+}
+
 func (conf *Confirmer) debugf(f string, p ...interface{}) {
 	if conf.Log != nil {
 		conf.Log.Debugf(f, p...)
@@ -80,11 +103,22 @@ func (conf *Confirmer) warningf(f string, p ...interface{}) {
 
 type dummy struct{}
 
-func (*dummy) CheckError(api *API, err error) bool {
+func (*dummy) CheckError(endpoint string, err error) bool {
 	return err != nil
 }
 
-func (*dummy) RegisterAPI(api *API, endpoint string) {
+const (
+	loopSleepPeriod                     = 5 * time.Second
+	sleepAfterError                     = 5 * time.Second
+	defaultSlowDownThesholdNumGoroutine = 100
+)
+
+func (conf *Confirmer) getSleepLoopPeriod() time.Duration {
+	sleepPeriod := loopSleepPeriod
+	if runtime.NumGoroutine() > conf.slowDownThreshold {
+		sleepPeriod = sleepPeriod * 2
+	}
+	return sleepPeriod
 }
 
 func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *ConfirmerUpdate, error) {
@@ -116,6 +150,9 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 	if conf.AEC == nil {
 		conf.AEC = &dummy{}
 	}
+	if conf.slowDownThreshold == 0 {
+		conf.slowDownThreshold = defaultSlowDownThesholdNumGoroutine
+	}
 
 	// starting 4 routines
 	cancelPromoCheck := conf.goPromotabilityCheck()
@@ -127,20 +164,20 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 }
 
 // will wait confirmation of the bundle and cancel other routines when confirmed
+
 func (conf *Confirmer) waitForConfirmation(cancelPromoCheck, cancelPromo, cancelReattach func()) {
 	started := time.Now()
 	conf.debugf("CONFIRMER-WAIT: 'wait confirmation' routine started for %v", conf.bundleHash)
 	defer conf.debugf("CONFIRMER-WAIT: 'wait confirmation' routine ended for %v", conf.bundleHash)
 
+	var apiret multiapi.MultiCallRet
 	bundleHash := conf.bundleHash
 	for count := 0; ; count++ {
 		if count%3 == 0 {
 			conf.debugf("CONFIRMER-WAIT: confirm task for bundle hash %v running already %v", bundleHash, time.Since(started))
 		}
-		//conf.debugf("------- CONFIRMER-WAIT BEFORE IsBundleHashConfirmed")
-		confirmed, err := lib.IsBundleHashConfirmed(bundleHash, conf.IotaAPI)
-		//conf.debugf("------- CONFIRMER-WAIT AFTER IsBundleHashConfirmed %v %v", confirmed, err)
-		if conf.AEC.CheckError(conf.IotaAPI, err) {
+		confirmed, err := lib.IsBundleHashConfirmedMulti(bundleHash, conf.IotaMultiAPI, &apiret)
+		if conf.AEC.CheckError(apiret.Endpoint, err) {
 			conf.errorf("CONFIRMER-WAIT: isBundleHashConfirmed returned %v", err)
 		} else {
 			if confirmed {
@@ -167,7 +204,7 @@ func (conf *Confirmer) waitForConfirmation(cancelPromoCheck, cancelPromo, cancel
 				return //>>>>>>>>>>>>>>
 			}
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(conf.getSleepLoopPeriod())
 	}
 }
 
@@ -185,8 +222,10 @@ func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, err error) {
 }
 
 func (conf *Confirmer) checkConsistency(tailHash Hash) (bool, error) {
-	consistent, info, err := conf.IotaAPI.CheckConsistency(tailHash)
-	if conf.AEC.CheckError(conf.IotaAPI, err) {
+	var apiret multiapi.MultiCallRet
+
+	consistent, info, err := conf.IotaMultiAPI.CheckConsistency(tailHash, &apiret)
+	if conf.AEC.CheckError(apiret.Endpoint, err) {
 		return false, err
 	}
 	if !consistent && strings.Contains(info, "not solid") {
@@ -197,8 +236,6 @@ func (conf *Confirmer) checkConsistency(tailHash Hash) (bool, error) {
 	}
 	return consistent, nil
 }
-
-const promotabilityCheckPeriod = 3 * time.Second
 
 func (conf *Confirmer) goPromotabilityCheck() func() {
 	chCancel := make(chan struct{})
@@ -214,11 +251,11 @@ func (conf *Confirmer) goPromotabilityCheck() func() {
 			select {
 			case <-chCancel:
 				return
-			case <-time.After(promotabilityCheckPeriod):
+			case <-time.After(conf.getSleepLoopPeriod()):
 				consistent, err = conf.checkConsistency(conf.nextTailHashToPromote)
 				if err != nil {
 					conf.Log.Errorf("CONFIRMER-PROMOCHECK: checkConsistency returned: %v", err)
-					time.Sleep(5 * time.Second)
+					time.Sleep(sleepAfterError)
 				} else {
 					conf.mutex.Lock()
 					conf.isNotPromotable = !consistent
@@ -266,7 +303,7 @@ func (conf *Confirmer) goPromote() func() {
 		for {
 			if err := conf.promoteIfNeeded(); err != nil {
 				conf.errorf("CONFIRMER-PROMO: promotion routine: %v. Sleep 5 sec: ", err)
-				time.Sleep(5 * time.Second)
+				time.Sleep(sleepAfterError)
 			}
 			select {
 			case <-chCancel:
@@ -310,7 +347,7 @@ func (conf *Confirmer) goReattach() func() {
 			if err := conf.reattachIfNeeded(); err != nil {
 				conf.sendConfirmerUpdate(UPD_NO_ACTION, err)
 				conf.errorf("reattach function returned: %v. Bundle hash = %v", err, conf.bundleHash)
-				time.Sleep(5 * time.Second)
+				time.Sleep(sleepAfterError)
 			}
 			select {
 			case <-chCancel:
