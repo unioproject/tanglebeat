@@ -40,8 +40,11 @@ func main() {
 	}
 	if Config.Prometheus.Enabled && Config.Prometheus.ZmqMetrics.Enabled {
 		log.Infof("Starting ZMQ metrics updater")
-		metricszmq.InitMetricsZMQ(Config.Prometheus.ZmqMetrics.ZMQUri, log, AEC)
-		enabled = true
+		numzmq := metricszmq.InitMetricsZMQ(Config.Prometheus.ZmqMetrics.ZMQUri, log, AEC)
+		log.Infof("Will be reading from %v ZMQ streams", numzmq)
+		if numzmq > 0 {
+			enabled = true
+		}
 	}
 	if Config.Sender.Enabled {
 		log.Infof("Starting sender. Enabled sequences: %v", getEnabledSeqNames())

@@ -9,6 +9,8 @@ import (
 
 var log *logging.Logger
 
+//  TODO host statistics
+
 func SetLog(logger *logging.Logger) {
 	log = logger
 }

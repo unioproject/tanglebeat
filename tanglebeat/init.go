@@ -113,8 +113,8 @@ type prometheusYAML struct {
 }
 
 type zmqMetricsYAML struct {
-	Enabled bool   `yaml:"enabled"`
-	ZMQUri  string `yaml:"zmqUri"`
+	Enabled bool     `yaml:"enabled"`
+	ZMQUri  []string `yaml:"zmqUri"`
 }
 
 // main config structure

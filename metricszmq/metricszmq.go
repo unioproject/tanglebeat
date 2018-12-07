@@ -12,10 +12,13 @@ import (
 	"time"
 )
 
+// TODO detect dead ZMQ streams
+// TODO 2 dynamic selection of zmq hosts
+
 var (
-	zmqMetricsTxCounter        prometheus.Counter
-	zmqMetricsCtxCounter       prometheus.Counter
-	zmqMetricsMilestoneCounter prometheus.Counter
+	zmqMetricsTxCounter        *prometheus.CounterVec
+	zmqMetricsCtxCounter       *prometheus.CounterVec
+	zmqMetricsMilestoneCounter *prometheus.CounterVec
 )
 
 func openSocket(uri string, timeoutSec int) (zmq4.Socket, error) {
@@ -54,12 +57,12 @@ func startReadingIRIZmq(uri string, aec lib.ErrorCounter) error {
 	}
 
 	go func() {
-		logLocal.Debugf("ZMQ listener created successfully")
+		logLocal.Debugf("ZMQ listener for %v created successfully", uri)
 
 		for {
 			msg, err := socket.Recv()
 			if aec.CheckError("ZMQ", err) {
-				logLocal.Errorf("reading ZMQ socket: socket.Recv() returned %v", err)
+				logLocal.Errorf("reading ZMQ socket %v: socket.Recv() returned %v", uri, err)
 				time.Sleep(5 * time.Second)
 				continue
 			}
@@ -70,11 +73,11 @@ func startReadingIRIZmq(uri string, aec lib.ErrorCounter) error {
 			}
 			switch messageType {
 			case "tx":
-				zmqMetricsTxCounter.Inc()
+				zmqMetricsTxCounter.With(prometheus.Labels{"host": uri}).Inc()
 			case "sn":
-				zmqMetricsCtxCounter.Inc()
+				zmqMetricsCtxCounter.With(prometheus.Labels{"host": uri}).Inc()
 			case "lmi":
-				zmqMetricsMilestoneCounter.Inc()
+				zmqMetricsMilestoneCounter.With(prometheus.Labels{"host": uri}).Inc()
 			}
 		}
 	}()
@@ -83,29 +86,34 @@ func startReadingIRIZmq(uri string, aec lib.ErrorCounter) error {
 
 var logLocal *logging.Logger
 
-func InitMetricsZMQ(uri string, logParam *logging.Logger, aec lib.ErrorCounter) error {
+func InitMetricsZMQ(uris []string, logParam *logging.Logger, aec lib.ErrorCounter) int {
 	logLocal = logParam
-	zmqMetricsTxCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "tanglebeat_tx_counter",
-		Help: "Transaction counter",
-	})
+	zmqMetricsTxCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "tanglebeat_tx_counter_vec",
+		Help: "Transaction counter. Labeled by ZMQ host",
+	}, []string{"host"})
 
-	zmqMetricsCtxCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "tanglebeat_ctx_counter",
+	zmqMetricsCtxCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "tanglebeat_ctx_counter_vec",
 		Help: "Confirmed transaction counter",
-	})
-	zmqMetricsMilestoneCounter = prometheus.NewCounter(prometheus.CounterOpts{
+	}, []string{"host"})
+	zmqMetricsMilestoneCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "tanglebeat_milestone_counter",
 		Help: "Milestone counter",
-	})
+	}, []string{"host"})
 
 	prometheus.MustRegister(zmqMetricsTxCounter)
 	prometheus.MustRegister(zmqMetricsCtxCounter)
 	prometheus.MustRegister(zmqMetricsMilestoneCounter)
 
-	err := startReadingIRIZmq(uri, aec)
-	if err != nil {
-		logLocal.Errorf("cant't initialize zmq metrics updater: %v", err)
+	count := 0
+	for _, uri := range uris {
+		err := startReadingIRIZmq(uri, aec)
+		if err != nil {
+			logLocal.Errorf("cant't initialize zmq metrics updater: %v", err)
+		} else {
+			count++
+		}
 	}
-	return err
+	return count
 }
