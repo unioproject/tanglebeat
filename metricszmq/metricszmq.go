@@ -2,7 +2,6 @@ package metricszmq
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/go-zeromq/zmq4"
 	"github.com/lunfardo314/tanglebeat/lib"
@@ -21,8 +20,22 @@ var (
 	zmqMetricsMilestoneCounter *prometheus.CounterVec
 )
 
-func openSocket(uri string, timeoutSec int) (zmq4.Socket, error) {
-	logLocal.Debugf("Opening ZMQ socket for %v, timeout %v sec", uri, timeoutSec)
+var logLocal *logging.Logger
+
+func debugf(format string, args ...interface{}) {
+	if logLocal != nil {
+		logLocal.Debugf(format, args...)
+	}
+}
+
+func errorf(format string, args ...interface{}) {
+	if logLocal != nil {
+		logLocal.Errorf(format, args...)
+	}
+}
+
+func OpenSocket(uri string, timeoutSec int) (zmq4.Socket, error) {
+	debugf("Opening ZMQ socket for %v, timeout %v sec", uri, timeoutSec)
 
 	socket := zmq4.NewSub(context.Background())
 	var err error
@@ -35,18 +48,18 @@ func openSocket(uri string, timeoutSec int) (zmq4.Socket, error) {
 	select {
 	case err = <-dialCh:
 	case <-time.After(time.Duration(timeoutSec) * time.Second):
-		err = errors.New(fmt.Sprintf("can't open ZMQ socket for %v", uri))
+		err = fmt.Errorf("can't open ZMQ socket for %v", uri)
 	}
 	return socket, err
 }
 
 // half-parsed messages from IRI ZMQ
 func startReadingIRIZmq(uri string, aec lib.ErrorCounter) error {
-	socket, err := openSocket(uri, 5)
+	socket, err := OpenSocket(uri, 5)
 	if err != nil {
 		return err
 	}
-	logLocal.Debugf("ZMQ socket opened for %v\n", uri)
+	debugf("ZMQ socket opened for %v\n", uri)
 
 	topics := []string{"tx", "sn", "lmi"}
 	for _, t := range topics {
@@ -57,12 +70,12 @@ func startReadingIRIZmq(uri string, aec lib.ErrorCounter) error {
 	}
 
 	go func() {
-		logLocal.Debugf("ZMQ listener for %v created successfully", uri)
+		debugf("ZMQ listener for %v created successfully", uri)
 
 		for {
 			msg, err := socket.Recv()
 			if aec.CheckError("ZMQ", err) {
-				logLocal.Errorf("reading ZMQ socket %v: socket.Recv() returned %v", uri, err)
+				errorf("reading ZMQ socket %v: socket.Recv() returned %v", uri, err)
 				time.Sleep(5 * time.Second)
 				continue
 			}
@@ -83,8 +96,6 @@ func startReadingIRIZmq(uri string, aec lib.ErrorCounter) error {
 	}()
 	return nil
 }
-
-var logLocal *logging.Logger
 
 func InitMetricsZMQ(uris []string, logParam *logging.Logger, aec lib.ErrorCounter) int {
 	logLocal = logParam
@@ -110,7 +121,7 @@ func InitMetricsZMQ(uris []string, logParam *logging.Logger, aec lib.ErrorCounte
 	for _, uri := range uris {
 		err := startReadingIRIZmq(uri, aec)
 		if err != nil {
-			logLocal.Errorf("cant't initialize zmq metrics updater: %v", err)
+			errorf("cant't initialize zmq metrics updater: %v", err)
 		} else {
 			count++
 		}
