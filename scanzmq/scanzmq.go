@@ -9,7 +9,7 @@ var hosts = []string{
 	"tcp://snap1.iota.partners:5556",
 	"tcp://snap2.iota.partners:5556",
 	"tcp://snap3.iota.partners:5556",
-	"tcp://node.iotalt.com:31415",
+	"tcp://node.iotalt.com:31416",
 }
 
 func main() {
