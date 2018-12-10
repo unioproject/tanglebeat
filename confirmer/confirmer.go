@@ -101,12 +101,6 @@ func (conf *Confirmer) warningf(f string, p ...interface{}) {
 	}
 }
 
-type dummy struct{}
-
-func (*dummy) CheckError(endpoint string, err error) bool {
-	return err != nil
-}
-
 const (
 	loopSleepPeriod                     = 5 * time.Second
 	sleepAfterError                     = 5 * time.Second
@@ -148,7 +142,7 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 	conf.totalDurationGTTAMsec = 0
 	conf.totalDurationATTMsec = 0
 	if conf.AEC == nil {
-		conf.AEC = &dummy{}
+		conf.AEC = &lib.DummyAEC{}
 	}
 	if conf.SlowDownThreshold == 0 {
 		conf.SlowDownThreshold = defaultSlowDownThesholdNumGoroutine

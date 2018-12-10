@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/lunfardo314/tanglebeat/metricszmq"
 	"os"
 	"time"
 )
@@ -38,11 +37,11 @@ func main() {
 		initExposeToPometheus()
 		enabled = true
 	}
-	if Config.Prometheus.Enabled && Config.Prometheus.ZmqMetrics.Enabled {
-		log.Infof("Starting ZMQ metrics updater")
-		metricszmq.InitMetricsZMQ(Config.Prometheus.ZmqMetrics.ZMQUri, log, AEC)
-		enabled = true
-	}
+	//if Config.Prometheus.Enabled && Config.Prometheus.ZmqMetrics.Enabled {
+	//	log.Infof("Starting ZMQ metrics updater")
+	//	metricszmq.InitMetricsZMQ(Config.Prometheus.ZmqMetrics.ZMQUri, log, AEC)
+	//	enabled = true
+	//}
 	if Config.Sender.Enabled {
 		log.Infof("Starting sender. Enabled sequences: %v", getEnabledSeqNames())
 		numSeq := runSender()
