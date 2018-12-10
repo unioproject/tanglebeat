@@ -5,13 +5,12 @@ package main
 import (
 	"fmt"
 	"github.com/iotaledger/iota.go/trinary"
+	"github.com/lunfardo314/tanglebeat/config"
 	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/lunfardo314/tanglebeat/multiapi"
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
@@ -120,8 +119,6 @@ type zmqMetricsYAML struct {
 // main config structure
 var Config = ConfigStructYAML{}
 
-var msgBeforeLog = []string{"*********** Starting TangleBeat ver. " + Version}
-
 func (params *senderParamsYAML) GetUID() string {
 	seedT, err := trinary.NewTrytes(params.Seed)
 	if err != nil {
@@ -135,7 +132,7 @@ func (params *senderParamsYAML) GetUID() string {
 	return ret[len(ret)-UID_LEN:]
 }
 
-func flushMsgBeforeLog() {
+func flushMsgBeforeLog(msgBeforeLog []string) {
 	for _, msg := range msgBeforeLog {
 		if logInitialized {
 			log.Info(msg)
@@ -146,39 +143,22 @@ func flushMsgBeforeLog() {
 }
 
 func masterConfig(configFilename string) {
-	currentDir, err := os.Getwd()
-	if err != nil {
-		panic(fmt.Sprintf("Can't get current current dir. Error: %v", err))
-	}
-	msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Current directory is %v", currentDir))
-
-	Config.siteDataDir = os.Getenv("SITE_DATA_DIR")
-	if Config.siteDataDir == "" {
-		Config.siteDataDir = currentDir
-	} else {
-		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("SITE_DATA_DIR = %v", Config.siteDataDir))
-	}
-	configFilePath := path.Join(Config.siteDataDir, configFilename)
-
-	msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Reading config values from %v", configFilePath))
-
-	yamlFile, err := os.Open(configFilePath)
-	if err != nil {
-		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Failed init %v:\nExit", err))
-		flushMsgBeforeLog()
+	msgBeforeLog := make([]string, 0, 10)
+	msgBeforeLog = append(msgBeforeLog, "---- Starting Tanglebeat ver. "+Version)
+	var siteDataDir string
+	var success bool
+	msgBeforeLog, siteDataDir, success = config.ReadYAML(configFilename, msgBeforeLog, &Config)
+	if !success {
+		flushMsgBeforeLog(msgBeforeLog)
 		os.Exit(1)
 	}
-	defer yamlFile.Close()
-
-	yamlbytes, _ := ioutil.ReadAll(yamlFile)
-
-	err = yaml.Unmarshal(yamlbytes, &Config)
-	if err != nil {
-		fmt.Printf("Error while reading config file %v: %v\n", yamlFile, err)
+	Config.siteDataDir = siteDataDir
+	msgBeforeLog, success = configMasterLogging(msgBeforeLog)
+	flushMsgBeforeLog(msgBeforeLog)
+	if !success {
 		os.Exit(1)
 	}
-	configMasterLogging()
-	flushMsgBeforeLog()
+
 	configDebugging()
 
 	if Config.Sender.DisableMultiCalls {
@@ -217,7 +197,7 @@ func configDebugging() {
 	}
 }
 
-func configMasterLogging() {
+func configMasterLogging(msgBeforeLog []string) ([]string, bool) {
 	var logWriter io.Writer
 
 	if Config.Logging.Debug {
@@ -249,7 +229,8 @@ func configMasterLogging() {
 			fout, err = os.OpenFile(logFname, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 		}
 		if err != nil {
-			panic(fmt.Sprintf("Failed to open logfile %v: %v", logFname, err))
+			msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Failed to open logfile %v: %v", logFname, err))
+			return msgBeforeLog, false
 		}
 		logWriter = io.MultiWriter(os.Stderr, fout)
 		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Will be logging at %v level to stderr and %v\n", logLevelName, logFname))
@@ -264,14 +245,16 @@ func configMasterLogging() {
 
 	log.SetBackend(masterLoggingBackend)
 
+	var msgtmp string
 	if Config.Sender.DebugMultiCalls {
 		multiapi.SetLog(log)
-		log.Infof("MultiAPI module: debugging/logging is ENABLED")
+		msgtmp = "MultiAPI module: debugging/logging is ENABLED"
 	} else {
-		log.Infof("MultiAPI module: debugging/logging is DISABLED")
+		msgtmp = "MultiAPI module: debugging/logging is DISABLED"
 	}
-
+	msgBeforeLog = append(msgBeforeLog, msgtmp)
 	logInitialized = true
+	return msgBeforeLog, true
 }
 
 // creates child logger with the given name. It always writes to the file
