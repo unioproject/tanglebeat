@@ -3,10 +3,12 @@
 package main
 
 import (
+	"fmt"
 	"github.com/lunfardo314/tanglebeat/metricszmq"
 	"github.com/op/go-logging"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"net/http"
 	"os"
-	"time"
 )
 
 const (
@@ -43,7 +45,9 @@ func main() {
 	for _, uri := range hosts {
 		metricszmq.RunZMQMetricsFor(uri)
 	}
-	for {
-		time.Sleep(1 * time.Minute)
-	}
+
+	http.Handle("/metrics", promhttp.Handler())
+	listenAndServeOn := fmt.Sprintf(":%d", 8081)
+	log.Infof("Exposing Prometheus metrics on %v", listenAndServeOn)
+	panic(http.ListenAndServe(listenAndServeOn, nil))
 }
