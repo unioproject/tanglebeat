@@ -64,7 +64,16 @@ type zmqRoutineStatus struct {
 var zmqRoutines = make(map[string]zmqRoutineStatus)
 var zmqRoutinesMutex sync.Mutex
 
-func registerZMQHost(uri string) {
+func InitMetricsZMQ(logParam *logging.Logger, aec lib.ErrorCounter) {
+	logLocal = logParam
+	initMetrics()
+	if aec == nil {
+		aec = &lib.DummyAEC{}
+	}
+	go zmqStarter(aec)
+}
+
+func RunZMQMetricsFor(uri string) {
 	zmqRoutinesMutex.Lock()
 	defer zmqRoutinesMutex.Unlock()
 
@@ -177,23 +186,23 @@ func runZmqRoutine(uri string, aec lib.ErrorCounter) {
 	}
 }
 
-func InitMetricsZMQ(uris []string, logParam *logging.Logger, aec lib.ErrorCounter) {
-	logLocal = logParam
-	initMetrics()
-	if aec == nil {
-		aec = &lib.DummyAEC{}
+func getUris() []string {
+	zmqRoutinesMutex.Lock()
+	defer zmqRoutinesMutex.Unlock()
+	ret := make([]string, 0, len(zmqRoutines))
+	for uri := range zmqRoutines {
+		ret = append(ret, uri)
 	}
-	for _, host := range uris {
-		registerZMQHost(host)
-	}
-	go zmqStarter(uris, aec)
+	return ret
 }
 
-func zmqStarter(uris []string, aec lib.ErrorCounter) {
+func zmqStarter(aec lib.ErrorCounter) {
 	countRunning := 0
+
 	for {
 		countRunning = 0
-		for _, uri := range uris {
+
+		for _, uri := range getUris() {
 			status, err := getZmqRoutineStatus(uri)
 			if err == nil && !status.running {
 				setZmqRoutineStatus(uri, true, false)

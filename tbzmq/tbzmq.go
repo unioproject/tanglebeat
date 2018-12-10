@@ -39,7 +39,10 @@ func init() {
 
 func main() {
 	log.Infof("Starting 'tbzmq', ZMQ metrics collector for Tanglebeat")
-	metricszmq.InitMetricsZMQ(hosts, log, nil)
+	metricszmq.InitMetricsZMQ(log, nil)
+	for _, uri := range hosts {
+		metricszmq.RunZMQMetricsFor(uri)
+	}
 	for {
 		time.Sleep(1 * time.Minute)
 	}
