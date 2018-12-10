@@ -18,7 +18,45 @@ var (
 	zmqMetricsTxCounter        *prometheus.CounterVec
 	zmqMetricsCtxCounter       *prometheus.CounterVec
 	zmqMetricsMilestoneCounter *prometheus.CounterVec
+
+	zmqMetricsTxCounterObsolete  prometheus.Counter
+	zmqMetricsCtxCounterObsolete prometheus.Counter
 )
+
+func initMetrics() {
+	zmqMetricsTxCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "tanglebeat_tx_counter_vec",
+		Help: "Transaction counter. Labeled by ZMQ host",
+	}, []string{"host"})
+
+	zmqMetricsCtxCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "tanglebeat_ctx_counter_vec",
+		Help: "Confirmed transaction counter",
+	}, []string{"host"})
+
+	zmqMetricsMilestoneCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "tanglebeat_milestone_counter",
+		Help: "Milestone counter",
+	}, []string{"host"})
+
+	prometheus.MustRegister(zmqMetricsTxCounter)
+	prometheus.MustRegister(zmqMetricsCtxCounter)
+	prometheus.MustRegister(zmqMetricsMilestoneCounter)
+
+	//  obsolete. To be removed soon
+	zmqMetricsTxCounterObsolete = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "tanglebeat_tx_counter",
+		Help: "Transaction counter. Labeled by ZMQ host",
+	})
+
+	zmqMetricsCtxCounterObsolete = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "tanglebeat_ctx_counter",
+		Help: "Confirmed transaction counter",
+	})
+	prometheus.MustRegister(zmqMetricsTxCounterObsolete)
+	prometheus.MustRegister(zmqMetricsCtxCounterObsolete)
+
+}
 
 var logLocal *logging.Logger
 
@@ -123,7 +161,8 @@ func openSocketAndSubscribe(uri string) (zmq4.Socket, error) {
 	return socket, nil
 }
 
-// half-parsed messages from IRI ZMQ
+const obsoleteUri = "tcp://node.iotalt.com:31415"
+
 func runZmqRoutine(uri string, aec lib.ErrorCounter) {
 	debugf("ZMQ listener for %v started", uri)
 	defer setZmqRoutineStatus(uri, false, false)
@@ -169,9 +208,15 @@ func runZmqRoutine(uri string, aec lib.ErrorCounter) {
 		switch messageType {
 		case "tx":
 			zmqMetricsTxCounter.With(prometheus.Labels{"host": uri}).Inc()
+			if uri == obsoleteUri {
+				zmqMetricsTxCounterObsolete.Inc()
+			}
 			txcount++
 		case "sn":
 			zmqMetricsCtxCounter.With(prometheus.Labels{"host": uri}).Inc()
+			if uri == obsoleteUri {
+				zmqMetricsCtxCounterObsolete.Inc()
+			}
 			ctxcount++
 		case "lmi":
 			zmqMetricsMilestoneCounter.With(prometheus.Labels{"host": uri}).Inc()
@@ -196,12 +241,12 @@ func getUris() []string {
 	return ret
 }
 
+// running in the background and restarting any zmq routine which is not running
 func zmqStarter(aec lib.ErrorCounter) {
 	countRunning := 0
 
 	for {
 		countRunning = 0
-
 		for _, uri := range getUris() {
 			status, err := getZmqRoutineStatus(uri)
 			if err == nil && !status.running {
@@ -213,24 +258,4 @@ func zmqStarter(aec lib.ErrorCounter) {
 		}
 		time.Sleep(5 * time.Second)
 	}
-}
-
-func initMetrics() {
-	zmqMetricsTxCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "tanglebeat_tx_counter_vec",
-		Help: "Transaction counter. Labeled by ZMQ host",
-	}, []string{"host"})
-
-	zmqMetricsCtxCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "tanglebeat_ctx_counter_vec",
-		Help: "Confirmed transaction counter",
-	}, []string{"host"})
-	zmqMetricsMilestoneCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "tanglebeat_milestone_counter",
-		Help: "Milestone counter",
-	}, []string{"host"})
-
-	prometheus.MustRegister(zmqMetricsTxCounter)
-	prometheus.MustRegister(zmqMetricsCtxCounter)
-	prometheus.MustRegister(zmqMetricsMilestoneCounter)
 }
