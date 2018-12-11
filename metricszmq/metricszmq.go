@@ -76,7 +76,7 @@ type zmqRoutineStatus struct {
 }
 
 var zmqRoutines = make(map[string]zmqRoutineStatus)
-var zmqRoutinesMutex sync.Mutex
+var zmqRoutinesMutex = &sync.Mutex{}
 
 func InitMetricsZMQ(logParam *logging.Logger, aec lib.ErrorCounter) {
 	logLocal = logParam

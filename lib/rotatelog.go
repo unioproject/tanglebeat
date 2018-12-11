@@ -13,7 +13,7 @@ import (
 )
 
 type RotateWriter struct {
-	lock         sync.Mutex
+	lock         *sync.Mutex
 	dir          string // directory where to put logs
 	filename     string // should be set to the actual filename, without path
 	rotatePeriod time.Duration
@@ -25,6 +25,7 @@ type RotateWriter struct {
 // Make a new RotateWriter. Return nil if error occurs during setup.
 func NewRotateWriter(dir string, filename string, rot time.Duration, retain time.Duration) (*RotateWriter, error) {
 	w := &RotateWriter{
+		lock:         &sync.Mutex{},
 		dir:          dir,
 		filename:     filename,
 		rotatePeriod: rot,

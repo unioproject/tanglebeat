@@ -22,9 +22,6 @@ const (
 )
 
 type Confirmer struct {
-	//IotaAPI               *API
-	//IotaAPIgTTA           *API
-
 	IotaMultiAPI     multiapi.MultiAPI
 	IotaMultiAPIgTTA multiapi.MultiAPI
 	IotaMultiAPIaTT  multiapi.MultiAPI
@@ -38,7 +35,7 @@ type Confirmer struct {
 	AEC                   lib.ErrorCounter
 	SlowDownThreshold     int
 	// internal
-	mutex sync.Mutex     //task state access sync
+	mutex *sync.Mutex    //task state access sync
 	wg    sync.WaitGroup // wait until both promote and reattach are finished
 	// confirmer task state
 	running               bool
@@ -146,6 +143,7 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 	if conf.SlowDownThreshold == 0 {
 		conf.SlowDownThreshold = defaultSlowDownThesholdNumGoroutine
 	}
+	conf.mutex = &sync.Mutex{}
 
 	// starting 4 routines
 	cancelPromoCheck := conf.goPromotabilityCheck()

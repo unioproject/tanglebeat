@@ -18,7 +18,7 @@ type bundleState struct {
 }
 
 var bundles = make(map[Hash]bundleState)
-var mutexConfmon sync.Mutex
+var mutexConfmon = &sync.Mutex{}
 
 func errorf(log *logging.Logger, format string, args ...interface{}) {
 	if log != nil {
