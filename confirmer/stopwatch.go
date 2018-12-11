@@ -1,4 +1,4 @@
-package stopwatch
+package confirmer
 
 import (
 	"github.com/lunfardo314/tanglebeat/lib"
@@ -16,21 +16,21 @@ type stopwatchEntry struct {
 }
 
 var stopwatches = make(map[string]stopwatchEntry)
-var mutex sync.Mutex
+var mutexStopwatch sync.Mutex
 
 // creates or reinitializes stopwatch entry.
 // Returns false if already exist
-func Start(name string) bool {
-	mutex.Lock()
-	defer mutex.Unlock()
+func StartStopwatch(name string) bool {
+	mutexStopwatch.Lock()
+	defer mutexStopwatch.Unlock()
 	_, exists := stopwatches[name]
 	stopwatches[name] = stopwatchEntry{started: lib.UnixMs(time.Now())}
 	return !exists
 }
 
-func Stop(name string) bool {
-	mutex.Lock()
-	defer mutex.Unlock()
+func StopStopwatch(name string) bool {
+	mutexStopwatch.Lock()
+	defer mutexStopwatch.Unlock()
 
 	entry, ok := stopwatches[name]
 	if !ok {
@@ -57,15 +57,15 @@ func _get(name string) (uint64, uint64, bool) {
 	return started, stopped, true
 }
 
-func Get(name string) (uint64, uint64, bool) {
-	mutex.Lock()
-	defer mutex.Unlock()
+func GetStopwatch(name string) (uint64, uint64, bool) {
+	mutexStopwatch.Lock()
+	defer mutexStopwatch.Unlock()
 	return _get(name)
 }
 
-func GetAndRemove(name string) (uint64, uint64, bool) {
-	mutex.Lock()
-	defer mutex.Unlock()
+func GetAndRemoveStopwatch(name string) (uint64, uint64, bool) {
+	mutexStopwatch.Lock()
+	defer mutexStopwatch.Unlock()
 	started, stopped, succ := _get(name)
 	if succ {
 		delete(stopwatches, name)

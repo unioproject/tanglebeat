@@ -10,7 +10,6 @@ import (
 	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/lunfardo314/tanglebeat/multiapi"
 	"github.com/lunfardo314/tanglebeat/sender_update"
-	"github.com/lunfardo314/tanglebeat/stopwatch"
 	"github.com/op/go-logging"
 	"os"
 	"time"
@@ -165,7 +164,7 @@ func (seq *TransferSequence) processStartUpdate(bundleData *bundle_source.FirstB
 	seq.log.Debugf("Update '%v' for %v index = %v",
 		updType, seq.name, bundleData.Index)
 
-	startTs, updateTs, ok := stopwatch.Get(bundleHash)
+	startTs, updateTs, ok := confirmer.GetStopwatch(bundleHash)
 	if !ok {
 		seq.log.Errorf("No stopwatch entry for bundle hash %v", bundleHash)
 	}
@@ -205,9 +204,9 @@ func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.Confirmer
 	var started, end uint64
 	var ok bool
 	if updConf.UpdateType == confirmer.UPD_CONFIRM {
-		started, end, ok = stopwatch.GetAndRemove(bundleHash)
+		started, end, ok = confirmer.GetAndRemoveStopwatch(bundleHash)
 	} else {
-		started, end, ok = stopwatch.Get(bundleHash)
+		started, end, ok = confirmer.GetStopwatch(bundleHash)
 	}
 	if !ok {
 		seq.log.Errorf("processConfirmerUpdate: No stopwatch entry for %v", bundleHash)
