@@ -251,7 +251,7 @@ func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash Hash) {
 	gen.log.Debugf("waitUntilBundleConfirmed: '%v' start waiting for the bundle to be confirmed", gen.name)
 	defer gen.log.Debugf("waitUntilBundleConfirmed: '%v' %v left", gen.name, bundleHash)
 
-	confirmer.WaitfForConfirmation(bundleHash, gen.iotaMultiAPI)
+	confirmer.WaitfForConfirmation(bundleHash, gen.iotaMultiAPI, gen.log, AEC)
 }
 
 //const sleepEveryLoop = 5 * time.Second

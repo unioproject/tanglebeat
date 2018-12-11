@@ -163,7 +163,7 @@ func (conf *Confirmer) waitForConfirmation(cancelPromoCheck, cancelPromo, cancel
 	defer conf.debugf("CONFIRMER-WAIT: 'wait confirmation' routine ended for %v", conf.bundleHash)
 	bundleHash := conf.bundleHash
 
-	WaitfForConfirmation(bundleHash, conf.IotaMultiAPI)
+	WaitfForConfirmation(bundleHash, conf.IotaMultiAPI, conf.Log, conf.AEC)
 
 	conf.Log.Debugf("CONFIRMER-WAIT: confirmed bundle %v", bundleHash)
 

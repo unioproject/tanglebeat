@@ -13,34 +13,28 @@ type bundleState struct {
 	confirmed bool
 	when      time.Time
 	wg        *sync.WaitGroup
+	log       *logging.Logger
+	aec       lib.ErrorCounter
 }
 
 var bundles = make(map[Hash]bundleState)
 var mutexConfmon sync.Mutex
 
-var logLocal *logging.Logger
-var aecLocal lib.ErrorCounter
-
-func SetLogAec(log *logging.Logger, aec lib.ErrorCounter) {
-	logLocal = log
-	aecLocal = aec
-}
-
-func errorf(format string, args ...interface{}) {
-	if logLocal != nil {
-		logLocal.Errorf(format, args...)
+func errorf(log *logging.Logger, format string, args ...interface{}) {
+	if log != nil {
+		log.Errorf(format, args...)
 	}
 }
 
-func debugf(format string, args ...interface{}) {
-	if logLocal != nil {
-		logLocal.Debugf(format, args...)
+func debugf(log *logging.Logger, format string, args ...interface{}) {
+	if log != nil {
+		log.Debugf(format, args...)
 	}
 }
 
-func checkError(endoint string, err error) bool {
-	if aecLocal != nil {
-		return aecLocal.CheckError(endoint, err)
+func checkError(aec lib.ErrorCounter, endoint string, err error) bool {
+	if aec != nil {
+		return aec.CheckError(endoint, err)
 	}
 	return err != nil
 }
@@ -49,11 +43,11 @@ func init() {
 	go cleanup()
 }
 
-func WaitfForConfirmation(bundleHash Hash, mapi multiapi.MultiAPI) {
-	getWG(bundleHash, mapi).Wait()
+func WaitfForConfirmation(bundleHash Hash, mapi multiapi.MultiAPI, log *logging.Logger, aec lib.ErrorCounter) {
+	getWG(bundleHash, mapi, log, aec).Wait()
 }
 
-func getWG(bundleHash Hash, mapi multiapi.MultiAPI) *sync.WaitGroup {
+func getWG(bundleHash Hash, mapi multiapi.MultiAPI, log *logging.Logger, aec lib.ErrorCounter) *sync.WaitGroup {
 	mutexConfmon.Lock()
 	defer mutexConfmon.Unlock()
 
@@ -62,7 +56,9 @@ func getWG(bundleHash Hash, mapi multiapi.MultiAPI) *sync.WaitGroup {
 	if !ok {
 		wg = &sync.WaitGroup{}
 		bundles[bundleHash] = bundleState{
-			wg: wg,
+			wg:  wg,
+			log: log,
+			aec: aec,
 		}
 		bundles[bundleHash].wg.Add(1)
 		go pollConfirmed(bundleHash, mapi)
@@ -75,11 +71,12 @@ func getWG(bundleHash Hash, mapi multiapi.MultiAPI) *sync.WaitGroup {
 func pollConfirmed(bundleHash Hash, mapi multiapi.MultiAPI) {
 	mutexConfmon.Lock()
 	bs, ok := bundles[bundleHash]
-	mutexConfmon.Unlock()
-
 	if !ok {
 		panic("internal inconsistency")
 	}
+	log := bs.log
+	mutexConfmon.Unlock()
+
 	var apiret multiapi.MultiCallRet
 	var err error
 	var confirmed bool
@@ -89,7 +86,7 @@ func pollConfirmed(bundleHash Hash, mapi multiapi.MultiAPI) {
 	for {
 		count++
 		if count%5 == 0 {
-			debugf("Confirmation polling for %v. Time since waiting: %v", bundleHash, time.Since(startWaiting))
+			debugf(log, "Confirmation polling for %v. Time since waiting: %v", bundleHash, time.Since(startWaiting))
 		}
 		confirmed, err = lib.IsBundleHashConfirmedMulti(bundleHash, mapi, &apiret)
 		if err == nil && confirmed {
@@ -102,8 +99,8 @@ func pollConfirmed(bundleHash Hash, mapi multiapi.MultiAPI) {
 			StopStopwatch(bundleHash)
 			return
 		}
-		if checkError(apiret.Endpoint, err) {
-			errorf("Confirmation polling for %v: '%v' from %v ", bundleHash, err, apiret.Endpoint)
+		if checkError(bs.aec, apiret.Endpoint, err) {
+			errorf(log, "Confirmation polling for %v: '%v' from %v ", bundleHash, err, apiret.Endpoint)
 			time.Sleep(5 * time.Second)
 		}
 		time.Sleep(5 * time.Second)
@@ -119,9 +116,10 @@ func removeIfObsolete(bundleHash Hash) {
 	if !ok {
 		return
 	}
+	log := bs.log
 	if bs.confirmed && time.Since(bs.when) > 1*time.Minute {
 		delete(bundles, bundleHash)
-		debugf("Confirmation polling: removed %v", bundleHash)
+		debugf(log, "Confirmation polling: removed %v", bundleHash)
 	}
 }
 
