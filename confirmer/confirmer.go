@@ -5,7 +5,6 @@ import (
 	. "github.com/iotaledger/iota.go/trinary"
 	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/lunfardo314/tanglebeat/multiapi"
-	"github.com/lunfardo314/tanglebeat/stopwatch"
 	"github.com/op/go-logging"
 	"runtime"
 	"strings"
@@ -152,55 +151,82 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 	cancelPromoCheck := conf.goPromotabilityCheck()
 	cancelPromo := conf.goPromote()
 	cancelReattach := conf.goReattach()
+
 	go conf.waitForConfirmation(cancelPromoCheck, cancelPromo, cancelReattach)
 
 	return conf.chanUpdate, nil
 }
 
 // will wait confirmation of the bundle and cancel other routines when confirmed
-
 func (conf *Confirmer) waitForConfirmation(cancelPromoCheck, cancelPromo, cancelReattach func()) {
-	started := time.Now()
 	conf.debugf("CONFIRMER-WAIT: 'wait confirmation' routine started for %v", conf.bundleHash)
 	defer conf.debugf("CONFIRMER-WAIT: 'wait confirmation' routine ended for %v", conf.bundleHash)
-
-	var apiret multiapi.MultiCallRet
 	bundleHash := conf.bundleHash
-	for count := 0; ; count++ {
-		if count%3 == 0 {
-			conf.debugf("CONFIRMER-WAIT: confirm task for bundle hash %v running already %v", bundleHash, time.Since(started))
-		}
-		confirmed, err := lib.IsBundleHashConfirmedMulti(bundleHash, conf.IotaMultiAPI, &apiret)
-		if conf.AEC.CheckError(apiret.Endpoint, err) {
-			conf.errorf("CONFIRMER-WAIT: isBundleHashConfirmed returned %v", err)
-		} else {
-			if confirmed {
-				// stop the stopwatch for the bundle
-				stopwatch.Stop(bundleHash)
 
-				conf.Log.Debugf("CONFIRMER-WAIT: confirmed bundle %v", bundleHash)
+	WaitfForConfirmation(bundleHash, conf.IotaMultiAPI, conf.Log, conf.AEC)
 
-				conf.mutex.Lock()
-				conf.sendConfirmerUpdate(UPD_CONFIRM, nil)
-				conf.running = false
-				conf.mutex.Unlock()
+	conf.Log.Debugf("CONFIRMER-WAIT: confirmed bundle %v", bundleHash)
 
-				conf.Log.Debugf("CONFIRMER-WAIT: canceling confirmer task for bundle %v", bundleHash)
-				cancelPromoCheck()
-				cancelPromo()
-				cancelReattach()
-				conf.wg.Wait()
+	conf.mutex.Lock()
+	conf.sendConfirmerUpdate(UPD_CONFIRM, nil)
+	conf.running = false
+	conf.mutex.Unlock()
 
-				conf.Log.Debugf("CONFIRMER-WAIT: stopped promoter and reattacher routines for bundle %v", bundleHash)
+	conf.Log.Debugf("CONFIRMER-WAIT: canceling confirmer task for bundle %v", bundleHash)
+	cancelPromoCheck()
+	cancelPromo()
+	cancelReattach()
+	conf.wg.Wait()
 
-				close(conf.chanUpdate) // stop update channel
-				conf.Log.Debugf("CONFIRMER-WAIT: closed update channel for bundle %v", bundleHash)
-				return //>>>>>>>>>>>>>>
-			}
-		}
-		time.Sleep(conf.getSleepLoopPeriod())
-	}
+	conf.Log.Debugf("CONFIRMER-WAIT: stopped promoter and reattacher routines for bundle %v", bundleHash)
+
+	close(conf.chanUpdate) // stop update channel
+	conf.Log.Debugf("CONFIRMER-WAIT: closed update channel for bundle %v", bundleHash)
+	return //>>>>>>>>>>>>>>
 }
+
+//func (conf *Confirmer) waitForConfirmationOld(cancelPromoCheck, cancelPromo, cancelReattach func()) {
+//	started := time.Now()
+//	conf.debugf("CONFIRMER-WAIT: 'wait confirmation' routine started for %v", conf.bundleHash)
+//	defer conf.debugf("CONFIRMER-WAIT: 'wait confirmation' routine ended for %v", conf.bundleHash)
+//
+//	var apiret multiapi.MultiCallRet
+//	bundleHash := conf.bundleHash
+//	for count := 0; ; count++ {
+//		if count%3 == 0 {
+//			conf.debugf("CONFIRMER-WAIT: confirm task for bundle hash %v running already %v", bundleHash, time.Since(started))
+//		}
+//		confirmed, err := lib.IsBundleHashConfirmedMulti(bundleHash, conf.IotaMultiAPI, &apiret)
+//		if conf.AEC.CheckError(apiret.Endpoint, err) {
+//			conf.errorf("CONFIRMER-WAIT: isBundleHashConfirmed returned %v", err)
+//		} else {
+//			if confirmed {
+//				// stop the stopwatch for the bundle
+//				stopwatch.Stop(bundleHash)
+//
+//				conf.Log.Debugf("CONFIRMER-WAIT: confirmed bundle %v", bundleHash)
+//
+//				conf.mutex.Lock()
+//				conf.sendConfirmerUpdate(UPD_CONFIRM, nil)
+//				conf.running = false
+//				conf.mutex.Unlock()
+//
+//				conf.Log.Debugf("CONFIRMER-WAIT: canceling confirmer task for bundle %v", bundleHash)
+//				cancelPromoCheck()
+//				cancelPromo()
+//				cancelReattach()
+//				conf.wg.Wait()
+//
+//				conf.Log.Debugf("CONFIRMER-WAIT: stopped promoter and reattacher routines for bundle %v", bundleHash)
+//
+//				close(conf.chanUpdate) // stop update channel
+//				conf.Log.Debugf("CONFIRMER-WAIT: closed update channel for bundle %v", bundleHash)
+//				return //>>>>>>>>>>>>>>
+//			}
+//		}
+//		time.Sleep(conf.getSleepLoopPeriod())
+//	}
+//}
 
 func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, err error) {
 	upd := &ConfirmerUpdate{
