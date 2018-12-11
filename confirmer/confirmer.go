@@ -112,6 +112,11 @@ func (conf *Confirmer) getSleepLoopPeriod() time.Duration {
 }
 
 func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *ConfirmerUpdate, error) {
+	// not very nice
+	if conf.mutex == nil {
+		conf.mutex = &sync.Mutex{}
+	}
+
 	tail, err := lib.TailFromBundleTrytes(bundleTrytes)
 	if err != nil {
 		return nil, err
@@ -143,7 +148,6 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 	if conf.SlowDownThreshold == 0 {
 		conf.SlowDownThreshold = defaultSlowDownThesholdNumGoroutine
 	}
-	conf.mutex = &sync.Mutex{}
 
 	// starting 4 routines
 	cancelPromoCheck := conf.goPromotabilityCheck()
