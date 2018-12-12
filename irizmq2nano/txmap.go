@@ -16,14 +16,12 @@ var txmap *mapSegment
 var mutexTX = &sync.Mutex{}
 
 var snmap *mapSegment
-
 var mutexSN = &sync.Mutex{}
 
 const segmentDuration = 1 * time.Minute
 const retainPeriod = 3 * time.Minute
 
 func __seenBefore(top *mapSegment, hash string) (bool, time.Time) {
-	// assert themap != nil
 	for ; top != nil; top = top.next {
 		if _, ok := top.themap[hash]; ok {
 			return true, top.latest
@@ -32,11 +30,11 @@ func __seenBefore(top *mapSegment, hash string) (bool, time.Time) {
 	return false, time.Time{}
 }
 
-func insertNew(hash string, ptop **mapSegment) {
+func __insertNew(hash string, ptop **mapSegment) {
 	if *ptop == nil || len((*ptop).themap) != 0 && time.Since((*ptop).created) > segmentDuration {
 		*ptop = &mapSegment{
 			themap:  make(map[string]struct{}),
-			next:    txmap,
+			next:    *ptop,
 			created: time.Now(),
 		}
 	}
@@ -51,7 +49,7 @@ func seenBeforeTX(hash string) (bool, time.Time) {
 	if seen, before := __seenBefore(txmap, hash); seen {
 		return true, before
 	}
-	insertNew(hash, &txmap)
+	__insertNew(hash, &txmap)
 	return false, time.Time{}
 }
 
@@ -62,14 +60,14 @@ func seenBeforeSN(hash string) (bool, time.Time) {
 	if seen, before := __seenBefore(snmap, hash); seen {
 		return true, before
 	}
-	insertNew(hash, &snmap)
+	__insertNew(hash, &snmap)
 	return false, time.Time{}
 }
 
-func purge(top *mapSegment) {
+func __purge(top *mapSegment) {
 	for ; top != nil; top = top.next {
 		if top.next != nil && time.Since(top.next.latest) > retainPeriod {
-			s, t := size(top.next)
+			s, t := __size(top.next)
 			debugf("---- removing segments = %d transactions = %d", s, t)
 			top.next = nil // cut the tail
 		}
@@ -79,16 +77,16 @@ func purge(top *mapSegment) {
 func sizeTX() (int, int) {
 	mutexTX.Lock()
 	defer mutexTX.Unlock()
-	return size(txmap)
+	return __size(txmap)
 }
 
 func sizeSN() (int, int) {
 	mutexSN.Lock()
 	defer mutexSN.Unlock()
-	return size(snmap)
+	return __size(snmap)
 }
 
-func size(top *mapSegment) (int, int) {
+func __size(top *mapSegment) (int, int) {
 	var numseg int
 	var numtx int
 
@@ -104,11 +102,11 @@ func init() {
 		for {
 			time.Sleep(1 * time.Minute)
 			mutexTX.Lock()
-			purge(txmap)
+			__purge(txmap)
 			mutexTX.Unlock()
 
 			mutexSN.Lock()
-			purge(snmap)
+			__purge(snmap)
 			mutexSN.Unlock()
 		}
 	}()
