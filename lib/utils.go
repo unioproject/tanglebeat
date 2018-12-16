@@ -13,6 +13,14 @@ func UnixMs(t time.Time) uint64 {
 	return uint64(t.UnixNano()) / uint64(time.Millisecond)
 }
 
+func UnixMsNow() uint64 {
+	return uint64(time.Now().UnixNano()) / uint64(time.Millisecond)
+}
+
+func SinceUnixMs(ts uint64) uint64 {
+	return UnixMsNow() - ts
+}
+
 // calculates hash of the same length
 func KerlTrytes(s Trytes) (Trytes, error) {
 	k := NewKerl()
