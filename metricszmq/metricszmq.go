@@ -1,9 +1,7 @@
 package metricszmq
 
 import (
-	"context"
 	"fmt"
-	"github.com/go-zeromq/zmq4"
 	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/op/go-logging"
 	"github.com/prometheus/client_golang/prometheus"
@@ -72,35 +70,13 @@ func errorf(format string, args ...interface{}) {
 	}
 }
 
-func OpenSocket(uri string, timeoutSec int) (zmq4.Socket, error) {
-	debugf("Opening ZMQ socket for %v, timeout %v sec", uri, timeoutSec)
-
-	//ctx, _ := context.WithTimeout(context.Background(), time.Duration(timeoutSec) * time.Second)
-	ctx := context.Background()
-	socket := zmq4.NewSub(ctx, zmq4.WithDialerTimeout(time.Duration(timeoutSec)*time.Second))
-	err := socket.Dial(uri)
-	return socket, err
-	//var err error
-	//dialCh := make(chan error)
-	//defer close(dialCh)
-	//go func() {
-	//	err = socket.Dial(uri)
-	//	dialCh <- err
-	//}()
-	//select {
-	//case err = <-dialCh:
-	//case <-time.After(time.Duration(timeoutSec) * time.Second):
-	//	err = fmt.Errorf("can't open ZMQ socket for %v", uri)
-	//}
-}
-
 type zmqRoutineStatus struct {
 	running bool
 	reading bool
 }
 
 var zmqRoutines = make(map[string]zmqRoutineStatus)
-var zmqRoutinesMutex sync.Mutex
+var zmqRoutinesMutex = &sync.Mutex{}
 
 func InitMetricsZMQ(logParam *logging.Logger, aec lib.ErrorCounter) {
 	logLocal = logParam
@@ -144,36 +120,24 @@ func setZmqRoutineStatus(uri string, running bool, reading bool) error {
 	return nil
 }
 
-var topics = []string{"tx", "sn", "lmi"}
-
-func openSocketAndSubscribe(uri string) (zmq4.Socket, error) {
-	socket, err := OpenSocket(uri, 5)
-	if err != nil {
-		return nil, err
-	}
-	debugf("ZMQ socket opened for %v\n", uri)
-	for _, t := range topics {
-		err = socket.SetOption(zmq4.OptionSubscribe, t)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return socket, nil
-}
-
 const obsoleteUri = "tcp://node.iotalt.com:31415"
+
+var topics = []string{"tx", "sn", "lmi"}
 
 func runZmqRoutine(uri string, aec lib.ErrorCounter) {
 	debugf("ZMQ listener for %v started", uri)
 	defer setZmqRoutineStatus(uri, false, false)
 	defer errorf("+++++++++++ stopping ZMQ listener for %v due to errors", uri)
 
-	socket, err := openSocketAndSubscribe(uri)
+	debugf("Opening ZMQ socket for %v", uri)
+	socket, err := lib.OpenSocketAndSubscribe(uri, topics)
 	if err != nil {
-		errorf("openSocketAndSubscribe for '%v' returned: %v", uri, err)
+		errorf("OpenSocketAndSubscribe for '%v' returned: %v", uri, err)
 		time.Sleep(5 * time.Second)
 		return
 	}
+	debugf("ZMQ socket opened for %v\n", uri)
+
 	defer func() {
 		err := socket.Close()
 		errorf("socket for %v closed. Err = %v", uri, err)

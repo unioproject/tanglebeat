@@ -11,7 +11,7 @@ import (
 
 type apiErrorCount struct {
 	apiErrorCounter *prometheus.CounterVec
-	mutex           sync.Mutex
+	mutex           *sync.Mutex
 	errorTs         []time.Time
 }
 
@@ -28,6 +28,7 @@ func (aec *apiErrorCount) CheckError(endpoint string, err error) bool {
 func init() {
 	// register prometheus metrics
 	AEC = &apiErrorCount{
+		mutex:   &sync.Mutex{},
 		errorTs: make([]time.Time, 0, 10),
 		apiErrorCounter: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "tanglebeat_iota_api_error_counter",

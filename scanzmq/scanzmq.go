@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/metricszmq"
+	"github.com/lunfardo314/tanglebeat/lib"
 )
 
 var hosts = []string{
@@ -14,7 +14,7 @@ var hosts = []string{
 
 func main() {
 	for _, host := range hosts {
-		_, err := metricszmq.OpenSocket(host, 5)
+		_, err := lib.OpenSocket(host, 5)
 		if err != nil {
 			fmt.Printf("%v --> can't open socket: %v\n", host, err)
 		} else {

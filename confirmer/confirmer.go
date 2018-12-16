@@ -22,9 +22,6 @@ const (
 )
 
 type Confirmer struct {
-	//IotaAPI               *API
-	//IotaAPIgTTA           *API
-
 	IotaMultiAPI     multiapi.MultiAPI
 	IotaMultiAPIgTTA multiapi.MultiAPI
 	IotaMultiAPIaTT  multiapi.MultiAPI
@@ -38,7 +35,7 @@ type Confirmer struct {
 	AEC                   lib.ErrorCounter
 	SlowDownThreshold     int
 	// internal
-	mutex sync.Mutex     //task state access sync
+	mutex *sync.Mutex    //task state access sync
 	wg    sync.WaitGroup // wait until both promote and reattach are finished
 	// confirmer task state
 	running               bool
@@ -115,6 +112,11 @@ func (conf *Confirmer) getSleepLoopPeriod() time.Duration {
 }
 
 func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *ConfirmerUpdate, error) {
+	// not very nice
+	if conf.mutex == nil {
+		conf.mutex = &sync.Mutex{}
+	}
+
 	tail, err := lib.TailFromBundleTrytes(bundleTrytes)
 	if err != nil {
 		return nil, err

@@ -16,7 +16,7 @@ type stopwatchEntry struct {
 }
 
 var stopwatches = make(map[string]stopwatchEntry)
-var mutexStopwatch sync.Mutex
+var mutexStopwatch = &sync.Mutex{}
 
 // creates or reinitializes stopwatch entry.
 // Returns false if already exist
