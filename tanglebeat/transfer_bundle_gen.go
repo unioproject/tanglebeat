@@ -350,7 +350,7 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr Trytes, balance
 		KeyIndex: fromIndex,
 		Balance:  balance,
 	}}
-	ts := lib.UnixMs(time.Now())
+	ts := lib.UnixSec(time.Now()) // currected, must be seconds, not milis
 	prepTransferOptions := PrepareTransfersOptions{
 		Inputs:    inputs,
 		Timestamp: &ts,

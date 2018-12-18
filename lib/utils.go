@@ -13,6 +13,10 @@ func UnixMs(t time.Time) uint64 {
 	return uint64(t.UnixNano()) / uint64(time.Millisecond)
 }
 
+func UnixSec(t time.Time) uint64 {
+	return uint64(t.UnixNano()) / uint64(time.Second)
+}
+
 func UnixMsNow() uint64 {
 	return uint64(time.Now().UnixNano()) / uint64(time.Millisecond)
 }
