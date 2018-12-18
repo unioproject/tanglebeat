@@ -30,11 +30,11 @@ func (conf *Confirmer) promote() error {
 		} else {
 			m = "blowball"
 		}
-		conf.Log.Debugf("CONFIRMER-PROMO: promoting '%v'. Tag = '%v'. Tail = %v Bundle = %v",
-			m, conf.TxTagPromote, conf.nextTailHashToPromote, conf.bundleHash)
+		conf.Log.Debugf("CONFIRMER-PROMO: promoting '%v'. Tag = '%v'. Address: %v Tail = %v Bundle = %v",
+			m, conf.TxTagPromote, conf.AddressPromote, conf.nextTailHashToPromote, conf.bundleHash)
 	}
 	transfers := Transfers{{
-		Address: all9,
+		Address: conf.AddressPromote,
 		Value:   0,
 		Tag:     conf.TxTagPromote,
 	}}

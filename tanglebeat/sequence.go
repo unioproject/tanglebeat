@@ -63,7 +63,8 @@ func NewSequence(name string) (*TransferSequence, error) {
 		confirmer:    conf,
 		log:          logger,
 	}
-	ret.log.Infof("Created instance of the sequence %v", ret.GetLongName())
+	ret.log.Infof("Created instance of the sequence %v. Promo tag: %v Promo address: %v",
+		ret.GetLongName(), ret.confirmer.TxTagPromote, ret.confirmer.AddressPromote)
 	return &ret, nil
 }
 
@@ -87,7 +88,8 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 	}
 
 	txTagPromote := Pad(Trytes(params.TxTagPromote), TagTrinarySize/3)
-	err = Validate(ValidateTags(txTagPromote))
+	addressPromote := Trytes(params.AddressPromote)
+	err = Validate(ValidateTags(txTagPromote), ValidateHashes(addressPromote))
 	if err != nil {
 		return nil, err
 	}
@@ -96,6 +98,7 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 		IotaMultiAPIaTT:       iotaMultiAPIaTT,
 		IotaMultiAPIgTTA:      iotaMultiAPIgTTA,
 		TxTagPromote:          txTagPromote,
+		AddressPromote:        addressPromote,
 		ForceReattachAfterMin: params.ForceReattachAfterMin,
 		PromoteChain:          params.PromoteChain,
 		PromoteEverySec:       params.PromoteEverySec,
