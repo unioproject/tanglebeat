@@ -4,7 +4,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/iotaledger/iota.go/trinary"
+	. "github.com/iotaledger/iota.go/trinary"
 	"github.com/lunfardo314/tanglebeat/config"
 	"github.com/lunfardo314/tanglebeat/lib"
 	"github.com/lunfardo314/tanglebeat/multiapi"
@@ -22,6 +22,9 @@ const (
 	PREFIX_MODULE           = "tanglebeat"
 	ROTATE_LOG_HOURS        = 12
 	ROTATE_LOG_RETAIN_HOURS = 12
+	defaultTag              = "TANGLE9BEAT"
+	defaultTagPromote       = "TANGLE9BEAT"
+	defaultAddressPromote   = "TANGLEBEAT9PROMOTE999999999999999999999999999999999999999999999999999999999999999"
 )
 
 var (
@@ -87,6 +90,7 @@ type senderParamsYAML struct {
 	Index0                uint64   `yaml:"index0"`
 	TxTag                 string   `yaml:"txTag"`
 	TxTagPromote          string   `yaml:"txTagPromote"`
+	AddressPromote        string   `yaml:"addressPromote"`
 	ForceReattachAfterMin uint64   `yaml:"forceReattachAfterMin"`
 	PromoteChain          bool     `yaml:"promoteChain"`
 	PromoteEverySec       uint64   `yaml:"promoteEverySec"`
@@ -120,7 +124,7 @@ type zmqMetricsYAML struct {
 var Config = ConfigStructYAML{}
 
 func (params *senderParamsYAML) GetUID() string {
-	seedT, err := trinary.NewTrytes(params.Seed)
+	seedT, err := NewTrytes(params.Seed)
 	if err != nil {
 		panic("can't generate UID")
 	}
@@ -320,18 +324,37 @@ func getSeqParams(name string) (*senderParamsYAML, error) {
 	if len(ret.TxTag) == 0 {
 		ret.TxTag = Config.Sender.Globals.TxTag
 	}
+	if len(ret.TxTag) == 0 {
+		ret.TxTag = defaultTag
+	}
 	if len(ret.TxTagPromote) == 0 {
 		ret.TxTagPromote = Config.Sender.Globals.TxTagPromote
 	}
-	if _, err := trinary.NewTrytes(ret.Seed); err != nil || len(ret.Seed) != 81 {
-		return &ret, errors.New(fmt.Sprintf("Wrong seed in sequence '%v'. Must be exactly 81 long trytes string\n", name))
+	if len(ret.TxTagPromote) == 0 {
+		ret.TxTagPromote = defaultTagPromote
 	}
-	if _, err := trinary.NewTrytes(ret.TxTag); err != nil || len(ret.TxTag) > 27 {
-		return &ret, errors.New(fmt.Sprintf("Wrong tx tag in sequence '%v'. Must be no more than 27 long trytes string\n", name))
+	if len(ret.AddressPromote) == 0 {
+		ret.AddressPromote = Config.Sender.Globals.AddressPromote
 	}
-	if _, err := trinary.NewTrytes(ret.TxTagPromote); err != nil || len(ret.TxTagPromote) > 27 {
-		return &ret, errors.New(fmt.Sprintf("Wrong tx tag promote in sequence '%v'. Must be no more than 27 long trytes string\n", name))
+	if len(ret.AddressPromote) == 0 {
+		ret.AddressPromote = defaultAddressPromote
 	}
+
+	var err error
+
+	if _, err = NewTrytes(ret.Seed); err != nil {
+		return &ret, fmt.Errorf("Wrong seed in sequence '%v': %v", name, err)
+	}
+	if _, err = NewTrytes(ret.TxTag); err != nil {
+		return &ret, fmt.Errorf("Wrong tx tag in sequence '%v': %v", name, err)
+	}
+	if _, err = NewTrytes(ret.TxTagPromote); err != nil {
+		return &ret, fmt.Errorf("Wrong tx tag promote in sequence '%v': %v", name, err)
+	}
+	if _, err = NewTrytes(ret.AddressPromote); err != nil {
+		return &ret, fmt.Errorf("Wrong promotion address in sequence '%v': %v", name, err)
+	}
+
 	if ret.TimeoutAPI == 0 {
 		ret.TimeoutAPI = Config.Sender.Globals.TimeoutAPI
 	}

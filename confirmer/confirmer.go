@@ -27,6 +27,7 @@ type Confirmer struct {
 	IotaMultiAPIaTT  multiapi.MultiAPI
 
 	TxTagPromote          Trytes
+	AddressPromote        Hash
 	ForceReattachAfterMin uint64
 	PromoteChain          bool
 	PromoteEverySec       uint64
