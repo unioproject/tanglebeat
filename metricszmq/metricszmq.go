@@ -13,8 +13,8 @@ import (
 // TODO detect dead ZMQ streams
 
 var (
-	zmqMetricsTxCounter        *prometheus.CounterVec
-	zmqMetricsCtxCounter       *prometheus.CounterVec
+	//zmqMetricsTxCounter        *prometheus.CounterVec
+	//zmqMetricsCtxCounter       *prometheus.CounterVec
 	zmqMetricsMilestoneCounter *prometheus.CounterVec
 
 	zmqMetricsTxCounterObsolete  prometheus.Counter
@@ -22,23 +22,23 @@ var (
 )
 
 func initMetrics() {
-	zmqMetricsTxCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "tanglebeat_tx_counter_vec",
-		Help: "Transaction counter. Labeled by ZMQ host",
-	}, []string{"host"})
-
-	zmqMetricsCtxCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "tanglebeat_ctx_counter_vec",
-		Help: "Confirmed transaction counter",
-	}, []string{"host"})
+	//zmqMetricsTxCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+	//	Name: "tanglebeat_tx_counter_vec",
+	//	Help: "Transaction counter. Labeled by ZMQ host",
+	//}, []string{"host"})
+	//
+	//zmqMetricsCtxCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+	//	Name: "tanglebeat_ctx_counter_vec",
+	//	Help: "Confirmed transaction counter",
+	//}, []string{"host"})
 
 	zmqMetricsMilestoneCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "tanglebeat_milestone_counter",
 		Help: "Milestone counter",
 	}, []string{"host"})
 
-	prometheus.MustRegister(zmqMetricsTxCounter)
-	prometheus.MustRegister(zmqMetricsCtxCounter)
+	//prometheus.MustRegister(zmqMetricsTxCounter)
+	//prometheus.MustRegister(zmqMetricsCtxCounter)
 	prometheus.MustRegister(zmqMetricsMilestoneCounter)
 
 	//obsolete. To be removed soon
@@ -171,13 +171,13 @@ func runZmqRoutine(uri string, aec lib.ErrorCounter) {
 		}
 		switch messageType {
 		case "tx":
-			zmqMetricsTxCounter.With(prometheus.Labels{"host": uri}).Inc()
+			//zmqMetricsTxCounter.With(prometheus.Labels{"host": uri}).Inc()
 			if uri == obsoleteUri {
 				zmqMetricsTxCounterObsolete.Inc()
 			}
 			txcount++
 		case "sn":
-			zmqMetricsCtxCounter.With(prometheus.Labels{"host": uri}).Inc()
+			//zmqMetricsCtxCounter.With(prometheus.Labels{"host": uri}).Inc()
 			if uri == obsoleteUri {
 				zmqMetricsCtxCounterObsolete.Inc()
 			}
