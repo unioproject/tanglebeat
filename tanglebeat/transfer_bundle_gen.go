@@ -470,6 +470,9 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_sour
 			tails = append(tails, &tail)
 		}
 	}
+	if len(tails) == 0 {
+		return nil, fmt.Errorf("findBundleToConfirm: inconsistency: no tails found. Can't be this (addr %v)", addr)
+	}
 	// collect hashes of tails
 	var tailHashes Hashes
 	for _, tail := range tails {
