@@ -471,7 +471,8 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_sour
 		}
 	}
 	if len(tails) == 0 {
-		return nil, fmt.Errorf("findBundleToConfirm: inconsistency: no tails found. Can't be this (addr %v)", addr)
+		gen.log.Errorf("findBundleToConfirm: there are transaction but no tails found. No consistent bundle for address%v", addr)
+		return nil, nil // empty bundle, i.e. no bundle found
 	}
 	// collect hashes of tails
 	var tailHashes Hashes
