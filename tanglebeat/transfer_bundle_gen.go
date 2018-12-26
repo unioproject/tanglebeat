@@ -508,9 +508,9 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_sour
 	txSet, err = lib.CheckAndSortTxSetAsBundle(txSet)
 
 	if err != nil {
-		// report but don't rise the error about bundle inconsistency,
-		// because it come from the node
-		return nil, errors.New(fmt.Sprintf("Inconsistency of a spending bundle in addr = %v: %v", addr, err))
+		// report error but not return, return no consistent bundle was found. To be created new one
+		gen.log.Errorf("Inconsistency of spending bundle in addr = %v: %v", addr, err)
+		return nil, nil
 	}
 	var bundleTrytes []Trytes
 	bundleTrytes, err = lib.TransactionSetToBundleTrytes(txSet)
