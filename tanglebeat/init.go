@@ -109,10 +109,10 @@ type collectorSourceYAML struct {
 }
 
 type prometheusYAML struct {
-	Enabled              bool           `yaml:"enabled"`
-	ScrapeTargetPort     int            `yaml:"scrapeTargetPort"`
-	ZmqMetrics           zmqMetricsYAML `yaml:"zmqMetrics"`
-	SenderMetricsEnabled bool           `yaml:"senderMetricsEnabled"`
+	Enabled          bool `yaml:"enabled"`
+	ScrapeTargetPort int  `yaml:"scrapeTargetPort"`
+	//ZmqMetrics           zmqMetricsYAML `yaml:"zmqMetrics"`
+	SenderMetricsEnabled bool `yaml:"senderMetricsEnabled"`
 }
 
 type zmqMetricsYAML struct {

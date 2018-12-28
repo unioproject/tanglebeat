@@ -32,7 +32,7 @@ func main() {
 		initAndRunPublisher()
 		enabled = true
 	}
-	if Config.Prometheus.Enabled && (Config.Prometheus.ZmqMetrics.Enabled || Config.Prometheus.SenderMetricsEnabled) {
+	if Config.Prometheus.Enabled && Config.Prometheus.SenderMetricsEnabled {
 		log.Infof("Exposing metrics to Prometheus")
 		initExposeToPometheus()
 		enabled = true
