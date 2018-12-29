@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	version   = "0.1"
+	version   = "0.2"
 	logFormat = "%{time:2006-01-02 15:04:05.000} %{level:.4s} [%{module:.6s}|%{shortfunc:.12s}] %{message}"
 	level     = logging.DEBUG
 )
@@ -18,12 +18,18 @@ var (
 	logInitialized bool
 )
 
+type inputsOutput struct {
+	OutputEnabled bool     `yaml:"outputEnabled"`
+	OutputPort    int      `yaml:"outputPort"`
+	Inputs        []string `yaml:"inputs"`
+}
+
 type ConfigStructYAML struct {
 	siteDataDir      string
-	WebServerPort    int      `yaml:"webServerPort"`
-	NanomsgPort      int      `yaml:"nanomsgPort"`
-	ZMQUris          []string `yaml:"zmqUri"`
-	RepeatToAcceptTX int      `yaml:"repeatToAcceptTX"`
+	WebServerPort    int          `yaml:"webServerPort"`
+	IriMsgStream     inputsOutput `yaml:"iriMsgStream"`
+	SenderMsgStream  inputsOutput `yaml:"senderMsgStream"`
+	RepeatToAcceptTX int          `yaml:"repeatToAcceptTX"`
 }
 
 var Config = ConfigStructYAML{}
@@ -52,7 +58,7 @@ func flushMsgBeforeLog(msgBeforeLog []string) {
 
 func mustReadConfig(cfgfile string) {
 	msgBeforeLog := make([]string, 0, 10)
-	msgBeforeLog = append(msgBeforeLog, "---- Starting 'tbreadzmq', ZMQ hub and metrics collector for Tanglebeat ver. "+version)
+	msgBeforeLog = append(msgBeforeLog, "---- Starting Tanglebeat main(hub) module, ZMQ hub and metrics collector for Tanglebeat ver. "+version)
 	var success bool
 	var siteDataDir string
 	msgBeforeLog, siteDataDir, success = config.ReadYAML(cfgfile, msgBeforeLog, &Config)

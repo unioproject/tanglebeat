@@ -146,9 +146,9 @@ func flushMsgBeforeLog(msgBeforeLog []string) {
 	}
 }
 
-func masterConfig(configFilename string) {
+func mustReadMasterConfig(configFilename string) {
 	msgBeforeLog := make([]string, 0, 10)
-	msgBeforeLog = append(msgBeforeLog, "---- Starting Tanglebeat ver. "+Version)
+	msgBeforeLog = append(msgBeforeLog, "---- Starting Tanglebeat 'sender' module: tbsender ver. "+Version)
 	var siteDataDir string
 	var success bool
 	msgBeforeLog, siteDataDir, success = config.ReadYAML(configFilename, msgBeforeLog, &Config)

@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
+	"github.com/lunfardo314/tanglebeat/lib/nanomsg"
 	"github.com/lunfardo314/tanglebeat/lib/utils"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -33,136 +34,106 @@ func init() {
 	startCollectingLatencyMetrics(txcache, sncache)
 }
 
-type routineStatus struct {
-	uri          string
-	running      bool
-	reading      bool
-	lastErr      string
-	readingSince time.Time
-	lastTX       time.Time
-	lastSN       time.Time
-	behindTX     *ringArray
-	behindSN     *ringArray
-	totalTX      uint64
-	totalSN      uint64
-	mutex        *sync.Mutex
+type zmqRoutine struct {
+	inreaders.InputReaderBase
+	uri      string
+	lastTX   time.Time
+	lastSN   time.Time
+	behindTX *ringArray
+	behindSN *ringArray
+	totalTX  uint64
+	totalSN  uint64
 }
 
 const ringArrayLen = 100
 
-func newRoutineStatus(uri string) *routineStatus {
-	return &routineStatus{
-		uri:      uri,
-		behindTX: newRingArray(ringArrayLen),
-		behindSN: newRingArray(ringArrayLen),
-		mutex:    &sync.Mutex{},
+func createZmqRoutine(uri string) {
+	ret := &zmqRoutine{
+		InputReaderBase: *inreaders.NewInoutReaderBase("ZMQ--" + uri),
+		uri:             uri,
+		behindTX:        newRingArray(ringArrayLen),
+		behindSN:        newRingArray(ringArrayLen),
 	}
+	zmqRoutines.AddInputReader(ret)
 }
 
 var (
-	routines      map[string]*routineStatus
-	mutexRoutines *sync.Mutex
+	zmqRoutines          *inreaders.InputReaderSet
+	compoundOutPublisher *nanomsg.Publisher
 )
 
-func init() {
-	routines = make(map[string]*routineStatus)
-	mutexRoutines = &sync.Mutex{}
-	go runZmqStarter()
+func mustInitZmqRoutines() {
+	zmqRoutines = inreaders.NewInputReaderSet()
+	var err error
+	compoundOutPublisher, err = nanomsg.NewPublisher(Config.IriMsgStream.OutputPort, 0, nil)
+	if err != nil {
+		errorf("Failed to create publishing channel. Publisher is disabled: %v", err)
+		panic(err)
+	}
+	infof("Publisher for zmq compound out stream initialized successfully on port %v",
+		Config.IriMsgStream.OutputPort)
+
+	for _, uri := range Config.IriMsgStream.Inputs {
+		createZmqRoutine(uri)
+	}
 }
 
-func newZmq(uri string) {
-	mutexRoutines.Lock()
-	defer mutexRoutines.Unlock()
-
-	_, ok := routines[uri]
-	if ok {
-		return
-	}
-	routines[uri] = newRoutineStatus(uri)
-}
-
-func runZmqStarter() {
-	for {
-		mutexRoutines.Lock()
-		for uri, status := range routines {
-			status.mutex.Lock()
-			if !routines[uri].running {
-				routines[uri].running = true
-				go routines[uri].zmqRoutine(uri)
-			}
-			status.mutex.Unlock()
-		}
-		mutexRoutines.Unlock()
-		time.Sleep(10 * time.Second)
-	}
+func (r *zmqRoutine) GetUri() string {
+	r.Lock()
+	defer r.Unlock()
+	return r.uri
 }
 
 var topics = []string{"tx", "sn"}
 
-func (status *routineStatus) zmqRoutine(uri string) {
+func (r *zmqRoutine) Run() {
+	uri := r.GetUri()
 	infof("Starting zmq routine for %v", uri)
-	defer func() {
-		status.mutex.Lock()
-		defer status.mutex.Unlock()
-		routines[uri].running = false
-	}()
 	defer infof("Leaving zmq routine for %v", uri)
 
-	status.clearCounters()
-
+	r.clearCounters()
 	socket, err := utils.OpenSocketAndSubscribe(uri, topics)
 	if err != nil {
 		errorf("Error while starting zmq channel for %v", uri)
-		status.mutex.Lock()
-		status.lastErr = fmt.Sprintf("%v", err)
-		status.mutex.Unlock()
+		r.SetLastErr(fmt.Sprintf("%v", err))
 		return
 	}
-
-	// updating status to reading
-	status.mutex.Lock()
-	status.reading = true
-	status.readingSince = time.Now()
-	status.mutex.Unlock()
+	r.SetReading(true)
 
 	infof("Successfully started zmq routine and channel for %v", uri)
 	for {
 		msg, err := socket.Recv()
 		if err != nil {
 			errorf("reading ZMQ socket for '%v': socket.Recv() returned %v", uri, err)
-
-			status.mutex.Lock()
-			status.lastErr = fmt.Sprintf("%v", err)
-			status.mutex.Unlock()
+			r.SetLastErr(fmt.Sprintf("%v", err))
 			return // exit routine
 		}
 		if len(msg.Frames) == 0 {
 			errorf("+++++++++ empty zmq msgSplit for '%v': %+v", uri, msg)
-			status.mutex.Lock()
-			status.lastErr = fmt.Sprintf("empty msgSplit from zmq")
-			status.mutex.Unlock()
+			r.SetLastErr(fmt.Sprintf("empty msgSplit from zmq"))
 			return // exit routine
 		}
+		r.SetLastHeartbeatNow()
 		msgSplit := strings.Split(string(msg.Frames[0]), " ")
 
-		//updateVecMetrics(msgSplit[0], status.uri)
+		//updateVecMetrics(msgSplit[0], r.uri)
 
 		switch msgSplit[0] {
 		case "tx":
-			status.processTXMsg(msg.Frames[0], msgSplit)
+			r.processTXMsg(msg.Frames[0], msgSplit)
 		case "sn":
-			status.processSNMsg(msg.Frames[0], msgSplit)
+			r.processSNMsg(msg.Frames[0], msgSplit)
 		}
 	}
 }
 
-func (status *routineStatus) processTXMsg(msgData []byte, msgSplit []string) {
+func (r *zmqRoutine) processTXMsg(msgData []byte, msgSplit []string) {
 	var seen bool
 	var behind uint64
 	var entry cacheEntry
 
 	if len(msgSplit) < 2 {
-		errorf("%v: Message %v is invalid", status.uri, string(msgData))
+		errorf("%v: Message %v is invalid", r.uri, string(msgData))
 		return
 	}
 	seen = txcache.seenHash(msgSplit[1], nil, &entry)
@@ -172,16 +143,16 @@ func (status *routineStatus) processTXMsg(msgData []byte, msgSplit []string) {
 	} else {
 		behind = 0
 	}
-	status.mutex.Lock()
-	status.lastTX = time.Now()
-	status.behindTX.push(behind)
-	status.totalTX++
-	status.mutex.Unlock()
+	r.Lock()
+	r.lastTX = time.Now()
+	r.behindTX.push(behind)
+	r.totalTX++
+	r.Unlock()
 
 	toOutput(msgData, msgSplit, entry.visits)
 }
 
-func (status *routineStatus) processSNMsg(msgData []byte, msgSplit []string) {
+func (r *zmqRoutine) processSNMsg(msgData []byte, msgSplit []string) {
 	var hash string
 	var seen bool
 	var behind uint64
@@ -190,7 +161,7 @@ func (status *routineStatus) processSNMsg(msgData []byte, msgSplit []string) {
 	var entry cacheEntry
 
 	if len(msgSplit) < 3 {
-		errorf("%v: Message %v is invalid", status.uri, string(msgData))
+		errorf("%v: Message %v is invalid", r.uri, string(msgData))
 		return
 	}
 	index, err = strconv.Atoi(msgSplit[1])
@@ -202,7 +173,7 @@ func (status *routineStatus) processSNMsg(msgData []byte, msgSplit []string) {
 	obsolete, whenSeen := sncache.obsoleteIndex(index)
 	if obsolete {
 		debugf("%v: obsolete 'sn' message: %v. Last index since %v sec ago",
-			status.uri, string(msgData), utils.SinceUnixMs(whenSeen)/1000)
+			r.uri, string(msgData), utils.SinceUnixMs(whenSeen)/1000)
 		return
 	}
 	hash = msgSplit[2]
@@ -214,26 +185,25 @@ func (status *routineStatus) processSNMsg(msgData []byte, msgSplit []string) {
 		behind = 0
 	}
 
-	status.mutex.Lock()
-	status.lastSN = time.Now()
-	status.behindSN.push(behind)
-	status.totalSN++
-	status.mutex.Unlock()
+	r.Lock()
+	r.lastSN = time.Now()
+	r.behindSN.push(behind)
+	r.totalSN++
+	r.Unlock()
 
 	toOutput(msgData, msgSplit, entry.visits)
 }
 
-func (status *routineStatus) clearCounters() {
-	status.mutex.Lock()
-	defer status.mutex.Unlock()
-	status.readingSince = time.Time{}
-	status.lastTX = time.Time{}
-	status.lastSN = time.Time{}
-	status.totalTX = 0
-	status.totalSN = 0
+func (r *zmqRoutine) clearCounters() {
+	r.Lock()
+	defer r.Unlock()
+	r.lastTX = time.Time{}
+	r.lastSN = time.Time{}
+	r.totalTX = 0
+	r.totalSN = 0
 }
 
-type routineStats struct {
+type zmqRoutineStats struct {
 	Running           bool    `json:"running"`
 	TotalTX           uint64  `json:"totalTX"`
 	TotalSN           uint64  `json:"totalSN"`
@@ -248,44 +218,42 @@ type routineStats struct {
 	LastErr           string  `json:"lastErr"`
 }
 
-func (status *routineStatus) getStats() *routineStats {
-	status.mutex.Lock()
-	defer status.mutex.Unlock()
+func (r *zmqRoutine) getStats() *zmqRoutineStats {
+	r.Lock()
+	defer r.Unlock()
 	var errs string
-	if status.running && status.reading {
+	running, reading, readingSince := r.GetState()
+	if running && reading {
 		errs = ""
 	} else {
-		errs = status.lastErr
+		errs = r.GetLastErr()
 	}
 	var tmpVal float32
-	if status.totalTX != 0 {
-		tmpVal = 100 * float32(status.totalSN) / float32(status.totalTX)
+	if r.totalTX != 0 {
+		tmpVal = 100 * float32(r.totalSN) / float32(r.totalTX)
 	} else {
 		tmpVal = -1
 	}
-	return &routineStats{
-		Running:           status.running && status.reading,
-		TotalTX:           status.totalTX,
-		TotalSN:           status.totalSN,
+	return &zmqRoutineStats{
+		Running:           running && reading,
+		TotalTX:           r.totalTX,
+		TotalSN:           r.totalSN,
 		SNbyTxPerc:        tmpVal,
-		AvgBehindTXSec:    float32(status.behindTX.sum()) / (1000 * float32(status.behindTX.len())),
-		AvgBehindSNSec:    float32(status.behindSN.sum()) / (1000 * float32(status.behindSN.len())),
-		LeaderTXPerc:      uint64(float32(status.behindTX.numzeros()) * 100 / float32(status.behindTX.len())),
-		LeaderSNPerc:      uint64(float32(status.behindSN.numzeros()) * 100 / float32(status.behindSN.len())),
-		LastTXMsecAgo:     utils.SinceUnixMs(utils.UnixMs(status.lastTX)),
-		LastSNMsecAgo:     utils.SinceUnixMs(utils.UnixMs(status.lastSN)),
-		RunningAlreadyMin: float32(utils.SinceUnixMs(utils.UnixMs(status.readingSince))) / 60000,
+		AvgBehindTXSec:    float32(r.behindTX.sum()) / (1000 * float32(r.behindTX.len())),
+		AvgBehindSNSec:    float32(r.behindSN.sum()) / (1000 * float32(r.behindSN.len())),
+		LeaderTXPerc:      uint64(float32(r.behindTX.numzeros()) * 100 / float32(r.behindTX.len())),
+		LeaderSNPerc:      uint64(float32(r.behindSN.numzeros()) * 100 / float32(r.behindSN.len())),
+		LastTXMsecAgo:     utils.SinceUnixMs(utils.UnixMs(r.lastTX)),
+		LastSNMsecAgo:     utils.SinceUnixMs(utils.UnixMs(r.lastSN)),
+		RunningAlreadyMin: float32(utils.SinceUnixMs(utils.UnixMs(readingSince))) / 60000,
 		LastErr:           errs,
 	}
 }
 
-func getRoutineStats() map[string]*routineStats {
-	mutexRoutines.Lock()
-	defer mutexRoutines.Unlock()
-
-	ret := make(map[string]*routineStats)
-	for uri, status := range routines {
-		ret[uri] = status.getStats()
-	}
+func getRoutineStats() map[string]*zmqRoutineStats {
+	ret := make(map[string]*zmqRoutineStats)
+	zmqRoutines.ForEach(func(name string, ir inreaders.InputReader) {
+		ret[name] = ir.(*zmqRoutine).getStats()
+	})
 	return ret
 }

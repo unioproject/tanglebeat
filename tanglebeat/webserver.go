@@ -17,8 +17,8 @@ func runWebServer(port int) {
 }
 
 type allStatsStruct struct {
-	RoutineStats map[string]*routineStats `json:"routineStats"`
-	GlobalStats  glbStatsStruct           `json:"globalStats"`
+	RoutineStats map[string]*zmqRoutineStats `json:"zmqRoutineStats"`
+	GlobalStats  glbStatsStruct              `json:"globalStats"`
 }
 
 func statsHandler(w http.ResponseWriter, r *http.Request) {
@@ -30,13 +30,13 @@ func statsHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		errorf("marshal error: %v", err)
 	}
-	fmt.Fprintf(w, string(data))
+	_, _ = fmt.Fprintf(w, string(data))
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, indexPage)
+	_, _ = fmt.Fprint(w, indexPage)
 }
 
 func loadjsHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, loadjs)
+	_, _ = fmt.Fprint(w, loadjs)
 }

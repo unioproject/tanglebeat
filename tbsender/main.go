@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-const CONFIG_FILE = "tanglebeat.yml"
+const CONFIG_FILE = "tbsender.yml"
 
 func runSender() int {
 	var ret int
@@ -23,7 +23,7 @@ func runSender() int {
 }
 
 func main() {
-	masterConfig(CONFIG_FILE)
+	mustReadMasterConfig(CONFIG_FILE)
 	var enabled bool
 	initSenderDataCollector()
 

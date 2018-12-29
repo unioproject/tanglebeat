@@ -133,7 +133,7 @@ var loadjs = `
         		if (this.readyState == 4){
             		if (this.status == 200) {
 		               resp = JSON.parse(this.response);
-						populateRoutineStats(resp.routineStats);
+						populateRoutineStats(resp.zmqRoutineStats);
                         populate("globtable", resp.globalStats)
                     }
                 }

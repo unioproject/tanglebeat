@@ -1,12 +1,11 @@
 package main
 
-func main() {
-	mustReadConfig("tbreadzmq.yml")
+const CONFIG_FILE = "tanglebeat.yml"
 
-	mustInitAndRunPublishers()
-	for _, uri := range Config.ZMQUris {
-		newZmq(uri)
-	}
+func main() {
+	mustReadConfig(CONFIG_FILE)
+	mustInitZmqRoutines()
+	mustInitSenderDataCollector()
 	runWebServer(Config.WebServerPort)
 }
 
