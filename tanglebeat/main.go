@@ -1,17 +1,9 @@
 package main
 
-import (
-	"os"
-)
-
 func main() {
 	mustReadConfig("tbreadzmq.yml")
 
-	err := runPublisherChannel(Config.NanomsgPort)
-	if err != nil {
-		errorf("failed to init nanomsg publisher: '%v'. Exit... ", err)
-		os.Exit(1)
-	}
+	mustInitAndRunPublishers()
 	for _, uri := range Config.ZMQUris {
 		newZmq(uri)
 	}

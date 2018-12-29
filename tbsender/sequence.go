@@ -171,7 +171,7 @@ func (seq *TransferSequence) processStartUpdate(bundleData *bundle_source.FirstB
 	if !ok {
 		seq.log.Errorf("No stopwatch entry for bundle hash %v", bundleHash)
 	}
-	processUpdate(
+	_ = processUpdate(
 		"local",
 		&sender_update.SenderUpdate{
 			Version:               Version,
@@ -214,7 +214,7 @@ func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.Confirmer
 	if !ok {
 		seq.log.Errorf("processConfirmerUpdate: No stopwatch entry for %v", bundleHash)
 	}
-	processUpdate(
+	_ = processUpdate(
 		"local",
 		&sender_update.SenderUpdate{
 			Version:               Version,
@@ -238,4 +238,18 @@ func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.Confirmer
 			TotalPoWMsec:          updConf.TotalDurationATTMsec,
 			TotalTipselMsec:       updConf.TotalDurationGTTAMsec,
 		})
+}
+
+func confirmerUpdType2Sender(confUpdType confirmer.UpdateType) sender_update.SenderUpdateType {
+	switch confUpdType {
+	case confirmer.UPD_NO_ACTION:
+		return sender_update.SENDER_UPD_NO_ACTION
+	case confirmer.UPD_REATTACH:
+		return sender_update.SENDER_UPD_REATTACH
+	case confirmer.UPD_PROMOTE:
+		return sender_update.SENDER_UPD_PROMOTE
+	case confirmer.UPD_CONFIRM:
+		return sender_update.SENDER_UPD_CONFIRM
+	}
+	return sender_update.SENDER_UPD_UNDEF // can't be
 }

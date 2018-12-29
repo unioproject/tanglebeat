@@ -29,7 +29,7 @@ func main() {
 
 	if Config.SenderUpdateCollector.Publish {
 		log.Infof("Starting publisher")
-		initAndRunPublisher()
+		mustInitAndRunPublisher()
 		enabled = true
 	}
 	if Config.Prometheus.Enabled && Config.Prometheus.SenderMetricsEnabled {

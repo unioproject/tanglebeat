@@ -3,23 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/lib/confirmer"
 	"github.com/lunfardo314/tanglebeat/tbsender/sender_update"
 )
-
-func confirmerUpdType2Sender(confUpdType confirmer.UpdateType) sender_update.SenderUpdateType {
-	switch confUpdType {
-	case confirmer.UPD_NO_ACTION:
-		return sender_update.SENDER_UPD_NO_ACTION
-	case confirmer.UPD_REATTACH:
-		return sender_update.SENDER_UPD_REATTACH
-	case confirmer.UPD_PROMOTE:
-		return sender_update.SENDER_UPD_PROMOTE
-	case confirmer.UPD_CONFIRM:
-		return sender_update.SENDER_UPD_CONFIRM
-	}
-	return sender_update.SENDER_UPD_UNDEF // can't be
-}
 
 // update is uniquely identified by SeqUID and UpdateTs
 // make sure the same is not published twice by saving last ts and skipping
@@ -49,7 +34,7 @@ func processUpdate(sourceName string, upd *sender_update.SenderUpdate) error {
 	if Config.SenderUpdateCollector.Publish {
 		log.Infof("Publish update '%v' received from '%v', seq: %v(%v), index: %v",
 			upd.UpdType, sourceName, upd.SeqUID, upd.SeqName, upd.Index)
-		if err := publishUpdate(upd); err != nil {
+		if err := updatePublisher.PublishAsJSON(upd); err != nil {
 			log.Errorf("Process update: %v", err)
 			return err
 		}
@@ -91,7 +76,7 @@ func runUpdateCollectorSource(sourceName string, uri string) error {
 	go func() {
 		log.Infof("Start listening external sender update source '%v'", sourceName)
 		for upd := range chIn {
-			processUpdate(sourceName, upd)
+			_ = processUpdate(sourceName, upd)
 		}
 	}()
 	return nil

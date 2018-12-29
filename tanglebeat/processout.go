@@ -8,8 +8,10 @@ import (
 func toOutput(msgData []byte, msgSplit []string, repeatedTimes int) {
 	// check if message was seen exactly number of times as configured (usually 2)
 	if repeatedTimes == Config.RepeatToAcceptTX {
-		// publich message to output Nanomsg channel exactly as reaceived from ZeroMQ. For others to consume
-		publishMessage(msgData)
+		// publish message to output Nanomsg channel exactly as reaceived from ZeroMQ. For others to consume
+		if err := compoundOutPublisher.PublishData(msgData); err != nil {
+			errorf("Error while publishing data: %v", err)
+		}
 		// update metrics based on compound (resulting) message stream (TPS, CTPS etc)
 		updateCompoundMetrics(msgSplit[0])
 		// update global stats do display on internal debug dashboard
