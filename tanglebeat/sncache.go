@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/lunfardo314/tanglebeat/lib/utils"
 )
 
 type hashCacheSN struct {
@@ -27,6 +27,6 @@ func (cache *hashCacheSN) obsoleteIndex(index int) (bool, uint64) {
 	}
 	debugf("------ milestone index changed %v --> %v ", cache.largestIndex, index)
 	cache.largestIndex = index
-	cache.indexChanged = lib.UnixMsNow()
+	cache.indexChanged = utils.UnixMsNow()
 	return false, cache.indexChanged
 }

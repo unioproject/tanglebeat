@@ -3,8 +3,8 @@ package confirmer
 import (
 	"errors"
 	. "github.com/iotaledger/iota.go/trinary"
-	"github.com/lunfardo314/tanglebeat/lib"
-	"github.com/lunfardo314/tanglebeat/multiapi"
+	"github.com/lunfardo314/tanglebeat/lib/multiapi"
+	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"github.com/op/go-logging"
 	"runtime"
 	"strings"
@@ -33,7 +33,7 @@ type Confirmer struct {
 	PromoteEverySec       uint64
 	PromoteDisable        bool
 	Log                   *logging.Logger
-	AEC                   lib.ErrorCounter
+	AEC                   utils.ErrorCounter
 	SlowDownThreshold     int
 	// internal
 	mutex *sync.Mutex    //task state access sync
@@ -118,7 +118,7 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 		conf.mutex = &sync.Mutex{}
 	}
 
-	tail, err := lib.TailFromBundleTrytes(bundleTrytes)
+	tail, err := utils.TailFromBundleTrytes(bundleTrytes)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 	conf.totalDurationGTTAMsec = 0
 	conf.totalDurationATTMsec = 0
 	if conf.AEC == nil {
-		conf.AEC = &lib.DummyAEC{}
+		conf.AEC = &utils.DummyAEC{}
 	}
 	if conf.SlowDownThreshold == 0 {
 		conf.SlowDownThreshold = defaultSlowDownThesholdNumGoroutine

@@ -10,10 +10,10 @@ import (
 	. "github.com/iotaledger/iota.go/guards/validators"
 	. "github.com/iotaledger/iota.go/transaction"
 	. "github.com/iotaledger/iota.go/trinary"
-	"github.com/lunfardo314/tanglebeat/bundle_source"
-	"github.com/lunfardo314/tanglebeat/confirmer"
-	"github.com/lunfardo314/tanglebeat/lib"
-	"github.com/lunfardo314/tanglebeat/multiapi"
+	"github.com/lunfardo314/tanglebeat/lib/confirmer"
+	"github.com/lunfardo314/tanglebeat/lib/multiapi"
+	"github.com/lunfardo314/tanglebeat/lib/utils"
+	"github.com/lunfardo314/tanglebeat/tbsender/bundle_source"
 	"github.com/op/go-logging"
 	"io/ioutil"
 	"os"
@@ -169,7 +169,7 @@ func (gen *transferBundleGenerator) runGenerator() {
 			gen.log.Infof("Transfer Bundles: '%v' index = %v, balance == 0, not spent. Wait %v sec for balance to become non zero",
 				gen.name, gen.index, balanceZeroWaitSec)
 			time.Sleep(time.Duration(balanceZeroWaitSec) * time.Second)
-			balanceZeroWaitSec = lib.Min(balanceZeroWaitSec+2, 15)
+			balanceZeroWaitSec = utils.Min(balanceZeroWaitSec+2, 15)
 			continue
 
 		case balance != 0:
@@ -205,7 +205,7 @@ func (gen *transferBundleGenerator) runGenerator() {
 				continue
 			}
 			// have to parse first transaction to get the bundle hash
-			tail, err := lib.TailFromBundleTrytes(bundleData.BundleTrytes)
+			tail, err := utils.TailFromBundleTrytes(bundleData.BundleTrytes)
 			if err != nil {
 				gen.log.Errorf("Transfer Bundles: '%v' AsTransactionObject returned: %v", gen.name, err)
 				time.Sleep(5 * time.Second)
@@ -350,7 +350,7 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr Trytes, balance
 		KeyIndex: fromIndex,
 		Balance:  balance,
 	}}
-	ts := lib.UnixSec(time.Now()) // currected, must be seconds, not milis
+	ts := utils.UnixSec(time.Now()) // currected, must be seconds, not milis
 	prepTransferOptions := PrepareTransfersOptions{
 		Inputs:    inputs,
 		Timestamp: &ts,
@@ -447,7 +447,7 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_sour
 	// note that bundle hashes can be more than one in rare cases
 	var spendingBundleHashes Hashes
 	for _, tx := range txs {
-		if tx.Value < 0 && !lib.TrytesInSet(tx.Bundle, spendingBundleHashes) {
+		if tx.Value < 0 && !utils.TrytesInSet(tx.Bundle, spendingBundleHashes) {
 			spendingBundleHashes = append(spendingBundleHashes, tx.Bundle)
 		}
 	}
@@ -500,12 +500,12 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_sour
 		}
 	}
 	// collect the bundle by maxTail
-	txSet := lib.ExtractBundleTransactionsByTail(maxTail, txs)
+	txSet := utils.ExtractBundleTransactionsByTail(maxTail, txs)
 	if txSet == nil {
 		return nil, errors.New(fmt.Sprintf("Can't get bundle from tail hash = %v in addr = %v: %v",
 			maxTail.Hash, addr, err))
 	}
-	txSet, err = lib.CheckAndSortTxSetAsBundle(txSet)
+	txSet, err = utils.CheckAndSortTxSetAsBundle(txSet)
 
 	if err != nil {
 		// report error but not return, return no consistent bundle was found. To be created new one
@@ -513,7 +513,7 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_sour
 		return nil, nil
 	}
 	var bundleTrytes []Trytes
-	bundleTrytes, err = lib.TransactionSetToBundleTrytes(txSet)
+	bundleTrytes, err = utils.TransactionSetToBundleTrytes(txSet)
 	if err != nil {
 		return nil, err
 	}
@@ -527,7 +527,7 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_sour
 func (gen *transferBundleGenerator) isAnyConfirmed(txHashes Hashes) (bool, error) {
 	//confirmed, err := lib.IsAnyConfirmed(txHashes, gen.iotaAPI)
 	var apiret multiapi.MultiCallRet
-	confirmed, err := lib.IsAnyConfirmedMulti(txHashes, gen.iotaMultiAPI, &apiret)
+	confirmed, err := utils.IsAnyConfirmedMulti(txHashes, gen.iotaMultiAPI, &apiret)
 	AEC.CheckError(apiret.Endpoint, err)
 	return confirmed, err
 }
@@ -536,7 +536,7 @@ func (gen *transferBundleGenerator) isAnyConfirmed(txHashes Hashes) (bool, error
 func (gen *transferBundleGenerator) findTransactionObjects(query FindTransactionsQuery) (Transactions, error) {
 	//ret, err := lib.FindTransactionObjects(query, gen.iotaAPI)
 	var apiret multiapi.MultiCallRet
-	ret, err := lib.FindTransactionObjectsMulti(query, gen.iotaMultiAPI, &apiret)
+	ret, err := utils.FindTransactionObjectsMulti(query, gen.iotaMultiAPI, &apiret)
 	if AEC.CheckError(apiret.Endpoint, err) {
 		return nil, err
 	}

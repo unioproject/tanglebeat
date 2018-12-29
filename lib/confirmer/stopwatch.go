@@ -1,7 +1,7 @@
 package confirmer
 
 import (
-	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"sync"
 	"time"
 )
@@ -24,7 +24,7 @@ func StartStopwatch(name string) bool {
 	mutexStopwatch.Lock()
 	defer mutexStopwatch.Unlock()
 	_, exists := stopwatches[name]
-	stopwatches[name] = stopwatchEntry{started: lib.UnixMs(time.Now())}
+	stopwatches[name] = stopwatchEntry{started: utils.UnixMs(time.Now())}
 	return !exists
 }
 
@@ -37,7 +37,7 @@ func StopStopwatch(name string) bool {
 		return false
 	}
 	if entry.stopped == 0 {
-		entry.stopped = lib.UnixMs(time.Now())
+		entry.stopped = utils.UnixMs(time.Now())
 	}
 	return true
 }
@@ -50,7 +50,7 @@ func _get(name string) (uint64, uint64, bool) {
 	started := entry.started
 	var stopped uint64
 	if entry.stopped == 0 {
-		stopped = lib.UnixMs(time.Now())
+		stopped = utils.UnixMs(time.Now())
 	} else {
 		stopped = entry.stopped
 	}

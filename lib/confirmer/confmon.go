@@ -2,8 +2,8 @@ package confirmer
 
 import (
 	. "github.com/iotaledger/iota.go/trinary"
-	"github.com/lunfardo314/tanglebeat/lib"
-	"github.com/lunfardo314/tanglebeat/multiapi"
+	"github.com/lunfardo314/tanglebeat/lib/multiapi"
+	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"github.com/op/go-logging"
 	"sync"
 	"time"
@@ -14,7 +14,7 @@ type bundleState struct {
 	when      time.Time
 	wg        *sync.WaitGroup
 	log       *logging.Logger
-	aec       lib.ErrorCounter
+	aec       utils.ErrorCounter
 }
 
 var bundles = make(map[Hash]bundleState)
@@ -32,7 +32,7 @@ func debugf(log *logging.Logger, format string, args ...interface{}) {
 	}
 }
 
-func checkError(aec lib.ErrorCounter, endoint string, err error) bool {
+func checkError(aec utils.ErrorCounter, endoint string, err error) bool {
 	if aec != nil {
 		return aec.CheckError(endoint, err)
 	}
@@ -43,11 +43,11 @@ func init() {
 	go cleanup()
 }
 
-func WaitfForConfirmation(bundleHash Hash, mapi multiapi.MultiAPI, log *logging.Logger, aec lib.ErrorCounter) {
+func WaitfForConfirmation(bundleHash Hash, mapi multiapi.MultiAPI, log *logging.Logger, aec utils.ErrorCounter) {
 	getWG(bundleHash, mapi, log, aec).Wait()
 }
 
-func getWG(bundleHash Hash, mapi multiapi.MultiAPI, log *logging.Logger, aec lib.ErrorCounter) *sync.WaitGroup {
+func getWG(bundleHash Hash, mapi multiapi.MultiAPI, log *logging.Logger, aec utils.ErrorCounter) *sync.WaitGroup {
 	mutexConfmon.Lock()
 	defer mutexConfmon.Unlock()
 
@@ -88,7 +88,7 @@ func pollConfirmed(bundleHash Hash, mapi multiapi.MultiAPI) {
 		if count%5 == 0 {
 			debugf(log, "Confirmation polling for %v. Time since waiting: %v", bundleHash, time.Since(startWaiting))
 		}
-		confirmed, err = lib.IsBundleHashConfirmedMulti(bundleHash, mapi, &apiret)
+		confirmed, err = utils.IsBundleHashConfirmedMulti(bundleHash, mapi, &apiret)
 		if err == nil && confirmed {
 			wg.Done()
 			mutexConfmon.Lock()

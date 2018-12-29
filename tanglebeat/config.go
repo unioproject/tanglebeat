@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/config"
+	"github.com/lunfardo314/tanglebeat/lib/config"
 	"github.com/op/go-logging"
 	"os"
 )

@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"strconv"
 	"strings"
 	"sync"
@@ -110,7 +110,7 @@ func (status *routineStatus) zmqRoutine(uri string) {
 
 	status.clearCounters()
 
-	socket, err := lib.OpenSocketAndSubscribe(uri, topics)
+	socket, err := utils.OpenSocketAndSubscribe(uri, topics)
 	if err != nil {
 		errorf("Error while starting zmq channel for %v", uri)
 		status.mutex.Lock()
@@ -168,7 +168,7 @@ func (status *routineStatus) processTXMsg(msgData []byte, msgSplit []string) {
 	seen = txcache.seenHash(msgSplit[1], nil, &entry)
 
 	if seen {
-		behind = lib.SinceUnixMs(entry.firstSeen)
+		behind = utils.SinceUnixMs(entry.firstSeen)
 	} else {
 		behind = 0
 	}
@@ -202,14 +202,14 @@ func (status *routineStatus) processSNMsg(msgData []byte, msgSplit []string) {
 	obsolete, whenSeen := sncache.obsoleteIndex(index)
 	if obsolete {
 		debugf("%v: obsolete 'sn' message: %v. Last index since %v sec ago",
-			status.uri, string(msgData), lib.SinceUnixMs(whenSeen)/1000)
+			status.uri, string(msgData), utils.SinceUnixMs(whenSeen)/1000)
 		return
 	}
 	hash = msgSplit[2]
 
 	seen = sncache.seenHash(hash, nil, &entry)
 	if seen {
-		behind = lib.SinceUnixMs(entry.firstSeen)
+		behind = utils.SinceUnixMs(entry.firstSeen)
 	} else {
 		behind = 0
 	}
@@ -272,9 +272,9 @@ func (status *routineStatus) getStats() *routineStats {
 		AvgBehindSNSec:    float32(status.behindSN.sum()) / (1000 * float32(status.behindSN.len())),
 		LeaderTXPerc:      uint64(float32(status.behindTX.numzeros()) * 100 / float32(status.behindTX.len())),
 		LeaderSNPerc:      uint64(float32(status.behindSN.numzeros()) * 100 / float32(status.behindSN.len())),
-		LastTXMsecAgo:     lib.SinceUnixMs(lib.UnixMs(status.lastTX)),
-		LastSNMsecAgo:     lib.SinceUnixMs(lib.UnixMs(status.lastSN)),
-		RunningAlreadyMin: float32(lib.SinceUnixMs(lib.UnixMs(status.readingSince))) / 60000,
+		LastTXMsecAgo:     utils.SinceUnixMs(utils.UnixMs(status.lastTX)),
+		LastSNMsecAgo:     utils.SinceUnixMs(utils.UnixMs(status.lastSN)),
+		RunningAlreadyMin: float32(utils.SinceUnixMs(utils.UnixMs(status.readingSince))) / 60000,
 		LastErr:           errs,
 	}
 }

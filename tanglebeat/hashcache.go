@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"sync"
 	"time"
 )
@@ -61,7 +61,7 @@ func (cache *hashCacheBase) shortHash(hash string) string {
 }
 
 func (cache *hashCacheBase) __insertNew(shorthash string, data interface{}) {
-	nowis := lib.UnixMs(time.Now())
+	nowis := utils.UnixMs(time.Now())
 	if cache.top == nil || (len(cache.top.themap) != 0 && (nowis-cache.top.created > cache.segmentDurationMs)) {
 		cache.top = &cacheSegment{
 			themap:  make(map[string]cacheEntry),
@@ -84,7 +84,7 @@ func (cache *hashCacheBase) __find(shorthash string, ret *cacheEntry) bool {
 		if entry, ok := seg.themap[shorthash]; ok {
 			seg.themap[shorthash] = cacheEntry{
 				firstSeen: entry.firstSeen,
-				lastSeen:  lib.UnixMsNow(),
+				lastSeen:  utils.UnixMsNow(),
 				visits:    entry.visits + 1,
 				data:      entry.data,
 			}
@@ -147,7 +147,7 @@ func (cache *hashCacheBase) startPurge() {
 			time.Sleep(1 * time.Minute)
 
 			cache.mutex.Lock()
-			nowis := lib.UnixMs(time.Now())
+			nowis := utils.UnixMs(time.Now())
 			for top := cache.top; top != nil; top = top.next {
 				if top.next != nil && (nowis-top.next.latest > cache.retentionPeriodMs) {
 					top.next = nil // cut the tail
@@ -171,7 +171,7 @@ func (cache *hashCacheBase) stats(msecBack uint64) *hashcacheStats {
 	cache.mutex.Lock()
 	defer cache.mutex.Unlock()
 
-	earliest := lib.UnixMsNow() - msecBack
+	earliest := utils.UnixMsNow() - msecBack
 	if msecBack == 0 {
 		earliest = 0 // count all of it
 	}

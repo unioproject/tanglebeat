@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/sender_update"
+	"github.com/lunfardo314/tanglebeat/tbsender/sender_update"
 	"nanomsg.org/go-mangos"
 	"nanomsg.org/go-mangos/protocol/pub"
 	"nanomsg.org/go-mangos/transport/tcp"

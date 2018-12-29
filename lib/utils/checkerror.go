@@ -1,4 +1,4 @@
-package lib
+package utils
 
 type ErrorCounter interface {
 	CheckError(endpoint string, err error) bool

@@ -1,11 +1,11 @@
-package lib
+package utils
 
 import (
 	"errors"
 	. "github.com/iotaledger/iota.go/api"
 	. "github.com/iotaledger/iota.go/transaction"
 	. "github.com/iotaledger/iota.go/trinary"
-	"github.com/lunfardo314/tanglebeat/multiapi"
+	"github.com/lunfardo314/tanglebeat/lib/multiapi"
 )
 
 // checks if transaction in any bundle with specified hash is confirmed

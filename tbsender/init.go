@@ -5,9 +5,9 @@ package main
 import (
 	"fmt"
 	. "github.com/iotaledger/iota.go/trinary"
-	"github.com/lunfardo314/tanglebeat/config"
-	"github.com/lunfardo314/tanglebeat/lib"
-	"github.com/lunfardo314/tanglebeat/multiapi"
+	"github.com/lunfardo314/tanglebeat/lib/config"
+	"github.com/lunfardo314/tanglebeat/lib/multiapi"
+	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 	"io"
@@ -128,7 +128,7 @@ func (params *senderParamsYAML) GetUID() string {
 	if err != nil {
 		panic("can't generate UID")
 	}
-	hash, err := lib.KerlTrytes(seedT)
+	hash, err := utils.KerlTrytes(seedT)
 	if err != nil {
 		panic("can't generate UID")
 	}
@@ -190,7 +190,7 @@ func masterConfig(configFilename string) {
 
 func configDebugging() {
 	if Config.Logging.Debug && Config.Logging.RuntimeStats {
-		sl := lib.Max(5, Config.Logging.RuntimeStatsInterval)
+		sl := utils.Max(5, Config.Logging.RuntimeStatsInterval)
 		go func() {
 			for {
 				logRuntimeStats()
@@ -226,7 +226,7 @@ func configMasterLogging(msgBeforeLog []string) ([]string, bool) {
 		if Config.Logging.RotateLogs {
 			msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Creating rotating log: %v", logFname))
 			dir := path.Join(Config.siteDataDir, Config.Logging.WorkingSubdir)
-			fout, err = lib.NewRotateWriter(dir, PREFIX_MODULE+".log",
+			fout, err = utils.NewRotateWriter(dir, PREFIX_MODULE+".log",
 				time.Duration(ROTATE_LOG_HOURS)*time.Hour,
 				time.Duration(ROTATE_LOG_RETAIN_HOURS)*time.Hour)
 		} else {
@@ -270,7 +270,7 @@ func createChildLogger(name string, subdir string, masterBackend *logging.Levele
 	logFname := path.Join(Config.siteDataDir, subdir, PREFIX_MODULE+"."+name+".log")
 	if Config.Logging.RotateLogs {
 		dir := path.Join(Config.siteDataDir, Config.Logging.WorkingSubdir)
-		logWriter, err = lib.NewRotateWriter(dir, PREFIX_MODULE+"."+name+".log",
+		logWriter, err = utils.NewRotateWriter(dir, PREFIX_MODULE+"."+name+".log",
 			time.Duration(ROTATE_LOG_HOURS)*time.Hour,
 			time.Duration(ROTATE_LOG_RETAIN_HOURS)*time.Hour)
 

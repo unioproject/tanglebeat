@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/lunfardo314/tanglebeat/lib"
+	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"strconv"
 )
 
@@ -63,7 +63,7 @@ func processValueTxMsg(msgSplit []string) {
 					updateConfirmedValueTxMetrics(vtd.value, vtd.lastInBundle)
 
 					infof("Confirmed value tx %v value = %v tag = %v duration %v min",
-						msgSplit[2], vtd.value, vtd.tag, float32(lib.SinceUnixMs(entry.firstSeen))/60000,
+						msgSplit[2], vtd.value, vtd.tag, float32(utils.SinceUnixMs(entry.firstSeen))/60000,
 					)
 				}
 			}

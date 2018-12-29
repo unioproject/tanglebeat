@@ -6,8 +6,8 @@ import (
 	. "github.com/iotaledger/iota.go/bundle"
 	. "github.com/iotaledger/iota.go/transaction"
 	. "github.com/iotaledger/iota.go/trinary"
-	"github.com/lunfardo314/tanglebeat/lib"
-	"github.com/lunfardo314/tanglebeat/multiapi"
+	"github.com/lunfardo314/tanglebeat/lib/multiapi"
+	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"strings"
 	"time"
 )
@@ -38,7 +38,7 @@ func (conf *Confirmer) promote() error {
 		Value:   0,
 		Tag:     conf.TxTagPromote,
 	}}
-	ts := lib.UnixSec(time.Now()) // corrected, must be seconds, not milis
+	ts := utils.UnixSec(time.Now()) // corrected, must be seconds, not milis
 	prepTransferOptions := PrepareTransfersOptions{
 		Timestamp: &ts,
 	}
@@ -48,12 +48,12 @@ func (conf *Confirmer) promote() error {
 		return err
 	}
 	var apiret multiapi.MultiCallRet
-	st := lib.UnixMs(time.Now())
+	st := utils.UnixMs(time.Now())
 	gttaResp, err := conf.IotaMultiAPIgTTA.GetTransactionsToApprove(3, &apiret)
 	if conf.AEC.CheckError(apiret.Endpoint, err) {
 		return err
 	}
-	conf.totalDurationGTTAMsec += lib.UnixMs(time.Now()) - st
+	conf.totalDurationGTTAMsec += utils.UnixMs(time.Now()) - st
 
 	trunkTxh := conf.nextTailHashToPromote
 	branchTxh := gttaResp.BranchTransaction
@@ -73,7 +73,7 @@ func (conf *Confirmer) promote() error {
 	nowis := time.Now()
 	conf.numPromote += 1
 	if conf.PromoteChain {
-		tail, err := lib.TailFromBundleTrytes(btrytes)
+		tail, err := utils.TailFromBundleTrytes(btrytes)
 		if err != nil {
 			return err
 		}
@@ -87,7 +87,7 @@ func (conf *Confirmer) promote() error {
 
 func (conf *Confirmer) reattach() error {
 	var err error
-	if curTail, err := lib.TailFromBundleTrytes(conf.lastBundleTrytes); err != nil {
+	if curTail, err := utils.TailFromBundleTrytes(conf.lastBundleTrytes); err != nil {
 		return err
 	} else {
 		if curTail.Bundle != conf.bundleHash {
@@ -121,7 +121,7 @@ func (conf *Confirmer) reattach() error {
 	}
 
 	var newTail *Transaction
-	if newTail, err = lib.TailFromBundleTrytes(btrytes); err != nil {
+	if newTail, err = utils.TailFromBundleTrytes(btrytes); err != nil {
 		return err
 	}
 	conf.debugf("CONFIRMER-REATT: finished reattaching. New tail hash %v", newTail.Hash)

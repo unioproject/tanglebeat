@@ -5,11 +5,11 @@ import (
 	. "github.com/iotaledger/iota.go/consts"
 	. "github.com/iotaledger/iota.go/guards/validators"
 	. "github.com/iotaledger/iota.go/trinary"
-	"github.com/lunfardo314/tanglebeat/bundle_source"
-	"github.com/lunfardo314/tanglebeat/confirmer"
-	"github.com/lunfardo314/tanglebeat/lib"
-	"github.com/lunfardo314/tanglebeat/multiapi"
-	"github.com/lunfardo314/tanglebeat/sender_update"
+	"github.com/lunfardo314/tanglebeat/lib/confirmer"
+	"github.com/lunfardo314/tanglebeat/lib/multiapi"
+	"github.com/lunfardo314/tanglebeat/lib/utils"
+	"github.com/lunfardo314/tanglebeat/tbsender/bundle_source"
+	"github.com/lunfardo314/tanglebeat/tbsender/sender_update"
 	"github.com/op/go-logging"
 	"os"
 	"time"
@@ -114,7 +114,7 @@ func (seq *TransferSequence) Run() {
 	var bundleHash Trytes
 
 	for bundleData := range *seq.bundleSource {
-		tail, err := lib.TailFromBundleTrytes(bundleData.BundleTrytes)
+		tail, err := utils.TailFromBundleTrytes(bundleData.BundleTrytes)
 		if err != nil {
 			seq.log.Errorf("RunConfirm for '%v' returned: %v", seq.GetLongName(), err)
 			time.Sleep(5 * time.Second)

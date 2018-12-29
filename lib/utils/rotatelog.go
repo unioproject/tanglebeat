@@ -1,4 +1,4 @@
-package lib
+package utils
 
 // https://stackoverflow.com/questions/28796021/how-can-i-log-in-golang-to-a-file-with-log-rotation
 
