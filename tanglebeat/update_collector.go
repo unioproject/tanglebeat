@@ -14,7 +14,7 @@ type updateSource struct {
 
 func createUpdateSource(uri string) {
 	ret := &updateSource{
-		InputReaderBase: *inreaders.NewInoutReaderBase("TBSENDER--" + uri),
+		InputReaderBase: *inreaders.NewInputReaderBase("TBSENDER--" + uri),
 		uri:             uri,
 	}
 	senderUpdateSources.AddInputReader(ret)
@@ -28,7 +28,7 @@ var (
 
 func mustInitSenderDataCollector() {
 	publishedUpdates = newHashCacheBase(0, 10*60*1000, 60*60*1000)
-	senderUpdateSources = inreaders.NewInputReaderSet()
+	senderUpdateSources = inreaders.NewInputReaderSet("sender update routine set")
 
 	if Config.SenderMsgStream.OutputEnabled {
 		var err error
@@ -55,13 +55,15 @@ func (r *updateSource) GetUri() string {
 
 func (r *updateSource) Run() {
 	uri := r.GetUri()
+	infof("Starting sender update source at %v", uri)
+
 	chIn, err := sender_update.NewUpdateChan(uri)
 	if err != nil {
 		errorf("failed to initialize sender update source for %v: %v", uri, err)
 		return
 	}
 	r.SetReading(true)
-	infof("Start reading external sender update source at %v", uri)
+	infof("Successfully started sender update source at %v", uri)
 	for upd := range chIn {
 		r.SetLastHeartbeatNow()
 		err = r.processUpdate(upd)

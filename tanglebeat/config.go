@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/lunfardo314/tanglebeat/lib/config"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
 	"github.com/op/go-logging"
 	"os"
 )
@@ -69,6 +70,7 @@ func mustReadConfig(cfgfile string) {
 	Config.siteDataDir = siteDataDir
 	msgBeforeLog, success = initLogging(msgBeforeLog)
 	flushMsgBeforeLog(msgBeforeLog)
+
 	if !success {
 		os.Exit(1)
 	}
@@ -77,6 +79,8 @@ func mustReadConfig(cfgfile string) {
 	}
 	infof("TX message will be accepted after received %v times from different sources ('repeatToAcceptTX' parameter, default is 2)",
 		Config.RepeatToAcceptTX)
+
+	inreaders.SetLog(log)
 }
 
 func errorf(format string, args ...interface{}) {

@@ -49,7 +49,7 @@ const ringArrayLen = 100
 
 func createZmqRoutine(uri string) {
 	ret := &zmqRoutine{
-		InputReaderBase: *inreaders.NewInoutReaderBase("ZMQ--" + uri),
+		InputReaderBase: *inreaders.NewInputReaderBase("ZMQ--" + uri),
 		uri:             uri,
 		behindTX:        newRingArray(ringArrayLen),
 		behindSN:        newRingArray(ringArrayLen),
@@ -63,7 +63,7 @@ var (
 )
 
 func mustInitZmqRoutines() {
-	zmqRoutines = inreaders.NewInputReaderSet()
+	zmqRoutines = inreaders.NewInputReaderSet("zmq routine set")
 	var err error
 	compoundOutPublisher, err = nanomsg.NewPublisher(Config.IriMsgStream.OutputPort, 0, nil)
 	if err != nil {
@@ -221,6 +221,7 @@ type zmqRoutineStats struct {
 func (r *zmqRoutine) getStats() *zmqRoutineStats {
 	r.Lock()
 	defer r.Unlock()
+
 	var errs string
 	running, reading, readingSince := r.GetState()
 	if running && reading {

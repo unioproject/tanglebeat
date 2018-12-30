@@ -6,12 +6,14 @@ import (
 )
 
 type InputReaderSet struct {
+	name   string // for logging
 	theSet map[string]InputReader
 	mutex  *sync.Mutex
 }
 
-func NewInputReaderSet() *InputReaderSet {
+func NewInputReaderSet(name string) *InputReaderSet {
 	ret := &InputReaderSet{
+		name:   name,
 		theSet: make(map[string]InputReader),
 		mutex:  &sync.Mutex{},
 	}
@@ -19,36 +21,53 @@ func NewInputReaderSet() *InputReaderSet {
 	return ret
 }
 
-func (irs *InputReaderSet) AddInputReader(ir InputReader) {
+func (irs *InputReaderSet) lock() {
 	irs.mutex.Lock()
-	defer irs.mutex.Unlock()
-	_, ok := irs.theSet[ir.GetName()]
+}
+
+func (irs *InputReaderSet) unlock() {
+	irs.mutex.Unlock()
+}
+
+func (irs *InputReaderSet) AddInputReader(ir InputReader) {
+	irs.lock()
+	defer irs.unlock()
+	name := ir.GetName()
+	_, ok := irs.theSet[name]
 	if !ok {
-		irs.theSet[ir.GetName()] = ir
+		irs.theSet[name] = ir
+		debugf("Routine set '%v': added routine '%v'", irs.name, name)
 	}
 }
 
 func (irs *InputReaderSet) runStarter() {
+	debugf("---- Running starter '%v'", irs.name)
 	for {
-		irs.mutex.Lock()
-		for _, inputRoutine := range irs.theSet {
-			running, _, _ := inputRoutine.GetState()
-			if !running {
+		irs.lock()
+		for _, r := range irs.theSet {
+			inputRoutine := r
+			//----------------
+			inputRoutine.Lock()
+			if !inputRoutine.isRunning() {
 				inputRoutine.setRunning(true)
 				go func() {
 					inputRoutine.Run()
+					inputRoutine.Lock()
 					inputRoutine.setRunning(false)
+					inputRoutine.Unlock()
 				}()
 			}
+			inputRoutine.Unlock()
+			//-----------------
 		}
-		irs.mutex.Unlock()
+		irs.unlock()
 		time.Sleep(10 * time.Second)
 	}
 }
 
 func (irs *InputReaderSet) ForEach(callback func(name string, ir InputReader)) {
-	irs.mutex.Lock()
-	defer irs.mutex.Unlock()
+	irs.lock()
+	defer irs.unlock()
 	for name, ir := range irs.theSet {
 		callback(name, ir)
 	}
