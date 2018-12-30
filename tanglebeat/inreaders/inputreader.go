@@ -1,6 +1,7 @@
 package inreaders
 
 import (
+	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"sync"
 	"time"
 )
@@ -8,7 +9,6 @@ import (
 type InputReader interface {
 	Lock()
 	Unlock()
-	GetState__() (bool, bool, time.Time)
 	setRunning__(bool)
 	isRunning__() bool
 
@@ -20,6 +20,7 @@ type InputReader interface {
 	SetLastHeartbeatNow()
 	GetLastHeartbeat() time.Time
 	Run(string)
+	GetReaderBaseStats__() *InputReaderBaseStats
 }
 
 type InputReaderBase struct {
@@ -29,6 +30,14 @@ type InputReaderBase struct {
 	readingSince  time.Time
 	lastHeartbeat time.Time
 	mutex         *sync.Mutex
+}
+
+type InputReaderBaseStats struct {
+	Running         bool   `json:"running"`
+	Reading         bool   `json:"reading"`
+	LastErr         string `json:"lastErr"`
+	ReadingSinceTs  uint64 `json:"readingSince"`
+	LastHeartbeatTs uint64 `json:"lastHeartBeat"`
 }
 
 func NewInputReaderBase() *InputReaderBase {
@@ -44,10 +53,6 @@ func (r *InputReaderBase) Lock() {
 
 func (r *InputReaderBase) Unlock() {
 	r.mutex.Unlock()
-}
-
-func (r *InputReaderBase) GetState__() (bool, bool, time.Time) {
-	return r.running, r.reading, r.readingSince
 }
 
 func (r *InputReaderBase) SetReading(reading bool) {
@@ -88,4 +93,14 @@ func (r *InputReaderBase) isRunning__() bool {
 
 func (r *InputReaderBase) setRunning__(running bool) {
 	r.running = running
+}
+
+func (r *InputReaderBase) GetReaderBaseStats__() *InputReaderBaseStats {
+	return &InputReaderBaseStats{
+		Running:         r.running,
+		Reading:         r.reading,
+		LastErr:         r.lastErr,
+		ReadingSinceTs:  utils.UnixMs(r.readingSince),
+		LastHeartbeatTs: utils.UnixMs(r.readingSince),
+	}
 }

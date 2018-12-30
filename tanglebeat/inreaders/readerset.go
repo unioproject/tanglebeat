@@ -40,7 +40,7 @@ func (irs *InputReaderSet) AddInputReader(name string, ir InputReader) {
 }
 
 func (irs *InputReaderSet) runStarter() {
-	debugf("---- Running starter '%v'", irs.name)
+	debugf("---- running starter '%v'", irs.name)
 	for {
 		irs.lock()
 		for n, r := range irs.theSet {

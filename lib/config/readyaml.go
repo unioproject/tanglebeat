@@ -24,7 +24,7 @@ func ReadYAML(configFilename string, outMsg []string, outStruct interface{}) ([]
 	}
 	configFilePath := path.Join(siteDataDir, configFilename)
 
-	outMsg = append(outMsg, fmt.Sprintf("Reading config values from %v", configFilePath))
+	outMsg = append(outMsg, fmt.Sprintf("reading config values from %v", configFilePath))
 
 	yamlFile, err := os.Open(configFilePath)
 	if err != nil {
