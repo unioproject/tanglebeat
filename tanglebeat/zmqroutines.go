@@ -204,6 +204,7 @@ func (r *zmqRoutine) clearCounters() {
 }
 
 type zmqRoutineStats struct {
+	Uri               string  `json:"uri"`
 	Running           bool    `json:"running"`
 	TotalTX           uint64  `json:"totalTX"`
 	TotalSN           uint64  `json:"totalSN"`
@@ -236,6 +237,7 @@ func (r *zmqRoutine) getStats() *zmqRoutineStats {
 		tmpVal = -1
 	}
 	return &zmqRoutineStats{
+		Uri:               r.uri,
 		Running:           running && reading,
 		TotalTX:           r.totalTX,
 		TotalSN:           r.totalSN,
