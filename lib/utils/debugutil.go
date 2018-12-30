@@ -1,4 +1,4 @@
-package main
+package utils
 
 import (
 	"os"
@@ -10,7 +10,7 @@ const fpath = "C:/Users/evaldas/Documents/proj/site_data/wfile.txt"
 var fout *os.File
 var mx = &sync.Mutex{}
 
-func wfile(s string) {
+func Wfile(s string) {
 	var err error
 	mx.Lock()
 	defer mx.Unlock()
@@ -20,6 +20,5 @@ func wfile(s string) {
 			panic(err)
 		}
 	}
-	fout.Write([]byte(s))
-	infof("-----wfile --> %v", s)
+	_, _ = fout.Write([]byte(s))
 }
