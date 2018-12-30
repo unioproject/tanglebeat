@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	version   = "0.2"
+	version   = "0.21"
 	logFormat = "%{time:2006-01-02 15:04:05.000} %{level:.4s} [%{module:.6s}|%{shortfunc:.12s}] %{message}"
 	level     = logging.DEBUG
 )
@@ -61,7 +61,7 @@ func flushMsgBeforeLog(msgBeforeLog []string) {
 
 func mustReadConfig(cfgfile string) {
 	msgBeforeLog := make([]string, 0, 10)
-	msgBeforeLog = append(msgBeforeLog, "---- Starting Tanglebeat main(hub) module, ZMQ hub and metrics collector for Tanglebeat ver. "+version)
+	msgBeforeLog = append(msgBeforeLog, "---- Starting Tanglebeat hub module ver. "+version)
 	var success bool
 	var siteDataDir string
 	msgBeforeLog, siteDataDir, success = config.ReadYAML(cfgfile, msgBeforeLog, &Config)
@@ -79,14 +79,15 @@ func mustReadConfig(cfgfile string) {
 	if Config.RepeatToAcceptTX == 0 {
 		Config.RepeatToAcceptTX = 2
 	}
+
+	zmqpart.SetRepeatToAcceptTX(Config.RepeatToAcceptTX) // global setting for zmq part
+
 	infof("TX message will be accepted after received %v times from different sources ('repeatToAcceptTX' parameter, default is 2)",
 		Config.RepeatToAcceptTX)
 
 	inreaders.SetLog(log)
 	zmqpart.SetLog(log)
 	senderpart.SetLog(log)
-
-	zmqpart.SetRepeatToAcceptTX(Config.RepeatToAcceptTX) // global setting for zmq part
 }
 
 func errorf(format string, args ...interface{}) {

@@ -29,10 +29,9 @@ func (irs *InputReaderSet) unlock() {
 	irs.mutex.Unlock()
 }
 
-func (irs *InputReaderSet) AddInputReader(ir InputReader) {
+func (irs *InputReaderSet) AddInputReader(name string, ir InputReader) {
 	irs.lock()
 	defer irs.unlock()
-	name := ir.GetName()
 	_, ok := irs.theSet[name]
 	if !ok {
 		irs.theSet[name] = ir
@@ -44,16 +43,17 @@ func (irs *InputReaderSet) runStarter() {
 	debugf("---- Running starter '%v'", irs.name)
 	for {
 		irs.lock()
-		for _, r := range irs.theSet {
+		for n, r := range irs.theSet {
 			inputRoutine := r
+			name := n
 			//----------------
 			inputRoutine.Lock()
-			if !inputRoutine.isRunning() {
-				inputRoutine.setRunning(true)
+			if !inputRoutine.isRunning__() {
+				inputRoutine.setRunning__(true)
 				go func() {
-					inputRoutine.Run()
+					inputRoutine.Run(name)
 					inputRoutine.Lock()
-					inputRoutine.setRunning(false)
+					inputRoutine.setRunning__(false)
 					inputRoutine.Unlock()
 				}()
 			}

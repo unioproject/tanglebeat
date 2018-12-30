@@ -8,23 +8,21 @@ import (
 type InputReader interface {
 	Lock()
 	Unlock()
-	GetName() string
-	GetState() (bool, bool, time.Time)
-	setRunning(bool)
-	isRunning() bool
+	GetState__() (bool, bool, time.Time)
+	setRunning__(bool)
+	isRunning__() bool
 
 	SetReading(bool)
 
-	GetLastErr() string
+	GetLastErr__() string
 	SetLastErr(string)
 
 	SetLastHeartbeatNow()
 	GetLastHeartbeat() time.Time
-	Run()
+	Run(string)
 }
 
 type InputReaderBase struct {
-	name          string
 	running       bool
 	reading       bool
 	lastErr       string
@@ -33,9 +31,8 @@ type InputReaderBase struct {
 	mutex         *sync.Mutex
 }
 
-func NewInputReaderBase(name string) *InputReaderBase {
+func NewInputReaderBase() *InputReaderBase {
 	return &InputReaderBase{
-		name:          name,
 		lastHeartbeat: time.Now(),
 		mutex:         &sync.Mutex{},
 	}
@@ -49,24 +46,21 @@ func (r *InputReaderBase) Unlock() {
 	r.mutex.Unlock()
 }
 
-func (r *InputReaderBase) GetName() string {
-	r.Lock()
-	defer r.Unlock()
-	return r.name
-}
-
-func (r *InputReaderBase) GetState() (bool, bool, time.Time) {
+func (r *InputReaderBase) GetState__() (bool, bool, time.Time) {
 	return r.running, r.reading, r.readingSince
 }
 
 func (r *InputReaderBase) SetReading(reading bool) {
+	r.Lock()
+	defer r.Unlock()
+
 	if reading && !r.reading {
 		r.readingSince = time.Now()
 	}
 	r.reading = reading
 }
 
-func (r *InputReaderBase) GetLastErr() string {
+func (r *InputReaderBase) GetLastErr__() string {
 	return r.lastErr
 }
 
@@ -77,17 +71,21 @@ func (r *InputReaderBase) SetLastErr(err string) {
 }
 
 func (r *InputReaderBase) SetLastHeartbeatNow() {
+	r.Lock()
+	defer r.Unlock()
 	r.lastHeartbeat = time.Now()
 }
 
 func (r *InputReaderBase) GetLastHeartbeat() time.Time {
+	r.Lock()
+	defer r.Unlock()
 	return r.lastHeartbeat
 }
 
-func (r *InputReaderBase) isRunning() bool {
+func (r *InputReaderBase) isRunning__() bool {
 	return r.running
 }
 
-func (r *InputReaderBase) setRunning(running bool) {
+func (r *InputReaderBase) setRunning__(running bool) {
 	r.running = running
 }

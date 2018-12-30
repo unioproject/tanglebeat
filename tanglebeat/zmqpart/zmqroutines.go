@@ -50,12 +50,12 @@ const ringArrayLen = 100
 
 func createZmqRoutine(uri string) {
 	ret := &zmqRoutine{
-		InputReaderBase: *inreaders.NewInputReaderBase("ZMQ--" + uri),
+		InputReaderBase: *inreaders.NewInputReaderBase(),
 		uri:             uri,
 		behindTX:        utils.NewRingArray(ringArrayLen),
 		behindSN:        utils.NewRingArray(ringArrayLen),
 	}
-	zmqRoutines.AddInputReader(ret)
+	zmqRoutines.AddInputReader("ZMQ--"+uri, ret)
 }
 
 var (
@@ -86,10 +86,10 @@ func (r *zmqRoutine) GetUri() string {
 
 var topics = []string{"tx", "sn"}
 
-func (r *zmqRoutine) Run() {
+func (r *zmqRoutine) Run(name string) {
 	uri := r.GetUri()
-	infof("Starting zmq routine for %v", uri)
-	defer infof("Leaving zmq routine for %v", uri)
+	infof("Starting zmq routine '%v' for %v", name, uri)
+	defer errorf("Leaving zmq routine '%v' for %v", name, uri)
 
 	r.clearCounters()
 	socket, err := utils.OpenSocketAndSubscribe(uri, topics)
@@ -224,11 +224,11 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 	defer r.Unlock()
 
 	var errs string
-	running, reading, readingSince := r.GetState()
+	running, reading, readingSince := r.GetState__()
 	if running && reading {
 		errs = ""
 	} else {
-		errs = r.GetLastErr()
+		errs = r.GetLastErr__()
 	}
 	var tmpVal float32
 	if r.totalTX != 0 {

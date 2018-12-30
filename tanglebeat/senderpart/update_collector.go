@@ -15,10 +15,10 @@ type updateSource struct {
 
 func createUpdateSource(uri string) {
 	ret := &updateSource{
-		InputReaderBase: *inreaders.NewInputReaderBase("TBSENDER--" + uri),
+		InputReaderBase: *inreaders.NewInputReaderBase(),
 		uri:             uri,
 	}
-	senderUpdateSources.AddInputReader(ret)
+	senderUpdateSources.AddInputReader("SND--"+uri, ret)
 }
 
 var (
@@ -53,9 +53,10 @@ func (r *updateSource) GetUri() string {
 	return r.uri
 }
 
-func (r *updateSource) Run() {
+func (r *updateSource) Run(name string) {
 	uri := r.GetUri()
-	infof("Starting sender update source at %v", uri)
+	infof("Starting sender update source '%v' at '%v'", name, uri)
+	defer errorf("Leaving sender update source '%v' at '%v'", name, uri)
 
 	chIn, err := sender_update.NewUpdateChan(uri)
 	if err != nil {
@@ -69,6 +70,7 @@ func (r *updateSource) Run() {
 		err = r.processUpdate(upd)
 		if err != nil {
 			r.SetLastErr(fmt.Sprintf("Error while processing update: %v", err))
+			return
 		}
 	}
 }
