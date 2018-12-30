@@ -1,4 +1,4 @@
-package main
+package senderpart
 
 import (
 	"github.com/lunfardo314/tanglebeat/tbsender/sender_update"
@@ -67,7 +67,7 @@ func updateSenderMetrics(upd *sender_update.SenderUpdate) {
 	if upd.UpdType != sender_update.SENDER_UPD_CONFIRM {
 		return
 	}
-	log.Debugf("'confirm' received. Update metrics for %v(%v), index = %v",
+	debugf("'confirm' received. Update metrics for %v(%v), index = %v",
 		upd.SeqUID, upd.SeqName, upd.Index)
 
 	confCounter.With(prometheus.Labels{"seqid": upd.SeqUID}).Inc()

@@ -1,11 +1,24 @@
 package main
 
+import (
+	"github.com/lunfardo314/tanglebeat/tanglebeat/senderpart"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/zmqpart"
+)
+
 const CONFIG_FILE = "tanglebeat.yml"
 
 func main() {
 	mustReadConfig(CONFIG_FILE)
-	mustInitZmqRoutines()
-	mustInitSenderDataCollector()
+
+	zmqpart.MustInitZmqRoutines(
+		Config.IriMsgStream.OutputPort,
+		Config.IriMsgStream.Inputs)
+
+	senderpart.MustInitSenderDataCollector(
+		Config.SenderMsgStream.OutputEnabled,
+		Config.SenderMsgStream.OutputPort,
+		Config.SenderMsgStream.Inputs)
+
 	runWebServer(Config.WebServerPort)
 }
 

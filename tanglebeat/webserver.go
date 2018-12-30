@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/zmqpart"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 )
@@ -12,19 +13,20 @@ func runWebServer(port int) {
 	http.HandleFunc("/index", indexHandler)
 	http.HandleFunc("/stats", statsHandler)
 	http.HandleFunc("/loadjs", loadjsHandler)
+	http.HandleFunc("/api1/", api1Handler)
 	http.Handle("/metrics", promhttp.Handler())
 	panic(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }
 
 type allStatsStruct struct {
-	RoutineStats map[string]*zmqRoutineStats `json:"zmqRoutineStats"`
-	GlobalStats  glbStatsStruct              `json:"globalStats"`
+	RoutineStats map[string]*zmqpart.ZmqRoutineStats `json:"zmqRoutineStats"`
+	GlobalStats  zmqpart.ZmqStatsStruct              `json:"globalStats"`
 }
 
 func statsHandler(w http.ResponseWriter, r *http.Request) {
 	stats := allStatsStruct{
-		RoutineStats: getRoutineStats(),
-		GlobalStats:  glbStats.getCopy(),
+		RoutineStats: zmqpart.GetRoutineStats(),
+		GlobalStats:  zmqpart.ZmqStats.GetCopy(),
 	}
 	data, err := json.MarshalIndent(stats, "", "   ")
 	if err != nil {
@@ -39,4 +41,10 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 
 func loadjsHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = fmt.Fprint(w, loadjs)
+}
+
+func api1Handler(w http.ResponseWriter, r *http.Request) {
+	req := r.URL.Path[len("/api1/"):]
+
+	_, _ = fmt.Fprint(w, req)
 }

@@ -1,20 +1,21 @@
-package main
+package zmqpart
 
 import (
 	"github.com/lunfardo314/tanglebeat/lib/utils"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
 )
 
 type hashCacheSN struct {
-	hashCacheBase
+	hashcache.HashCacheBase
 	largestIndex int
 	indexChanged uint64
 }
 
 func newHashCacheSN(hashLen int, segmentDurationMs uint64, retentionPeriodMs uint64) *hashCacheSN {
 	ret := &hashCacheSN{
-		hashCacheBase: *newHashCacheBase(hashLen, segmentDurationMs, retentionPeriodMs),
+		HashCacheBase: *hashcache.NewHashCacheBase(hashLen, segmentDurationMs, retentionPeriodMs),
 	}
-	ret.startPurge()
+	ret.StartPurge()
 	return ret
 }
 

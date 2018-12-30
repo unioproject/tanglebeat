@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/lunfardo314/tanglebeat/lib/config"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/senderpart"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/zmqpart"
 	"github.com/op/go-logging"
 	"os"
 )
@@ -81,6 +83,10 @@ func mustReadConfig(cfgfile string) {
 		Config.RepeatToAcceptTX)
 
 	inreaders.SetLog(log)
+	zmqpart.SetLog(log)
+	senderpart.SetLog(log)
+
+	zmqpart.SetRepeatToAcceptTX(Config.RepeatToAcceptTX) // global setting for zmq part
 }
 
 func errorf(format string, args ...interface{}) {

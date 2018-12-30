@@ -1,13 +1,14 @@
-package main
+package zmqpart
 
 import (
+	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
 	"runtime"
 	"strconv"
 	"sync"
 	"time"
 )
 
-type glbStatsStruct struct {
+type ZmqStatsStruct struct {
 	TXout                 uint64 `json:"txOut"`
 	SNout                 uint64 `json:"snOut"`
 	ValuePositiveTx       uint64 `json:"valuePositiveTxOut"`
@@ -39,16 +40,16 @@ type glbStatsStruct struct {
 	mutex        *sync.Mutex
 }
 
-var glbStats *glbStatsStruct
+var ZmqStats *ZmqStatsStruct
 
 func init() {
-	glbStats = &glbStatsStruct{
+	ZmqStats = &ZmqStatsStruct{
 		mutex: &sync.Mutex{},
 	}
 	go func() {
 		for {
 			time.Sleep(5 * time.Second)
-			glbStats.updateSlowStats()
+			ZmqStats.updateSlowStats()
 		}
 	}()
 }
@@ -60,7 +61,7 @@ func abs(n int) uint64 {
 	return uint64(n)
 }
 
-func (glb *glbStatsStruct) updateMsgStats(msg []string) {
+func (glb *ZmqStatsStruct) updateMsgStats(msg []string) {
 	glb.mutex.Lock()
 	defer glb.mutex.Unlock()
 	switch msg[0] {
@@ -88,29 +89,29 @@ func (glb *glbStatsStruct) updateMsgStats(msg []string) {
 
 const min10ms = 10 * 60 * 1000
 
-func (glb *glbStatsStruct) updateSlowStats() {
+func (glb *ZmqStatsStruct) updateSlowStats() {
 	glb.mutex.Lock()
 	defer glb.mutex.Unlock()
 
-	txs := txcache.stats(min10ms)
+	txs := txcache.Stats(min10ms)
 	glb.TXNumseg = txs.Numseg
 	glb.TXNumtx = txs.Numtx
 	glb.TXNumNoVisit = txs.NumNoVisit
 	glb.TXLatencySecMax = txs.LatencySecMax
 	glb.TXLatencySecAvg = txs.LatencySecAvg
 
-	sns := sncache.stats(min10ms)
+	sns := sncache.Stats(min10ms)
 	glb.SNNumseg = sns.Numseg
 	glb.SNNumtx = sns.Numtx
 	glb.SNNumNoVisit = sns.NumNoVisit
 	glb.SNLatencySecMax = sns.LatencySecMax
 	glb.SNLatencySecAvg = sns.LatencySecAvg
 
-	vbs := valueBundleCache.stats(0) // count all of it
+	vbs := valueBundleCache.Stats(0) // count all of it
 	var confbundles int
 	var confirmed *bool
-	valueBundleCache.forEachEntry(func(entry *cacheEntry) {
-		confirmed, _ = entry.data.(*bool)
+	valueBundleCache.ForEachEntry(func(entry *hashcache.CacheEntry) {
+		confirmed, _ = entry.Data.(*bool)
 		if *confirmed {
 			confbundles++
 		}
@@ -125,14 +126,14 @@ func (glb *glbStatsStruct) updateSlowStats() {
 	glb.NumGoroutine = runtime.NumGoroutine()
 }
 
-func (glb *glbStatsStruct) updateConfirmedValueTxStats(value uint64) {
+func (glb *ZmqStatsStruct) updateConfirmedValueTxStats(value uint64) {
 	glb.mutex.Lock()
 	defer glb.mutex.Unlock()
 	glb.ConfirmedValueTx++
 	glb.ConfirmedValueTxTotal += value
 }
 
-func (glb *glbStatsStruct) getCopy() glbStatsStruct {
+func (glb *ZmqStatsStruct) GetCopy() ZmqStatsStruct {
 	glb.mutex.Lock()
 	defer glb.mutex.Unlock()
 	ret := *glb

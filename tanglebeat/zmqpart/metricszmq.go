@@ -1,6 +1,9 @@
-package main
+package zmqpart
 
 import (
+	"github.com/lunfardo314/tanglebeat/lib/utils"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
+	"github.com/op/go-logging"
 	. "github.com/prometheus/client_golang/prometheus"
 	"time"
 )
@@ -162,7 +165,7 @@ func init() {
 		Help: "Price USD/MIOTA, labeled by source",
 	})
 	MustRegister(metricsMiotaPriceUSD)
-	startCollectingMiotaPrice()
+	startCollectingMiotaPrice(nil)
 }
 
 const (
@@ -214,18 +217,22 @@ func updateCompoundMetrics(msgtype string) {
 //	}
 //}
 
-func startCollectingMiotaPrice() {
+func startCollectingMiotaPrice(localLog *logging.Logger) {
 	var price float64
 	var err error
 	go func() {
 		for {
-			price, err = getMiotaPriceUSD()
+			price, err = utils.GetMiotaPriceUSD()
 			if err == nil && price > 0 {
 				metricsMiotaPriceUSD.Set(price)
-				debugf("Coincap price = %v USD/MIOTA", price)
+				if localLog != nil {
+					localLog.Debugf("Coincap price = %v USD/MIOTA", price)
+				}
 				time.Sleep(30 * time.Second)
 			} else {
-				errorf("Can't get MIOTA price from Coincap: %v", err)
+				if localLog != nil {
+					localLog.Errorf("Can't Get MIOTA price from Coincap: %v", err)
+				}
 				time.Sleep(10 * time.Second)
 			}
 		}
@@ -234,17 +241,17 @@ func startCollectingMiotaPrice() {
 
 const latencyMsecBack = 10 * 60 * 1000
 
-func startCollectingLatencyMetrics(txc *hashCacheBase, snc *hashCacheSN) {
+func startCollectingLatencyMetrics(txc *hashcache.HashCacheBase, snc *hashCacheSN) {
 	go func() {
 		for {
 			time.Sleep(10 * time.Second)
 
-			txcSats := txc.stats(latencyMsecBack)
+			txcSats := txc.Stats(latencyMsecBack)
 			zmqMetricsLatencyTXAvg.Set(txcSats.LatencySecAvg)
 			zmqMetricsLatencyTXMax.Set(txcSats.LatencySecMax)
 			zmqMetricsNotPropagatedPercTX.Set(float64(txcSats.NumNoVisitPerc))
 
-			sncStats := snc.stats(latencyMsecBack)
+			sncStats := snc.Stats(latencyMsecBack)
 			zmqMetricsLatencySNAvg.Set(sncStats.LatencySecAvg)
 			zmqMetricsLatencySNMax.Set(sncStats.LatencySecMax)
 			zmqMetricsNotPropagatedPercSN.Set(float64(sncStats.NumNoVisitPerc))

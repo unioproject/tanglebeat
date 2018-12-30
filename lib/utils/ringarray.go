@@ -1,43 +1,43 @@
-package main
+package utils
 
-type ringArray struct {
+type RingArray struct {
 	curr int
 	arr  []uint64
 }
 
-func newRingArray(len int) *ringArray {
+func NewRingArray(len int) *RingArray {
 	if len <= 0 {
-		panic("len must be positive")
+		panic("Len must be positive")
 	}
-	return &ringArray{
+	return &RingArray{
 		arr: make([]uint64, len),
 	}
 }
 
-func (ra *ringArray) get(idx int) uint64 {
+func (ra *RingArray) Get(idx int) uint64 {
 	return ra.arr[idx%len(ra.arr)]
 }
 
-func (ra *ringArray) put(idx int, value uint64) {
+func (ra *RingArray) Put(idx int, value uint64) {
 	ra.arr[idx%len(ra.arr)] = value
 }
 
-func (ra *ringArray) push(value uint64) {
+func (ra *RingArray) Push(value uint64) {
 	ra.arr[ra.curr] = value
 	ra.curr = (ra.curr + 1) % len(ra.arr)
 }
 
-func (ra *ringArray) takeAndNext() uint64 {
+func (ra *RingArray) TakeAndNext() uint64 {
 	ret := ra.arr[ra.curr]
 	ra.curr = (ra.curr + 1) % len(ra.arr)
 	return ret
 }
 
-func (ra *ringArray) len() int {
+func (ra *RingArray) Len() int {
 	return len(ra.arr)
 }
 
-func (ra *ringArray) sum() uint64 {
+func (ra *RingArray) Sum() uint64 {
 	var ret uint64
 	for _, b := range ra.arr {
 		ret += b
@@ -45,7 +45,7 @@ func (ra *ringArray) sum() uint64 {
 	return ret
 }
 
-func (ra *ringArray) numzeros() uint64 {
+func (ra *RingArray) Numzeros() uint64 {
 	var ret uint64
 	for _, b := range ra.arr {
 		if b == 0 {

@@ -1,8 +1,9 @@
-package main
+package senderpart
 
 import (
 	"fmt"
 	"github.com/lunfardo314/tanglebeat/lib/nanomsg"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
 	"github.com/lunfardo314/tanglebeat/tbsender/sender_update"
 )
@@ -23,26 +24,25 @@ func createUpdateSource(uri string) {
 var (
 	senderUpdateSources *inreaders.InputReaderSet
 	senderOutPublisher  *nanomsg.Publisher
-	publishedUpdates    *hashCacheBase
+	publishedUpdates    *hashcache.HashCacheBase
 )
 
-func mustInitSenderDataCollector() {
-	publishedUpdates = newHashCacheBase(0, 10*60*1000, 60*60*1000)
+func MustInitSenderDataCollector(outEnabled bool, outPort int, inputs []string) {
+	publishedUpdates = hashcache.NewHashCacheBase(0, 10*60*1000, 60*60*1000)
 	senderUpdateSources = inreaders.NewInputReaderSet("sender update routine set")
 
-	if Config.SenderMsgStream.OutputEnabled {
+	if outEnabled {
 		var err error
-		senderOutPublisher, err = nanomsg.NewPublisher(Config.SenderMsgStream.OutputPort, 0, nil)
+		senderOutPublisher, err = nanomsg.NewPublisher(outPort, 0, nil)
 		if err != nil {
 			errorf("Failed to create sender output publishing channel: %v", err)
 			panic(err)
 		}
-		infof("Publisher for sender output initialized successfully on port %v",
-			Config.SenderMsgStream.OutputPort)
+		infof("Publisher for sender output initialized successfully on port %v", outPort)
 	} else {
 		infof("Publisher for sender output is disabled")
 	}
-	for _, uri := range Config.SenderMsgStream.Inputs {
+	for _, uri := range inputs {
 		createUpdateSource(uri)
 	}
 }
@@ -78,17 +78,17 @@ func (r *updateSource) processUpdate(upd *sender_update.SenderUpdate) error {
 		upd.UpdType, r.GetUri(), upd.SeqUID, upd.SeqName, upd.Index)
 
 	hash := upd.SeqUID + fmt.Sprintf("%v", upd.UpdateTs)
-	if publishedUpdates.seenHash(hash, nil, nil) {
+	if publishedUpdates.SeenHash(hash, nil, nil) {
 		return nil
 	}
 
 	updateSenderMetrics(upd)
 
-	if Config.SenderMsgStream.OutputEnabled {
+	if senderOutPublisher != nil {
 		infof("Publish update '%v' received from %v, seq: %v(%v), index: %v",
 			upd.UpdType, r.GetUri(), upd.SeqUID, upd.SeqName, upd.Index)
 		if err := senderOutPublisher.PublishAsJSON(upd); err != nil {
-			log.Errorf("Process update: %v", err)
+			errorf("Process update: %v", err)
 			return err
 		}
 	}
