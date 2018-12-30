@@ -171,30 +171,28 @@ func (seq *TransferSequence) processStartUpdate(bundleData *bundle_source.FirstB
 	if !ok {
 		seq.log.Errorf("No stopwatch entry for bundle hash %v", bundleHash)
 	}
-	_ = processUpdate(
-		"local",
-		&sender_update.SenderUpdate{
-			Version:               Version,
-			SeqUID:                seq.params.GetUID(),
-			SeqName:               seq.name,
-			UpdType:               updType,
-			Index:                 bundleData.Index,
-			Addr:                  bundleData.Addr,
-			Bundle:                bundleHash,
-			StartTs:               startTs,
-			UpdateTs:              updateTs,
-			NumAttaches:           bundleData.NumAttach,
-			NumPromotions:         0,
-			NodePOW:               seq.params.IOTANodePoW,
-			NodeTipsel:            seq.params.IOTANodeTipsel[0],
-			PromoteEverySec:       seq.params.PromoteEverySec,
-			ForceReattachAfterMin: seq.params.ForceReattachAfterMin,
-			PromoteChain:          seq.params.PromoteChain,
-			BundleSize:            securityLevel + 1,
-			PromoBundleSize:       1,
-			TotalPoWMsec:          bundleData.TotalDurationPoWMs,
-			TotalTipselMsec:       bundleData.TotalDurationTipselMs,
-		})
+	_ = updatePublisher.PublishAsJSON(&sender_update.SenderUpdate{
+		Version:               Version,
+		SeqUID:                seq.params.GetUID(),
+		SeqName:               seq.name,
+		UpdType:               updType,
+		Index:                 bundleData.Index,
+		Addr:                  bundleData.Addr,
+		Bundle:                bundleHash,
+		StartTs:               startTs,
+		UpdateTs:              updateTs,
+		NumAttaches:           bundleData.NumAttach,
+		NumPromotions:         0,
+		NodePOW:               seq.params.IOTANodePoW,
+		NodeTipsel:            seq.params.IOTANodeTipsel[0],
+		PromoteEverySec:       seq.params.PromoteEverySec,
+		ForceReattachAfterMin: seq.params.ForceReattachAfterMin,
+		PromoteChain:          seq.params.PromoteChain,
+		BundleSize:            securityLevel + 1,
+		PromoBundleSize:       1,
+		TotalPoWMsec:          bundleData.TotalDurationPoWMs,
+		TotalTipselMsec:       bundleData.TotalDurationTipselMs,
+	})
 }
 
 func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.ConfirmerUpdate,
@@ -214,8 +212,7 @@ func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.Confirmer
 	if !ok {
 		seq.log.Errorf("processConfirmerUpdate: No stopwatch entry for %v", bundleHash)
 	}
-	_ = processUpdate(
-		"local",
+	_ = updatePublisher.PublishAsJSON(
 		&sender_update.SenderUpdate{
 			Version:               Version,
 			SeqUID:                seq.params.GetUID(),

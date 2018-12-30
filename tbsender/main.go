@@ -25,23 +25,12 @@ func runSender() int {
 func main() {
 	mustReadMasterConfig(CONFIG_FILE)
 	var enabled bool
-	initSenderDataCollector()
 
-	if Config.SenderUpdateCollector.Publish {
-		log.Infof("Starting publisher")
+	if Config.SenderUpdatePublisher.Enabled {
+		log.Infof("Starting sender update publisher")
 		mustInitAndRunPublisher()
 		enabled = true
 	}
-	if Config.Prometheus.Enabled && Config.Prometheus.SenderMetricsEnabled {
-		log.Infof("Exposing metrics to Prometheus")
-		initExposeToPometheus()
-		enabled = true
-	}
-	//if Config.Prometheus.Enabled && Config.Prometheus.ZmqMetrics.Enabled {
-	//	log.Infof("Starting ZMQ metrics updater")
-	//	metricszmq.InitMetricsZMQ(Config.Prometheus.ZmqMetrics.ZMQUri, log, AEC)
-	//	enabled = true
-	//}
 	if Config.Sender.Enabled {
 		log.Infof("Starting sender. Enabled sequences: %v", getEnabledSeqNames())
 		numSeq := runSender()

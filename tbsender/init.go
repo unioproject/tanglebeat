@@ -40,8 +40,7 @@ type ConfigStructYAML struct {
 	siteDataDir           string
 	Logging               loggingConfigYAML         `yaml:"logging"`
 	Sender                senderYAML                `yaml:"sender"`
-	Prometheus            prometheusYAML            `yaml:"prometheus"`
-	SenderUpdateCollector senderUpdateCollectorYAML `yaml:"senderUpdateCollector"`
+	SenderUpdatePublisher senderUpdatePublisherYAML `yaml:"senderUpdatePublisher"`
 	ExitProgram           exitProgramYAML           `yaml:"exitProgram"`
 }
 
@@ -97,27 +96,9 @@ type senderParamsYAML struct {
 	PromoteDisable        bool     `yaml:"promoteDisable"`
 }
 
-type senderUpdateCollectorYAML struct {
-	Publish bool                           `yaml:"publish"`
-	OutPort int                            `yaml:"outPort"`
-	Sources map[string]collectorSourceYAML `yaml:"sources"`
-}
-
-type collectorSourceYAML struct {
-	Enabled bool   `yaml:"enabled"`
-	Target  string `yaml:"target"`
-}
-
-type prometheusYAML struct {
-	Enabled          bool `yaml:"enabled"`
-	ScrapeTargetPort int  `yaml:"scrapeTargetPort"`
-	//ZmqMetrics           zmqMetricsYAML `yaml:"zmqMetrics"`
-	SenderMetricsEnabled bool `yaml:"senderMetricsEnabled"`
-}
-
-type zmqMetricsYAML struct {
-	Enabled bool     `yaml:"enabled"`
-	ZMQUri  []string `yaml:"zmqUri"`
+type senderUpdatePublisherYAML struct {
+	Enabled    bool `yaml:"enabled"`
+	OutputPort int  `yaml:"outputPort"`
 }
 
 // main config structure
