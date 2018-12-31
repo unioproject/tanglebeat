@@ -6,6 +6,7 @@ import (
 	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/tlcache"
 	"math"
 	"strconv"
 	"strings"
@@ -19,8 +20,8 @@ const (
 	segmentDurationValueBundleMs = uint64((10 * time.Minute) / time.Millisecond)
 	segmentDurationSNMs          = uint64((1 * time.Minute) / time.Millisecond)
 	retentionPeriodMs            = uint64((1 * time.Hour) / time.Millisecond)
-	tsRingBufferLen              = 2000 // under tps = 20 it corresponds to 100 sec = 1 min:40 sec
-	behindRingBufferLen          = 100  //
+	tlTXCacheSegmentDurationSec  = 10
+	tlSNCacheSegmentDurationSec  = 60
 )
 
 var (
@@ -44,8 +45,8 @@ type zmqRoutine struct {
 	txCount           uint64
 	ctxCount          uint64
 	obsoleteSnCount   uint64
-	tsLastNnTX        *utils.RingArray
-	tsLastNnSN        *utils.RingArray
+	tsLastTX3min      *tlcache.TLCache
+	tsLastSN3min      *tlcache.TLCache
 	last100TXBehindMs *utils.RingArray
 	last100SNBehindMs *utils.RingArray
 }
@@ -54,10 +55,10 @@ func createZmqRoutine(uri string) {
 	ret := &zmqRoutine{
 		InputReaderBase:   *inreaders.NewInputReaderBase(),
 		uri:               uri,
-		tsLastNnTX:        utils.NewRingArray(tsRingBufferLen),
-		tsLastNnSN:        utils.NewRingArray(tsRingBufferLen),
-		last100TXBehindMs: utils.NewRingArray(behindRingBufferLen),
-		last100SNBehindMs: utils.NewRingArray(behindRingBufferLen),
+		tsLastTX3min:      tlcache.NewTlCache(uri+"--tsLastTX3min", tlTXCacheSegmentDurationSec, 3*60),
+		tsLastSN3min:      tlcache.NewTlCache(uri+"--tsLastSN3min", tlSNCacheSegmentDurationSec, 3*60),
+		last100TXBehindMs: utils.NewRingArray(100),
+		last100SNBehindMs: utils.NewRingArray(100),
 	}
 	zmqRoutines.AddInputReader("ZMQ--"+uri, ret)
 }
@@ -149,7 +150,7 @@ func (r *zmqRoutine) processTXMsg(msgData []byte, msgSplit []string) {
 	}
 	r.Lock()
 	r.txCount++
-	r.tsLastNnTX.Push(utils.UnixMs(time.Now()))
+	r.tsLastTX3min.Push(utils.UnixMs(time.Now()))
 	r.last100TXBehindMs.Push(behind)
 	r.Unlock()
 
@@ -195,7 +196,7 @@ func (r *zmqRoutine) processSNMsg(msgData []byte, msgSplit []string) {
 
 	r.Lock()
 	r.ctxCount++
-	r.tsLastNnSN.Push(utils.UnixMs(time.Now()))
+	r.tsLastSN3min.Push(utils.UnixMs(time.Now()))
 	r.last100SNBehindMs.Push(behind)
 	r.Unlock()
 
@@ -205,9 +206,9 @@ func (r *zmqRoutine) processSNMsg(msgData []byte, msgSplit []string) {
 func (r *zmqRoutine) clearCounters() {
 	r.Lock()
 	defer r.Unlock()
-	r.tsLastNnTX.Reset()
+	r.tsLastTX3min.Reset()
 	r.last100TXBehindMs.Reset()
-	r.tsLastNnSN.Reset()
+	r.tsLastSN3min.Reset()
 	r.last100SNBehindMs.Reset()
 }
 
@@ -228,20 +229,12 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 	r.Lock()
 	defer r.Unlock()
 
-	nowis := utils.UnixMsNow() + 1
-	minTX := r.tsLastNnTX.Min()
-	minSN := r.tsLastNnSN.Min()
-	var commonTs uint64
-	if minTX < minSN {
-		commonTs = minSN
-	} else {
-		commonTs = minTX
-	}
-	durSec := (float64(nowis-commonTs) / 1000)
-	tps := float64(r.tsLastNnTX.CountGT(commonTs)) / durSec
-	tps = math.Round(tps*100) / 100
-	ctps := float64(r.tsLastNnSN.CountGT(commonTs)) / durSec
-	ctps = math.Round(ctps*100) / 100
+	tps := float64(r.tsLastTX3min.CountAll()) / (5 * 60)
+	tps = math.Round(100*tps) / 100
+
+	ctps := float64(r.tsLastSN3min.CountAll()) / (5 * 60)
+	ctps = math.Round(100*ctps) / 100
+
 	confrate := uint64(0)
 	if tps != 0 {
 		confrate = uint64(100 * ctps / tps)
