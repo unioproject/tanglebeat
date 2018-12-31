@@ -176,11 +176,12 @@ func (r *zmqRoutine) processSNMsg(msgData []byte, msgSplit []string) {
 	}
 	obsolete, _ := sncache.checkCurrentMilestoneIndex(index)
 	if obsolete {
+		// if index of the current confirmetion message is less than the latest seen,
+		// confirmation is ignored.
+		// Reason: if it is not too old, it must had been seen from other sources
 		r.Lock()
 		r.obsoleteSnCount++
 		r.Unlock()
-		//debugf("%v: obsolete 'sn' message: %v. Last index since %v sec ago",
-		//	r.GetUri(), string(msgData), utils.SinceUnixMs(whenSeen)/1000)
 		return
 	}
 	hash = msgSplit[2]
