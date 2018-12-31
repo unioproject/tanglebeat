@@ -34,10 +34,9 @@ type InputReaderBase struct {
 
 type InputReaderBaseStats struct {
 	Running         bool   `json:"running"`
-	Reading         bool   `json:"reading"`
 	LastErr         string `json:"lastErr"`
-	ReadingSinceTs  uint64 `json:"readingSince"`
-	LastHeartbeatTs uint64 `json:"lastHeartBeat"`
+	RunningSinceTs  uint64 `json:"runningSince"`
+	LastHeartbeatTs uint64 `json:"lastHeartbeat"`
 }
 
 func NewInputReaderBase() *InputReaderBase {
@@ -97,10 +96,9 @@ func (r *InputReaderBase) setRunning__(running bool) {
 
 func (r *InputReaderBase) GetReaderBaseStats__() *InputReaderBaseStats {
 	return &InputReaderBaseStats{
-		Running:         r.running,
-		Reading:         r.reading,
+		Running:         r.running && r.reading,
 		LastErr:         r.lastErr,
-		ReadingSinceTs:  utils.UnixMs(r.readingSince),
-		LastHeartbeatTs: utils.UnixMs(r.readingSince),
+		RunningSinceTs:  utils.UnixMs(r.readingSince),
+		LastHeartbeatTs: utils.UnixMs(r.lastHeartbeat),
 	}
 }

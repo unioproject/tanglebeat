@@ -6,6 +6,7 @@ import (
 	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +19,8 @@ const (
 	segmentDurationValueBundleMs = uint64((10 * time.Minute) / time.Millisecond)
 	segmentDurationSNMs          = uint64((1 * time.Minute) / time.Millisecond)
 	retentionPeriodMs            = uint64((1 * time.Hour) / time.Millisecond)
+	tsRingBufferLen              = 2000 // under tps = 20 it corresponds to 100 sec = 1 min:40 sec
+	behindRingBufferLen          = 100  //
 )
 
 var (
@@ -38,22 +41,23 @@ func init() {
 type zmqRoutine struct {
 	inreaders.InputReaderBase
 	uri               string
-	tsLast1000TX      *utils.RingArray
-	tsLast1000SN      *utils.RingArray
+	txCount           uint64
+	ctxCount          uint64
+	obsoleteSnCount   uint64
+	tsLastNnTX        *utils.RingArray
+	tsLastNnSN        *utils.RingArray
 	last100TXBehindMs *utils.RingArray
 	last100SNBehindMs *utils.RingArray
 }
-
-const ringArrayLen = 100
 
 func createZmqRoutine(uri string) {
 	ret := &zmqRoutine{
 		InputReaderBase:   *inreaders.NewInputReaderBase(),
 		uri:               uri,
-		tsLast1000TX:      utils.NewRingArray(1000),
-		tsLast1000SN:      utils.NewRingArray(1000),
-		last100TXBehindMs: utils.NewRingArray(100),
-		last100SNBehindMs: utils.NewRingArray(100),
+		tsLastNnTX:        utils.NewRingArray(tsRingBufferLen),
+		tsLastNnSN:        utils.NewRingArray(tsRingBufferLen),
+		last100TXBehindMs: utils.NewRingArray(behindRingBufferLen),
+		last100SNBehindMs: utils.NewRingArray(behindRingBufferLen),
 	}
 	zmqRoutines.AddInputReader("ZMQ--"+uri, ret)
 }
@@ -144,7 +148,8 @@ func (r *zmqRoutine) processTXMsg(msgData []byte, msgSplit []string) {
 		behind = 0
 	}
 	r.Lock()
-	r.tsLast1000TX.Push(utils.UnixMs(time.Now()))
+	r.txCount++
+	r.tsLastNnTX.Push(utils.UnixMs(time.Now()))
 	r.last100TXBehindMs.Push(behind)
 	r.Unlock()
 
@@ -169,10 +174,13 @@ func (r *zmqRoutine) processSNMsg(msgData []byte, msgSplit []string) {
 		errorf("expected index, found %v", msgSplit[1])
 		return
 	}
-	obsolete, whenSeen := sncache.obsoleteIndex(index)
+	obsolete, _ := sncache.checkCurrentMilestoneIndex(index)
 	if obsolete {
-		debugf("%v: obsolete 'sn' message: %v. Last index since %v sec ago",
-			r.GetUri(), string(msgData), utils.SinceUnixMs(whenSeen)/1000)
+		r.Lock()
+		r.obsoleteSnCount++
+		r.Unlock()
+		//debugf("%v: obsolete 'sn' message: %v. Last index since %v sec ago",
+		//	r.GetUri(), string(msgData), utils.SinceUnixMs(whenSeen)/1000)
 		return
 	}
 	hash = msgSplit[2]
@@ -185,7 +193,8 @@ func (r *zmqRoutine) processSNMsg(msgData []byte, msgSplit []string) {
 	}
 
 	r.Lock()
-	r.tsLast1000SN.Push(utils.UnixMs(time.Now()))
+	r.ctxCount++
+	r.tsLastNnSN.Push(utils.UnixMs(time.Now()))
 	r.last100SNBehindMs.Push(behind)
 	r.Unlock()
 
@@ -195,20 +204,23 @@ func (r *zmqRoutine) processSNMsg(msgData []byte, msgSplit []string) {
 func (r *zmqRoutine) clearCounters() {
 	r.Lock()
 	defer r.Unlock()
-	r.tsLast1000TX.Reset()
+	r.tsLastNnTX.Reset()
 	r.last100TXBehindMs.Reset()
-	r.tsLast1000SN.Reset()
+	r.tsLastNnSN.Reset()
 	r.last100SNBehindMs.Reset()
 }
 
 type ZmqRoutineStats struct {
 	inreaders.InputReaderBaseStats
-	Uri      string  `json:"uri"`
-	Tps      float64 `json:"tps"`
-	Ctps     float64 `json:"ctps"`
-	Confrate uint64  `json:"confrate"`
-	BehindTX uint64  `json:"behindTX"`
-	BehindSN uint64  `json:"behindSN"`
+	Uri                  string  `json:"uri"`
+	TxCount              uint64  `json:"txCount"`
+	CtxCount             uint64  `json:"ctxCount"`
+	ObsoleteConfirmCount uint64  `json:"obsoleteSNCount"`
+	Tps                  float64 `json:"tps"`
+	Ctps                 float64 `json:"ctps"`
+	Confrate             uint64  `json:"confrate"`
+	BehindTX             uint64  `json:"behindTX"`
+	BehindSN             uint64  `json:"behindSN"`
 }
 
 func (r *zmqRoutine) getStats() *ZmqRoutineStats {
@@ -216,38 +228,34 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 	defer r.Unlock()
 
 	nowis := utils.UnixMsNow() + 1
-	minTX := r.tsLast1000TX.Min()
-	minSN := r.tsLast1000SN.Min()
+	minTX := r.tsLastNnTX.Min()
+	minSN := r.tsLastNnSN.Min()
 	var commonTs uint64
 	if minTX < minSN {
 		commonTs = minSN
 	} else {
 		commonTs = minTX
 	}
-
-	tps := float64(r.tsLast1000TX.NumGT(commonTs)) / (float64(nowis-commonTs) / 1000)
-	ctps := float64(r.tsLast1000SN.NumGT(commonTs)) / (float64(nowis-commonTs) / 1000)
+	durSec := (float64(nowis-commonTs) / 1000)
+	tps := float64(r.tsLastNnTX.CountGT(commonTs)) / durSec
+	tps = math.Round(tps*100) / 100
+	ctps := float64(r.tsLastNnSN.CountGT(commonTs)) / durSec
+	ctps = math.Round(ctps*100) / 100
 	confrate := uint64(0)
 	if tps != 0 {
 		confrate = uint64(100 * ctps / tps)
 	}
 
-	behindTX := uint64(0)
-	ntx := uint64(r.last100TXBehindMs.Len())
-	if ntx != 0 {
-		behindTX = r.last100TXBehindMs.Sum() / ntx
-	}
-
-	behindSN := uint64(0)
-	nsn := uint64(r.last100SNBehindMs.Len())
-	if nsn != 0 {
-		behindTX = r.last100SNBehindMs.Sum() / nsn
-	}
+	behindTX := r.last100TXBehindMs.AvgGT(0)
+	behindSN := r.last100SNBehindMs.AvgGT(0)
 
 	ret := &ZmqRoutineStats{
 		InputReaderBaseStats: *r.GetReaderBaseStats__(),
 		Uri:                  r.uri,
 		Tps:                  tps,
+		TxCount:              r.txCount,
+		CtxCount:             r.ctxCount,
+		ObsoleteConfirmCount: r.obsoleteSnCount,
 		Ctps:                 ctps,
 		Confrate:             confrate,
 		BehindTX:             behindTX,

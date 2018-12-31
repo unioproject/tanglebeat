@@ -51,6 +51,14 @@ func NewHashCacheBase(hashLen int, segmentDurationMs uint64, retentionPeriodMs u
 	return ret
 }
 
+func (cache *HashCacheBase) Lock() {
+	cache.mutex.Lock()
+}
+
+func (cache *HashCacheBase) Unlock() {
+	cache.mutex.Unlock()
+}
+
 func (cache *HashCacheBase) shortHash(hash string) string {
 	if cache.hashLen == 0 {
 		return hash
@@ -98,8 +106,8 @@ func (cache *HashCacheBase) __find(shorthash string, ret *CacheEntry) bool {
 }
 
 func (cache *HashCacheBase) Find(hash string, ret *CacheEntry) bool {
-	cache.mutex.Lock()
-	defer cache.mutex.Unlock()
+	cache.Lock()
+	defer cache.Unlock()
 
 	return cache.__find(cache.shortHash(hash), ret)
 }
@@ -119,16 +127,16 @@ func (cache *HashCacheBase) __findWithDelete(shorthash string, ret *CacheEntry) 
 
 // if seen, return entry and deletes it
 func (cache *HashCacheBase) FindWithDelete(hash string, ret *CacheEntry) bool {
-	cache.mutex.Lock()
-	defer cache.mutex.Unlock()
+	cache.Lock()
+	defer cache.Unlock()
 
 	shash := cache.shortHash(hash)
 	return cache.__findWithDelete(shash, ret)
 }
 
 func (cache *HashCacheBase) SeenHash(hash string, data interface{}, ret *CacheEntry) bool {
-	cache.mutex.Lock()
-	defer cache.mutex.Unlock()
+	cache.Lock()
+	defer cache.Unlock()
 
 	shash := cache.shortHash(hash)
 	if seen := cache.__find(shash, ret); seen {
@@ -146,14 +154,14 @@ func (cache *HashCacheBase) StartPurge() {
 		for {
 			time.Sleep(1 * time.Minute)
 
-			cache.mutex.Lock()
+			cache.Lock()
 			nowis := utils.UnixMs(time.Now())
 			for top := cache.top; top != nil; top = top.next {
 				if top.next != nil && (nowis-top.next.latest > cache.retentionPeriodMs) {
 					top.next = nil // cut the tail
 				}
 			}
-			cache.mutex.Unlock()
+			cache.Unlock()
 		}
 	}()
 }
@@ -168,8 +176,8 @@ type hashcacheStats struct {
 }
 
 func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
-	cache.mutex.Lock()
-	defer cache.mutex.Unlock()
+	cache.Lock()
+	defer cache.Unlock()
 
 	earliest := utils.UnixMsNow() - msecBack
 	if msecBack == 0 {
@@ -210,8 +218,8 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 }
 
 func (cache *HashCacheBase) ForEachEntry(callback func(entry *CacheEntry)) {
-	cache.mutex.Lock()
-	defer cache.mutex.Unlock()
+	cache.Lock()
+	defer cache.Unlock()
 	for seg := cache.top; seg != nil; seg = seg.next {
 		for _, entry := range seg.themap {
 			callback(&entry)

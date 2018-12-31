@@ -21,27 +21,12 @@ func (ra *RingArray) Push(value uint64) {
 	ra.full = ra.full || ra.curr == 0
 }
 
-func (ra *RingArray) TakeAndNext() uint64 {
-	ret := ra.arr[ra.curr]
-	ra.curr = (ra.curr + 1) % len(ra.arr)
-	ra.full = ra.full || ra.curr == 0
-	return ret
-}
-
 func (ra *RingArray) Len() int {
 	if ra.full {
 		return len(ra.arr)
 	} else {
 		return ra.curr
 	}
-}
-
-func (ra *RingArray) Sum() uint64 {
-	var ret uint64
-	for i := 0; i < ra.Len(); i++ {
-		ret += ra.arr[i]
-	}
-	return ret
 }
 
 func (ra *RingArray) Min() uint64 {
@@ -57,7 +42,7 @@ func (ra *RingArray) Min() uint64 {
 	return ret
 }
 
-func (ra *RingArray) NumGT(n uint64) uint64 {
+func (ra *RingArray) CountGT(n uint64) uint64 {
 	var ret uint64
 
 	for i := 0; i < ra.Len(); i++ {
@@ -66,6 +51,24 @@ func (ra *RingArray) NumGT(n uint64) uint64 {
 		}
 	}
 	return ret
+}
+
+func (ra *RingArray) SumGT(n uint64) uint64 {
+	var ret uint64
+	for i := 0; i < ra.Len(); i++ {
+		if ra.arr[i] >= n {
+			ret += ra.arr[i]
+		}
+	}
+	return ret
+}
+
+func (ra *RingArray) AvgGT(n uint64) uint64 {
+	k := ra.CountGT(n)
+	if k == 0 {
+		return 0
+	}
+	return ra.SumGT(n) / k
 }
 
 func (ra *RingArray) Reset() {

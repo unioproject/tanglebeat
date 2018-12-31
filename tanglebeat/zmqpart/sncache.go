@@ -19,7 +19,10 @@ func newHashCacheSN(hashLen int, segmentDurationMs uint64, retentionPeriodMs uin
 	return ret
 }
 
-func (cache *hashCacheSN) obsoleteIndex(index int) (bool, uint64) {
+func (cache *hashCacheSN) checkCurrentMilestoneIndex(index int) (bool, uint64) {
+	cache.Lock()
+	defer cache.Unlock()
+
 	if index < cache.largestIndex {
 		return true, cache.indexChanged
 	}
