@@ -28,7 +28,7 @@ type HashCacheBase2 struct {
 
 func NewHashCacheBase2(hashLen int, segmentDurationSec int, retentionPeriodSec int) *HashCacheBase2 {
 	return &HashCacheBase2{
-		BufferWE:              *bufferwe.NewBufferWE(true, segmentDurationSec, retentionPeriodSec),
+		BufferWE:              *bufferwe.NewBufferWE(true, segmentDurationSec, retentionPeriodSec, "HashCacheBase2"),
 		hashLen:               hashLen,
 		segmentDurationMsCopy: uint64(segmentDurationSec * 1000),
 		retentionPeriodMsCopy: uint64(retentionPeriodSec * 1000),

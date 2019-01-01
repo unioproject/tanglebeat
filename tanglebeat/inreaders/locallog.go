@@ -5,10 +5,14 @@ import (
 	"github.com/op/go-logging"
 )
 
-var localLog *logging.Logger
+var (
+	localLog   *logging.Logger
+	localDebug bool
+)
 
-func SetLog(log *logging.Logger) {
+func SetLog(log *logging.Logger, debug bool) {
 	localLog = log
+	localDebug = debug
 }
 
 func errorf(format string, args ...interface{}) {
@@ -20,6 +24,9 @@ func errorf(format string, args ...interface{}) {
 }
 
 func debugf(format string, args ...interface{}) {
+	if !localDebug {
+		return
+	}
 	if localLog != nil {
 		localLog.Debugf(format, args...)
 	} else {

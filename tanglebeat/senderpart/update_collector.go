@@ -18,7 +18,7 @@ func createUpdateSource(uri string) {
 		InputReaderBase: *inreaders.NewInputReaderBase(),
 		uri:             uri,
 	}
-	senderUpdateSources.AddInputReader("SND--"+uri, ret)
+	senderUpdateSources.AddInputReader(uri, ret)
 }
 
 var (

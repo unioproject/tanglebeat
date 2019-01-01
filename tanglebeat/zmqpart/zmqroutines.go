@@ -56,7 +56,7 @@ func createZmqRoutine(uri string) {
 		InputReaderBase: *inreaders.NewInputReaderBase(),
 		uri:             uri,
 	}
-	zmqRoutines.AddInputReader("ZMQ--"+uri, ret)
+	zmqRoutines.AddInputReader(uri, ret)
 }
 
 var (
@@ -88,17 +88,19 @@ func (r *zmqRoutine) GetUri() string {
 var topics = []string{"tx", "sn"}
 
 func (r *zmqRoutine) init() {
-	debugf("++++++++++++ INIT zmqRoutine uri = '%v'", r.GetUri())
+	tracef("++++++++++++ INIT zmqRoutine uri = '%v'", r.GetUri())
 	r.Lock()
 	defer r.Unlock()
-	r.tsLastTX3min = bufferwe.NewBufferWE(false, tlTXCacheSegmentDurationSec, 3*60)
-	r.tsLastSN3min = bufferwe.NewBufferWE(false, tlSNCacheSegmentDurationSec, 3*60)
+	r.tsLastTX3min = bufferwe.NewBufferWE(
+		false, tlTXCacheSegmentDurationSec, 3*60, r.uri+"-tsLastTX3min")
+	r.tsLastSN3min = bufferwe.NewBufferWE(
+		false, tlSNCacheSegmentDurationSec, 3*60, r.uri+"-tsLastSN3min")
 	r.last100TXBehindMs = utils.NewRingArray(100)
 	r.last100SNBehindMs = utils.NewRingArray(100)
 }
 
 func (r *zmqRoutine) uninit() {
-	debugf("++++++++++++ UNINIT zmqRoutine uri = '%v'", r.GetUri())
+	tracef("++++++++++++ UNINIT zmqRoutine uri = '%v'", r.GetUri())
 	r.Lock()
 	defer r.Unlock()
 	r.tsLastTX3min = nil

@@ -32,8 +32,9 @@ func (buf *BufferWE) Unlock() {
 	buf.mutex.Unlock()
 }
 
-func NewBufferWE(withData bool, segmentDurationSec int, retentionPeriodSec int) *BufferWE {
+func NewBufferWE(withData bool, segmentDurationSec int, retentionPeriodSec int, id string) *BufferWE {
 	ret := &BufferWE{
+		id:                id,
 		withData:          withData,
 		segmentDurationMs: uint64(segmentDurationSec * 1000),
 		retentionPeriodMs: uint64(retentionPeriodSec * 1000),
@@ -68,6 +69,7 @@ func (buf *BufferWE) purge() bool {
 	}
 	for s := buf.top; s != nil; s = s.next {
 		if s.next != nil && s.next.lastModified < earliest {
+			tracef("++++++++++ purge segment in %v. len = %v", buf.id, len(s.next.ts))
 			s.next = nil
 		}
 	}
@@ -76,6 +78,9 @@ func (buf *BufferWE) purge() bool {
 
 // loop exits when buf becomes empty
 func (buf *BufferWE) purgeLoop() {
+	tracef("++++++++++ Start purge loop for BufferWE id='%v'", buf.id)
+	defer tracef("++++++++++ Finish purge loop for BufferWE id='%v'", buf.id)
+
 	for buf.purge() {
 		time.Sleep(10 * time.Second)
 	}

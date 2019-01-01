@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/lunfardo314/tanglebeat/lib/bufferwe"
 	"github.com/lunfardo314/tanglebeat/lib/config"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/senderpart"
@@ -85,9 +86,10 @@ func mustReadConfig(cfgfile string) {
 	infof("TX message will be accepted after received %v times from different sources ('repeatToAcceptTX' parameter, default is 2)",
 		Config.RepeatToAcceptTX)
 
-	inreaders.SetLog(log)
-	zmqpart.SetLog(log)
-	senderpart.SetLog(log)
+	inreaders.SetLog(log, true)
+	zmqpart.SetLog(log, true)
+	senderpart.SetLog(log, true)
+	bufferwe.SetLog(log, false)
 }
 
 func errorf(format string, args ...interface{}) {
