@@ -177,7 +177,7 @@ func (r *zmqRoutine) processSNMsg(msgData []byte, msgSplit []string) {
 		errorf("expected index, found %v", msgSplit[1])
 		return
 	}
-	obsolete, _ := sncache.checkCurrentMilestoneIndex(index)
+	obsolete, _ := sncache.checkCurrentMilestoneIndex(index, r.GetUri())
 	if obsolete {
 		// if index of the current confirmetion message is less than the latest seen,
 		// confirmation is ignored.

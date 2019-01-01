@@ -7,8 +7,10 @@ import (
 
 type hashCacheSN struct {
 	hashcache.HashCacheBase
-	largestIndex int
-	indexChanged uint64
+	largestIndex             int
+	largestIndexCandidate    int
+	largestIndexCandidateUri string
+	indexChanged             uint64
 }
 
 func newHashCacheSN(hashLen int, segmentDurationMs uint64, retentionPeriodMs uint64) *hashCacheSN {
@@ -19,7 +21,7 @@ func newHashCacheSN(hashLen int, segmentDurationMs uint64, retentionPeriodMs uin
 	return ret
 }
 
-func (cache *hashCacheSN) checkCurrentMilestoneIndex(index int) (bool, uint64) {
+func (cache *hashCacheSN) checkCurrentMilestoneIndex(index int, uri string) (bool, uint64) {
 	cache.Lock()
 	defer cache.Unlock()
 
@@ -29,8 +31,14 @@ func (cache *hashCacheSN) checkCurrentMilestoneIndex(index int) (bool, uint64) {
 	if index == cache.largestIndex {
 		return false, cache.indexChanged
 	}
-	debugf("------ milestone index changed %v --> %v ", cache.largestIndex, index)
-	cache.largestIndex = index
-	cache.indexChanged = utils.UnixMsNow()
+	// milestone index is considered changed only when seen from two different zmq hosts
+	if cache.largestIndexCandidate == index && cache.largestIndexCandidateUri != uri {
+		debugf("------ milestone index changed %v --> %v ", cache.largestIndex, index)
+		cache.largestIndex = index
+		cache.indexChanged = utils.UnixMsNow()
+	} else {
+		cache.largestIndexCandidate = index
+		cache.largestIndexCandidateUri = uri
+	}
 	return false, cache.indexChanged
 }
