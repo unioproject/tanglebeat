@@ -89,7 +89,7 @@ func mustReadConfig(cfgfile string) {
 	inreaders.SetLog(log, true)
 	zmqpart.SetLog(log, true)
 	senderpart.SetLog(log, true)
-	bufferwe.SetLog(log, false)
+	bufferwe.SetLog(log, true)
 }
 
 func errorf(format string, args ...interface{}) {

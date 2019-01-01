@@ -20,7 +20,7 @@ type cacheSegment struct {
 }
 
 type HashCacheBase struct {
-	bufferwe.BufferWE
+	bufferwe.BufferWithExpiration
 	hashLen               int
 	segmentDurationMsCopy uint64
 	retentionPeriodMsCopy uint64
@@ -28,7 +28,7 @@ type HashCacheBase struct {
 
 func NewHashCacheBase(hashLen int, segmentDurationSec int, retentionPeriodSec int) *HashCacheBase {
 	return &HashCacheBase{
-		BufferWE:              *bufferwe.NewBufferWE(true, segmentDurationSec, retentionPeriodSec, "HashCacheBase"),
+		BufferWithExpiration:  *bufferwe.NewBufferWE(true, segmentDurationSec, retentionPeriodSec, "HashCacheBase"),
 		hashLen:               hashLen,
 		segmentDurationMsCopy: uint64(segmentDurationSec * 1000),
 		retentionPeriodMsCopy: uint64(retentionPeriodSec * 1000),
@@ -148,7 +148,7 @@ func (cache *HashCacheBase) SeenHash(hash string, data interface{}, ret *CacheEn
 	return false
 }
 
-type hashcacheStats2 struct {
+type hashcacheStats struct {
 	Numseg         int     `json:"numseg"`
 	Numtx          int     `json:"numtx"`
 	NumNoVisit     int     `json:"numNoVisit"`
@@ -157,12 +157,12 @@ type hashcacheStats2 struct {
 	LatencySecAvg  float64 `json:"latencyMsAvg"`
 }
 
-func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats2 {
+func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 	earliest := utils.UnixMsNow() - msecBack
 	if msecBack == 0 {
 		earliest = 0 // count all of it
 	}
-	ret := &hashcacheStats2{}
+	ret := &hashcacheStats{}
 	var numVisited int
 	var lat float64
 

@@ -166,7 +166,7 @@ func (cache *HashCacheBaseOld) StartPurge() {
 	}()
 }
 
-type hashcacheStats struct {
+type hashcacheStatsOld struct {
 	Numseg         int     `json:"numseg"`
 	Numtx          int     `json:"numtx"`
 	NumNoVisit     int     `json:"numNoVisit"`
@@ -175,7 +175,7 @@ type hashcacheStats struct {
 	LatencySecAvg  float64 `json:"latencyMsAvg"`
 }
 
-func (cache *HashCacheBaseOld) Stats(msecBack uint64) *hashcacheStats {
+func (cache *HashCacheBaseOld) Stats(msecBack uint64) *hashcacheStatsOld {
 	cache.Lock()
 	defer cache.Unlock()
 
@@ -183,7 +183,7 @@ func (cache *HashCacheBaseOld) Stats(msecBack uint64) *hashcacheStats {
 	if msecBack == 0 {
 		earliest = 0 // count all of it
 	}
-	ret := &hashcacheStats{}
+	ret := &hashcacheStatsOld{}
 	var numVisited int
 	var lat float64
 	for seg := cache.top; seg != nil; seg = seg.next {

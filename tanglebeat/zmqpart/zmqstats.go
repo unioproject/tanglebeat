@@ -93,14 +93,14 @@ func (glb *ZmqOutputStatsStruct) updateSlowStats() {
 	glb.mutex.Lock()
 	defer glb.mutex.Unlock()
 
-	txs := txcache.Stats(min10ms)
+	txs := txcache.Stats(0)
 	glb.TXNumseg = txs.Numseg
 	glb.TXNumtx = txs.Numtx
 	glb.TXNumNoVisit = txs.NumNoVisit
 	glb.TXLatencySecMax = txs.LatencySecMax
 	glb.TXLatencySecAvg = txs.LatencySecAvg
 
-	sns := sncache.Stats(min10ms)
+	sns := sncache.Stats(0)
 	glb.SNNumseg = sns.Numseg
 	glb.SNNumtx = sns.Numtx
 	glb.SNNumNoVisit = sns.NumNoVisit

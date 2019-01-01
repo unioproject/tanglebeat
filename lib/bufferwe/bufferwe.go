@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// BufferWE = Buffer With Expiration
+// BufferWithExpiration = Buffer With Expiration
 type bufferweSegment struct {
 	created      uint64
 	lastModified uint64
@@ -15,7 +15,7 @@ type bufferweSegment struct {
 	next         *bufferweSegment
 }
 
-type BufferWE struct {
+type BufferWithExpiration struct {
 	id                string
 	withData          bool
 	segmentDurationMs uint64
@@ -24,16 +24,16 @@ type BufferWE struct {
 	mutex             *sync.Mutex
 }
 
-func (buf *BufferWE) Lock() {
+func (buf *BufferWithExpiration) Lock() {
 	buf.mutex.Lock()
 }
 
-func (buf *BufferWE) Unlock() {
+func (buf *BufferWithExpiration) Unlock() {
 	buf.mutex.Unlock()
 }
 
-func NewBufferWE(withData bool, segmentDurationSec int, retentionPeriodSec int, id string) *BufferWE {
-	ret := &BufferWE{
+func NewBufferWE(withData bool, segmentDurationSec int, retentionPeriodSec int, id string) *BufferWithExpiration {
+	ret := &BufferWithExpiration{
 		id:                id,
 		withData:          withData,
 		segmentDurationMs: uint64(segmentDurationSec * 1000),
@@ -43,7 +43,7 @@ func NewBufferWE(withData bool, segmentDurationSec int, retentionPeriodSec int, 
 	return ret
 }
 
-func (buf *BufferWE) Reset() {
+func (buf *BufferWithExpiration) Reset() {
 	if buf != nil {
 		buf.Lock()
 		buf.top = nil
@@ -52,7 +52,7 @@ func (buf *BufferWE) Reset() {
 }
 
 // returns false if empty
-func (buf *BufferWE) purge() bool {
+func (buf *BufferWithExpiration) purge() bool {
 	if buf == nil {
 		return false
 	}
@@ -64,6 +64,7 @@ func (buf *BufferWE) purge() bool {
 	}
 	earliest := utils.UnixMsNow() - uint64(buf.retentionPeriodMs)
 	if buf.top.lastModified < earliest {
+		tracef("++++++++++ purge segment in %v. len = %v", buf.id, len(buf.top.ts))
 		buf.top = nil
 		return false
 	}
@@ -77,16 +78,16 @@ func (buf *BufferWE) purge() bool {
 }
 
 // loop exits when buf becomes empty
-func (buf *BufferWE) purgeLoop() {
-	tracef("++++++++++ Start purge loop for BufferWE id='%v'", buf.id)
-	defer tracef("++++++++++ Finish purge loop for BufferWE id='%v'", buf.id)
+func (buf *BufferWithExpiration) purgeLoop() {
+	tracef("++++++++++ Start purge loop for BufferWithExpiration id='%v'", buf.id)
+	defer tracef("++++++++++ Finish purge loop for BufferWithExpiration id='%v'", buf.id)
 
 	for buf.purge() {
 		time.Sleep(10 * time.Second)
 	}
 }
 
-func (buf *BufferWE) Push(data interface{}) {
+func (buf *BufferWithExpiration) Push(data interface{}) {
 	if buf == nil {
 		return
 	}
@@ -95,7 +96,7 @@ func (buf *BufferWE) Push(data interface{}) {
 	buf.Push__(data)
 }
 
-func (buf *BufferWE) Push__(data interface{}) {
+func (buf *BufferWithExpiration) Push__(data interface{}) {
 	nowis := utils.UnixMsNow()
 	if buf.top == nil || nowis-buf.top.created > buf.segmentDurationMs {
 		capacity := 100
@@ -127,7 +128,7 @@ func (buf *BufferWE) Push__(data interface{}) {
 	}
 }
 
-func (buf *BufferWE) Last() (uint64, interface{}) {
+func (buf *BufferWithExpiration) Last() (uint64, interface{}) {
 	if buf == nil {
 		return 0, nil
 	}
@@ -136,7 +137,7 @@ func (buf *BufferWE) Last() (uint64, interface{}) {
 	return buf.Last__()
 }
 
-func (buf *BufferWE) Last__() (uint64, interface{}) {
+func (buf *BufferWithExpiration) Last__() (uint64, interface{}) {
 	if buf == nil {
 		return 0, nil
 	}
@@ -156,14 +157,14 @@ func (buf *BufferWE) Last__() (uint64, interface{}) {
 	return retts, nil
 }
 
-func (buf *BufferWE) TouchLast__() {
+func (buf *BufferWithExpiration) TouchLast__() {
 	if buf.top == nil || len(buf.top.ts) == 0 {
 		return
 	}
 	buf.top.lastModified = utils.UnixMsNow()
 }
 
-func (buf *BufferWE) ForEach(callback func(data interface{}) bool) {
+func (buf *BufferWithExpiration) ForEach(callback func(data interface{}) bool) {
 	if buf == nil {
 		return
 	}
@@ -172,7 +173,7 @@ func (buf *BufferWE) ForEach(callback func(data interface{}) bool) {
 	buf.ForEach__(callback)
 }
 
-func (buf *BufferWE) ForEach__(callback func(data interface{}) bool) {
+func (buf *BufferWithExpiration) ForEach__(callback func(data interface{}) bool) {
 	if buf == nil {
 		return
 	}
@@ -197,7 +198,7 @@ func (buf *BufferWE) ForEach__(callback func(data interface{}) bool) {
 	}
 }
 
-func (buf *BufferWE) CountAll() int {
+func (buf *BufferWithExpiration) CountAll() int {
 	var ret int
 	buf.ForEach(func(data interface{}) bool {
 		ret++

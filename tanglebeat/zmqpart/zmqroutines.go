@@ -38,8 +38,8 @@ type zmqRoutine struct {
 	txCount           uint64
 	ctxCount          uint64
 	obsoleteSnCount   uint64
-	tsLastTXSomeMin   *bufferwe.BufferWE
-	tsLastSNSomeMin   *bufferwe.BufferWE
+	tsLastTXSomeMin   *bufferwe.BufferWithExpiration
+	tsLastSNSomeMin   *bufferwe.BufferWithExpiration
 	last100TXBehindMs *utils.RingArray
 	last100SNBehindMs *utils.RingArray
 }
