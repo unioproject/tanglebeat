@@ -53,12 +53,8 @@ type zmqRoutine struct {
 
 func createZmqRoutine(uri string) {
 	ret := &zmqRoutine{
-		InputReaderBase:   *inreaders.NewInputReaderBase(),
-		uri:               uri,
-		tsLastTX3min:      bufferwe.NewBufferWE(false, tlTXCacheSegmentDurationSec, 3*60),
-		tsLastSN3min:      bufferwe.NewBufferWE(false, tlSNCacheSegmentDurationSec, 3*60),
-		last100TXBehindMs: utils.NewRingArray(100),
-		last100SNBehindMs: utils.NewRingArray(100),
+		InputReaderBase: *inreaders.NewInputReaderBase(),
+		uri:             uri,
 	}
 	zmqRoutines.AddInputReader("ZMQ--"+uri, ret)
 }
@@ -91,12 +87,32 @@ func (r *zmqRoutine) GetUri() string {
 
 var topics = []string{"tx", "sn"}
 
-func (r *zmqRoutine) Run(name string) {
-	uri := r.GetUri()
-	infof("Starting zmq routine '%v' for %v", name, uri)
-	defer errorf("Leaving zmq routine '%v' for %v", name, uri)
+func (r *zmqRoutine) init() {
+	debugf("++++++++++++ INIT zmqRoutine uri = '%v'", r.GetUri())
+	r.Lock()
+	defer r.Unlock()
+	r.tsLastTX3min = bufferwe.NewBufferWE(false, tlTXCacheSegmentDurationSec, 3*60)
+	r.tsLastSN3min = bufferwe.NewBufferWE(false, tlSNCacheSegmentDurationSec, 3*60)
+	r.last100TXBehindMs = utils.NewRingArray(100)
+	r.last100SNBehindMs = utils.NewRingArray(100)
+}
 
-	r.clearCounters()
+func (r *zmqRoutine) uninit() {
+	debugf("++++++++++++ UNINIT zmqRoutine uri = '%v'", r.GetUri())
+	r.Lock()
+	defer r.Unlock()
+	r.tsLastTX3min = nil
+	r.last100TXBehindMs = nil
+	r.tsLastSN3min = nil
+	r.last100SNBehindMs = nil
+}
+
+func (r *zmqRoutine) Run(name string) {
+	r.init()
+	defer r.uninit()
+
+	uri := r.GetUri()
+
 	socket, err := utils.OpenSocketAndSubscribe(uri, topics)
 	if err != nil {
 		errorf("Error while starting zmq channel for %v", uri)
@@ -201,15 +217,6 @@ func (r *zmqRoutine) processSNMsg(msgData []byte, msgSplit []string) {
 	r.Unlock()
 
 	toOutput(msgData, msgSplit, entry.Visits)
-}
-
-func (r *zmqRoutine) clearCounters() {
-	r.Lock()
-	defer r.Unlock()
-	r.tsLastTX3min.Reset()
-	r.last100TXBehindMs.Reset()
-	r.tsLastSN3min.Reset()
-	r.last100SNBehindMs.Reset()
 }
 
 type ZmqRoutineStats struct {
