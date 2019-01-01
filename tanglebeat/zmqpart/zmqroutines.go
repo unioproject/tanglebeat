@@ -2,11 +2,11 @@ package zmqpart
 
 import (
 	"fmt"
+	"github.com/lunfardo314/tanglebeat/lib/bufferwe"
 	"github.com/lunfardo314/tanglebeat/lib/nanomsg"
 	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/tlcache"
 	"math"
 	"strconv"
 	"strings"
@@ -45,18 +45,20 @@ type zmqRoutine struct {
 	txCount           uint64
 	ctxCount          uint64
 	obsoleteSnCount   uint64
-	tsLastTX3min      *tlcache.TLCache
-	tsLastSN3min      *tlcache.TLCache
+	tsLastTX3min      *bufferwe.BufferWE
+	tsLastSN3min      *bufferwe.BufferWE
 	last100TXBehindMs *utils.RingArray
 	last100SNBehindMs *utils.RingArray
 }
 
 func createZmqRoutine(uri string) {
 	ret := &zmqRoutine{
-		InputReaderBase:   *inreaders.NewInputReaderBase(),
-		uri:               uri,
-		tsLastTX3min:      tlcache.NewTlCache(uri+"--tsLastTX3min", tlTXCacheSegmentDurationSec, 3*60),
-		tsLastSN3min:      tlcache.NewTlCache(uri+"--tsLastSN3min", tlSNCacheSegmentDurationSec, 3*60),
+		InputReaderBase: *inreaders.NewInputReaderBase(),
+		uri:             uri,
+		tsLastTX3min: bufferwe.NewBufferWE(
+			uri+"--tsLastTX3min", false, tlTXCacheSegmentDurationSec, 3*60),
+		tsLastSN3min: bufferwe.NewBufferWE(
+			uri+"--tsLastSN3min", false, tlSNCacheSegmentDurationSec, 3*60),
 		last100TXBehindMs: utils.NewRingArray(100),
 		last100SNBehindMs: utils.NewRingArray(100),
 	}
