@@ -40,11 +40,11 @@ type HashCacheBase struct {
 //	StartPurge()
 //}
 
-func NewHashCacheBase(hashLen int, segmentDurationMs uint64, retentionPeriodMs uint64) *HashCacheBase {
+func NewHashCacheBase(hashLen int, segmentDurationSec uint64, retentionPeriodSec uint64) *HashCacheBase {
 	ret := &HashCacheBase{
 		hashLen:           hashLen,
-		segmentDurationMs: segmentDurationMs,
-		retentionPeriodMs: retentionPeriodMs,
+		segmentDurationMs: segmentDurationSec * 1000,
+		retentionPeriodMs: retentionPeriodSec * 1000,
 		mutex:             &sync.Mutex{},
 	}
 	ret.StartPurge()

@@ -209,10 +209,10 @@ func (conf *Confirmer) waitForConfirmation(cancelPromoCheck, cancelPromo, cancel
 //
 //				conf.Log.Debugf("CONFIRMER-WAIT: confirmed bundle %v", bundleHash)
 //
-//				conf.mutex.Lock()
+//				conf.mutex.lock()
 //				conf.sendConfirmerUpdate(UPD_CONFIRM, nil)
 //				conf.running = false
-//				conf.mutex.Unlock()
+//				conf.mutex.unlock()
 //
 //				conf.Log.Debugf("CONFIRMER-WAIT: canceling confirmer task for bundle %v", bundleHash)
 //				cancelPromoCheck()

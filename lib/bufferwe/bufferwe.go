@@ -6,16 +6,17 @@ import (
 	"time"
 )
 
-// BufferWE = Time Limited cache
+// BufferWE = Buffer With Expiration
 type bufferweSegment struct {
-	created uint64
-	ts      []uint64
-	data    []interface{}
-	next    *bufferweSegment
+	created      uint64
+	lastModified uint64
+	ts           []uint64
+	data         []interface{}
+	next         *bufferweSegment
 }
 
 type BufferWE struct {
-	name              string
+	id                string
 	withData          bool
 	segmentDurationMs uint64
 	retentionPeriodMs uint64
@@ -23,9 +24,16 @@ type BufferWE struct {
 	mutex             *sync.Mutex
 }
 
-func NewBufferWE(name string, withData bool, segmentDurationSec int, retentionPeriodSec int) *BufferWE {
+func (buf *BufferWE) Lock() {
+	buf.mutex.Lock()
+}
+
+func (buf *BufferWE) Unlock() {
+	buf.mutex.Unlock()
+}
+
+func NewBufferWE(withData bool, segmentDurationSec int, retentionPeriodSec int) *BufferWE {
 	ret := &BufferWE{
-		name:              name,
 		withData:          withData,
 		segmentDurationMs: uint64(segmentDurationSec * 1000),
 		retentionPeriodMs: uint64(retentionPeriodSec * 1000),
@@ -36,9 +44,9 @@ func NewBufferWE(name string, withData bool, segmentDurationSec int, retentionPe
 
 func (buf *BufferWE) Reset() {
 	if buf != nil {
-		buf.mutex.Lock()
+		buf.Lock()
 		buf.top = nil
-		buf.mutex.Unlock()
+		buf.Unlock()
 	}
 }
 
@@ -47,19 +55,19 @@ func (buf *BufferWE) purge() bool {
 	if buf == nil {
 		return false
 	}
-	buf.mutex.Lock()
-	defer buf.mutex.Unlock()
+	buf.Lock()
+	defer buf.Unlock()
 
 	if buf.top == nil {
 		return false
 	}
 	earliest := utils.UnixMsNow() - uint64(buf.retentionPeriodMs)
-	if buf.top.created < earliest {
+	if buf.top.lastModified < earliest {
 		buf.top = nil
 		return false
 	}
 	for s := buf.top; s != nil; s = s.next {
-		if s.next != nil && s.next.created < earliest {
+		if s.next != nil && s.next.lastModified < earliest {
 			s.next = nil
 		}
 	}
@@ -77,9 +85,12 @@ func (buf *BufferWE) Push(data interface{}) {
 	if buf == nil {
 		return
 	}
-	buf.mutex.Lock()
-	defer buf.mutex.Unlock()
+	buf.Lock()
+	defer buf.Unlock()
+	buf.Push__(data)
+}
 
+func (buf *BufferWE) Push__(data interface{}) {
 	nowis := utils.UnixMsNow()
 	if buf.top == nil || nowis-buf.top.created > buf.segmentDurationMs {
 		capacity := 100
@@ -93,10 +104,11 @@ func (buf *BufferWE) Push(data interface{}) {
 		}
 		startPurge := buf.top == nil
 		buf.top = &bufferweSegment{
-			created: nowis,
-			ts:      make([]uint64, 0, capacity),
-			data:    dataArray,
-			next:    buf.top,
+			created:      nowis,
+			lastModified: nowis,
+			ts:           make([]uint64, 0, capacity),
+			data:         dataArray,
+			next:         buf.top,
 		}
 		if startPurge {
 			// the purge goroutine will be started upon first push and will exit when purged uo to empty buffer
@@ -104,62 +116,64 @@ func (buf *BufferWE) Push(data interface{}) {
 		}
 	}
 	buf.top.ts = append(buf.top.ts, nowis)
+	buf.top.lastModified = nowis
 	if buf.withData {
 		buf.top.data = append(buf.top.data, data)
 	}
 }
 
-func (buf *BufferWE) Last() interface{} {
+func (buf *BufferWE) Last() (uint64, interface{}) {
 	if buf == nil {
-		return nil
+		return 0, nil
 	}
-	buf.mutex.Lock()
-	defer buf.mutex.Unlock()
+	buf.Lock()
+	defer buf.Unlock()
 
-	if !buf.withData || buf.top == nil {
-		return nil
+	if buf.top == nil {
+		return 0, nil
 	}
-	// ts array must be same length as data array and not empty
 	earliest := utils.UnixMsNow() - buf.retentionPeriodMs
-	idx := len(buf.top.ts) - 1 // must be > 0
-	if buf.top.ts[idx] < earliest {
+	idx := len(buf.top.ts) - 1 // must be > 0, because buf.top != nil
+	retts := buf.top.ts[idx]
+	if retts < earliest {
 		// last one is out of retention period
-		return nil
+		return 0, nil
 	}
-	return buf.top.data[idx]
+	if buf.withData {
+		return retts, buf.top.data[idx]
+	}
+	return retts, nil
 }
 
-func (buf *BufferWE) TouchLast() {
-	if buf == nil {
-		return
-	}
-	buf.mutex.Lock()
-	defer buf.mutex.Unlock()
-
+func (buf *BufferWE) TouchLast__() {
 	if buf.top == nil || len(buf.top.ts) == 0 {
 		return
 	}
-	buf.top.ts[len(buf.top.ts)-1] = utils.UnixMsNow()
+	buf.top.lastModified = utils.UnixMsNow()
 }
 
-func (buf *BufferWE) ForEach(callback func(data interface{})) {
+func (buf *BufferWE) ForEach(callback func(data interface{}) bool) {
 	if buf == nil {
 		return
 	}
-	buf.mutex.Lock()
-	defer buf.mutex.Unlock()
+	buf.Lock()
+	defer buf.Unlock()
 
 	earliest := utils.UnixMsNow() - uint64(buf.retentionPeriodMs)
 	for s := buf.top; s != nil; s = s.next {
 		if s.created < earliest {
 			return
 		}
+		var exit bool
 		for idx := range s.ts {
 			if s.ts[idx] >= earliest {
 				if buf.withData {
-					callback(s.data[idx])
+					exit = callback(s.data[idx])
 				} else {
-					callback(nil)
+					exit = callback(nil)
+				}
+				if exit {
+					return
 				}
 			}
 		}
@@ -168,8 +182,9 @@ func (buf *BufferWE) ForEach(callback func(data interface{})) {
 
 func (buf *BufferWE) CountAll() int {
 	var ret int
-	buf.ForEach(func(data interface{}) {
+	buf.ForEach(func(data interface{}) bool {
 		ret++
+		return false
 	})
 	return ret
 }

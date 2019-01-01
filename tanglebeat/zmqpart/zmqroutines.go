@@ -14,14 +14,14 @@ import (
 )
 
 const (
-	useFirstHashTrytes           = 18 // first positions of the hash will only be used in hash table. To spare memory
-	segmentDurationTXMs          = uint64((1 * time.Minute) / time.Millisecond)
-	segmentDurationValueTXMs     = uint64((10 * time.Minute) / time.Millisecond)
-	segmentDurationValueBundleMs = uint64((10 * time.Minute) / time.Millisecond)
-	segmentDurationSNMs          = uint64((1 * time.Minute) / time.Millisecond)
-	retentionPeriodMs            = uint64((1 * time.Hour) / time.Millisecond)
-	tlTXCacheSegmentDurationSec  = 10
-	tlSNCacheSegmentDurationSec  = 60
+	useFirstHashTrytes            = 18 // first positions of the hash will only be used in hash table. To spare memory
+	segmentDurationTXSec          = uint64(60)
+	segmentDurationValueTXSec     = uint64(10 * 60)
+	segmentDurationValueBundleSec = uint64(10 * 60)
+	segmentDurationSNSec          = uint64(1 * 60)
+	retentionPeriodSec            = uint64(60 * 60)
+	tlTXCacheSegmentDurationSec   = 10
+	tlSNCacheSegmentDurationSec   = 60
 )
 
 var (
@@ -32,10 +32,10 @@ var (
 )
 
 func init() {
-	txcache = hashcache.NewHashCacheBase(useFirstHashTrytes, segmentDurationTXMs, retentionPeriodMs)
-	sncache = newHashCacheSN(useFirstHashTrytes, segmentDurationSNMs, retentionPeriodMs)
-	valueTxCache = hashcache.NewHashCacheBase(useFirstHashTrytes, segmentDurationValueTXMs, retentionPeriodMs)
-	valueBundleCache = hashcache.NewHashCacheBase(useFirstHashTrytes, segmentDurationValueBundleMs, retentionPeriodMs)
+	txcache = hashcache.NewHashCacheBase(useFirstHashTrytes, segmentDurationTXSec, retentionPeriodSec)
+	sncache = newHashCacheSN(useFirstHashTrytes, segmentDurationSNSec, retentionPeriodSec)
+	valueTxCache = hashcache.NewHashCacheBase(useFirstHashTrytes, segmentDurationValueTXSec, retentionPeriodSec)
+	valueBundleCache = hashcache.NewHashCacheBase(useFirstHashTrytes, segmentDurationValueBundleSec, retentionPeriodSec)
 	startCollectingLatencyMetrics(txcache, sncache)
 }
 
@@ -53,12 +53,10 @@ type zmqRoutine struct {
 
 func createZmqRoutine(uri string) {
 	ret := &zmqRoutine{
-		InputReaderBase: *inreaders.NewInputReaderBase(),
-		uri:             uri,
-		tsLastTX3min: bufferwe.NewBufferWE(
-			uri+"--tsLastTX3min", false, tlTXCacheSegmentDurationSec, 3*60),
-		tsLastSN3min: bufferwe.NewBufferWE(
-			uri+"--tsLastSN3min", false, tlSNCacheSegmentDurationSec, 3*60),
+		InputReaderBase:   *inreaders.NewInputReaderBase(),
+		uri:               uri,
+		tsLastTX3min:      bufferwe.NewBufferWE(false, tlTXCacheSegmentDurationSec, 3*60),
+		tsLastSN3min:      bufferwe.NewBufferWE(false, tlSNCacheSegmentDurationSec, 3*60),
 		last100TXBehindMs: utils.NewRingArray(100),
 		last100SNBehindMs: utils.NewRingArray(100),
 	}

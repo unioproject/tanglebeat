@@ -13,9 +13,9 @@ type hashCacheSN struct {
 	indexChanged             uint64
 }
 
-func newHashCacheSN(hashLen int, segmentDurationMs uint64, retentionPeriodMs uint64) *hashCacheSN {
+func newHashCacheSN(hashLen int, segmentDurationSec uint64, retentionPeriodSec uint64) *hashCacheSN {
 	ret := &hashCacheSN{
-		HashCacheBase: *hashcache.NewHashCacheBase(hashLen, segmentDurationMs, retentionPeriodMs),
+		HashCacheBase: *hashcache.NewHashCacheBase(hashLen, segmentDurationSec, retentionPeriodSec),
 	}
 	ret.StartPurge()
 	return ret
