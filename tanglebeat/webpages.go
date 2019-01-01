@@ -24,7 +24,7 @@ var indexPage = `
 	<script type="text/javascript" src="/loadjs">
 	</script>
 	<body onload=main()>
-        <h3> Zero MQ routine stats</h3>
+        <h3> IRI Zero MQ inputs</h3>
 		 <table id="maintable" border="1">
 			<tr> 
 				<td>ZMQ host</td>  
@@ -36,8 +36,12 @@ var indexPage = `
       			<td>runningAlreadyMin</td>	
             </tr>
 		</table>
-        <h3> Global stats</h3>
+        <h3>Compound output</h3>
 		 <table id="globtable" border="1">
+           <tr></tr>
+         </table>
+        <h3>Debug</h3>
+		 <table id="debugtable" border="1">
            <tr></tr>
          </table>
 	</body>
@@ -54,12 +58,8 @@ var loadjs = `
         		obj.removeChild(obj.lastChild);
     		}
 		}
-		function populateRow(row, uri, data, heading){
+		function populateRow(row, data, heading){
             if (heading){
-                el = document.createElement('td');
-                el.innerHTML = "";
-	      		row.appendChild(el);
-
                 for (key in data){
                     if (key != "lastErr"){
 		                el = document.createElement('td');
@@ -68,23 +68,23 @@ var loadjs = `
                     }
                 }
             } else {
-	            el = document.createElement('td');
-				el.innerHTML = "<b>" + uri + "</b>";
-      			row.appendChild(el);
-				
-                el = document.createElement('td');
-        	    el.innerHTML = data.running;
-      			row.appendChild(el);
-					
 				if (data.running){
 	                for (key in data){
-                        if (key != "running" && key != "lastErr"){
+                        if (key != "lastErr"){
 			                el = document.createElement('td');
                             el.innerHTML = data[key];
 	      					row.appendChild(el);
                         }
                 	}
                 } else {
+        	        el = document.createElement('td');
+	        	    el.innerHTML = data["uri"];
+      			    row.appendChild(el);
+
+        	        el = document.createElement('td');
+	        	    el.innerHTML = data["running"];
+      			    row.appendChild(el);
+
         	        el = document.createElement('td');
     	            el.setAttribute("colspan", Object.keys(data).length - 2)
 	        	    el.innerHTML = data["lastErr"];
@@ -96,15 +96,15 @@ var loadjs = `
    			tb = document.getElementById("maintable").tBodies[0];
             deleteChildren(tb);
             first = true
-			for (uri in resp){
+			for (idx in resp){
                 if (first){
  			        row = document.createElement('tr');
-	                populateRow(row, uri, resp[uri], true)
+	                populateRow(row, resp[idx], true)
 		            tb.appendChild(row);
                     first = false
                 }
     		    row = document.createElement('tr');
-	            populateRow(row, uri, resp[uri], false)
+	            populateRow(row, resp[idx], false)
                 row.appendChild(el);
 	            tb.appendChild(row);
             }
@@ -133,8 +133,8 @@ var loadjs = `
         		if (this.readyState == 4){
             		if (this.status == 200) {
 		               resp = JSON.parse(this.response);
-						populateRoutineStats(resp.zmqRoutineStats);
-                        populate("globtable", resp.globalStats)
+						populateRoutineStats(resp.inputStats);
+                        populate("globtable", resp.outputStats)
                     }
                 }
       	    };

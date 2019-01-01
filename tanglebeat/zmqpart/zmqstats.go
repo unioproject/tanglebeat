@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-type ZmqStatsStruct struct {
+type ZmqOutputStatsStruct struct {
 	TXout                 uint64 `json:"txOut"`
 	SNout                 uint64 `json:"snOut"`
 	ValuePositiveTx       uint64 `json:"valuePositiveTxOut"`
@@ -40,10 +40,10 @@ type ZmqStatsStruct struct {
 	mutex        *sync.Mutex
 }
 
-var ZmqStats *ZmqStatsStruct
+var ZmqStats *ZmqOutputStatsStruct
 
 func init() {
-	ZmqStats = &ZmqStatsStruct{
+	ZmqStats = &ZmqOutputStatsStruct{
 		mutex: &sync.Mutex{},
 	}
 	go func() {
@@ -61,7 +61,7 @@ func abs(n int) uint64 {
 	return uint64(n)
 }
 
-func (glb *ZmqStatsStruct) updateMsgStats(msg []string) {
+func (glb *ZmqOutputStatsStruct) updateMsgStats(msg []string) {
 	glb.mutex.Lock()
 	defer glb.mutex.Unlock()
 	switch msg[0] {
@@ -89,7 +89,7 @@ func (glb *ZmqStatsStruct) updateMsgStats(msg []string) {
 
 const min10ms = 10 * 60 * 1000
 
-func (glb *ZmqStatsStruct) updateSlowStats() {
+func (glb *ZmqOutputStatsStruct) updateSlowStats() {
 	glb.mutex.Lock()
 	defer glb.mutex.Unlock()
 
@@ -126,14 +126,14 @@ func (glb *ZmqStatsStruct) updateSlowStats() {
 	glb.NumGoroutine = runtime.NumGoroutine()
 }
 
-func (glb *ZmqStatsStruct) updateConfirmedValueTxStats(value uint64) {
+func (glb *ZmqOutputStatsStruct) updateConfirmedValueTxStats(value uint64) {
 	glb.mutex.Lock()
 	defer glb.mutex.Unlock()
 	glb.ConfirmedValueTx++
 	glb.ConfirmedValueTxTotal += value
 }
 
-func (glb *ZmqStatsStruct) GetCopy() ZmqStatsStruct {
+func (glb *ZmqOutputStatsStruct) GetCopy() ZmqOutputStatsStruct {
 	glb.mutex.Lock()
 	defer glb.mutex.Unlock()
 	ret := *glb

@@ -8,6 +8,7 @@ import (
 	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -15,11 +16,11 @@ import (
 
 const (
 	useFirstHashTrytes            = 18 // first positions of the hash will only be used in hash table. To spare memory
-	segmentDurationTXSec          = uint64(60)
-	segmentDurationValueTXSec     = uint64(10 * 60)
-	segmentDurationValueBundleSec = uint64(10 * 60)
-	segmentDurationSNSec          = uint64(1 * 60)
-	retentionPeriodSec            = uint64(60 * 60)
+	segmentDurationTXSec          = 60
+	segmentDurationValueTXSec     = 10 * 60
+	segmentDurationValueBundleSec = 10 * 60
+	segmentDurationSNSec          = 1 * 60
+	retentionPeriodSec            = 60 * 60
 	tlTXCacheSegmentDurationSec   = 10
 	tlSNCacheSegmentDurationSec   = 60
 )
@@ -31,22 +32,14 @@ var (
 	valueBundleCache *hashcache.HashCacheBase
 )
 
-func init() {
-	txcache = hashcache.NewHashCacheBase(useFirstHashTrytes, segmentDurationTXSec, retentionPeriodSec)
-	sncache = newHashCacheSN(useFirstHashTrytes, segmentDurationSNSec, retentionPeriodSec)
-	valueTxCache = hashcache.NewHashCacheBase(useFirstHashTrytes, segmentDurationValueTXSec, retentionPeriodSec)
-	valueBundleCache = hashcache.NewHashCacheBase(useFirstHashTrytes, segmentDurationValueBundleSec, retentionPeriodSec)
-	startCollectingLatencyMetrics(txcache, sncache)
-}
-
 type zmqRoutine struct {
 	inreaders.InputReaderBase
 	uri               string
 	txCount           uint64
 	ctxCount          uint64
 	obsoleteSnCount   uint64
-	tsLastTX3min      *bufferwe.BufferWE
-	tsLastSN3min      *bufferwe.BufferWE
+	tsLastTXSomeMin   *bufferwe.BufferWE
+	tsLastSNSomeMin   *bufferwe.BufferWE
 	last100TXBehindMs *utils.RingArray
 	last100SNBehindMs *utils.RingArray
 }
@@ -65,6 +58,12 @@ var (
 )
 
 func MustInitZmqRoutines(outPort int, inputs []string) {
+	txcache = hashcache.NewHashCacheBase(useFirstHashTrytes, segmentDurationTXSec, retentionPeriodSec)
+	sncache = newHashCacheSN(useFirstHashTrytes, segmentDurationSNSec, retentionPeriodSec)
+	valueTxCache = hashcache.NewHashCacheBase(useFirstHashTrytes, segmentDurationValueTXSec, retentionPeriodSec)
+	valueBundleCache = hashcache.NewHashCacheBase(useFirstHashTrytes, segmentDurationValueBundleSec, retentionPeriodSec)
+	startCollectingLatencyMetrics(txcache, sncache)
+
 	zmqRoutines = inreaders.NewInputReaderSet("zmq routine set")
 	var err error
 	compoundOutPublisher, err = nanomsg.NewPublisher(outPort, 0, nil)
@@ -91,10 +90,10 @@ func (r *zmqRoutine) init() {
 	tracef("++++++++++++ INIT zmqRoutine uri = '%v'", r.GetUri())
 	r.Lock()
 	defer r.Unlock()
-	r.tsLastTX3min = bufferwe.NewBufferWE(
-		false, tlTXCacheSegmentDurationSec, 3*60, r.uri+"-tsLastTX3min")
-	r.tsLastSN3min = bufferwe.NewBufferWE(
-		false, tlSNCacheSegmentDurationSec, 3*60, r.uri+"-tsLastSN3min")
+	r.tsLastTXSomeMin = bufferwe.NewBufferWE(
+		false, tlTXCacheSegmentDurationSec, 5*60, r.uri+"-tsLastTXSomeMin")
+	r.tsLastSNSomeMin = bufferwe.NewBufferWE(
+		false, tlSNCacheSegmentDurationSec, 5*60, r.uri+"-tsLastSNSomeMin")
 	r.last100TXBehindMs = utils.NewRingArray(100)
 	r.last100SNBehindMs = utils.NewRingArray(100)
 }
@@ -103,9 +102,9 @@ func (r *zmqRoutine) uninit() {
 	tracef("++++++++++++ UNINIT zmqRoutine uri = '%v'", r.GetUri())
 	r.Lock()
 	defer r.Unlock()
-	r.tsLastTX3min = nil
+	r.tsLastTXSomeMin = nil
 	r.last100TXBehindMs = nil
-	r.tsLastSN3min = nil
+	r.tsLastSNSomeMin = nil
 	r.last100SNBehindMs = nil
 }
 
@@ -168,7 +167,7 @@ func (r *zmqRoutine) processTXMsg(msgData []byte, msgSplit []string) {
 	}
 	r.Lock()
 	r.txCount++
-	r.tsLastTX3min.Push(utils.UnixMs(time.Now()))
+	r.tsLastTXSomeMin.Push(utils.UnixMs(time.Now()))
 	r.last100TXBehindMs.Push(behind)
 	r.Unlock()
 
@@ -214,7 +213,7 @@ func (r *zmqRoutine) processSNMsg(msgData []byte, msgSplit []string) {
 
 	r.Lock()
 	r.ctxCount++
-	r.tsLastSN3min.Push(utils.UnixMs(time.Now()))
+	r.tsLastSNSomeMin.Push(utils.UnixMs(time.Now()))
 	r.last100SNBehindMs.Push(behind)
 	r.Unlock()
 
@@ -222,8 +221,8 @@ func (r *zmqRoutine) processSNMsg(msgData []byte, msgSplit []string) {
 }
 
 type ZmqRoutineStats struct {
+	Uri string `json:"uri"`
 	inreaders.InputReaderBaseStats
-	Uri                  string  `json:"uri"`
 	TxCount              uint64  `json:"txCount"`
 	CtxCount             uint64  `json:"ctxCount"`
 	ObsoleteConfirmCount uint64  `json:"obsoleteSNCount"`
@@ -238,10 +237,10 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 	r.Lock()
 	defer r.Unlock()
 
-	tps := float64(r.tsLastTX3min.CountAll()) / (5 * 60)
+	tps := float64(r.tsLastTXSomeMin.CountAll()) / (5 * 60)
 	tps = math.Round(100*tps) / 100
 
-	ctps := float64(r.tsLastSN3min.CountAll()) / (5 * 60)
+	ctps := float64(r.tsLastSNSomeMin.CountAll()) / (5 * 60)
 	ctps = math.Round(100*ctps) / 100
 
 	confrate := uint64(0)
@@ -253,8 +252,8 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 	behindSN := r.last100SNBehindMs.AvgGT(0)
 
 	ret := &ZmqRoutineStats{
-		InputReaderBaseStats: *r.GetReaderBaseStats__(),
 		Uri:                  r.uri,
+		InputReaderBaseStats: *r.GetReaderBaseStats__(),
 		Tps:                  tps,
 		TxCount:              r.txCount,
 		CtxCount:             r.ctxCount,
@@ -267,10 +266,25 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 	return ret
 }
 
-func GetRoutineStats() map[string]*ZmqRoutineStats {
-	ret := make(map[string]*ZmqRoutineStats)
+func GetInputStats() []*ZmqRoutineStats {
+	ret := make([]*ZmqRoutineStats, 0, 10)
 	zmqRoutines.ForEach(func(name string, ir inreaders.InputReader) {
-		ret[name] = ir.(*zmqRoutine).getStats()
+		ret = append(ret, ir.(*zmqRoutine).getStats())
 	})
+	sort.Sort(ZmqRoutineStatsSlice(ret))
 	return ret
+}
+
+type ZmqRoutineStatsSlice []*ZmqRoutineStats
+
+func (a ZmqRoutineStatsSlice) Len() int {
+	return len(a)
+}
+
+func (a ZmqRoutineStatsSlice) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+func (a ZmqRoutineStatsSlice) Less(i, j int) bool {
+	return a[i].Uri < a[j].Uri
 }

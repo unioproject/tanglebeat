@@ -18,15 +18,15 @@ func runWebServer(port int) {
 	panic(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }
 
-type allStatsStruct struct {
-	RoutineStats map[string]*zmqpart.ZmqRoutineStats `json:"zmqRoutineStats"`
-	GlobalStats  zmqpart.ZmqStatsStruct              `json:"globalStats"`
+type collectorStatsStruct struct {
+	InputStats  interface{} `json:"inputStats"`
+	OutputStats interface{} `json:"outputStats"`
 }
 
 func statsHandler(w http.ResponseWriter, r *http.Request) {
-	stats := allStatsStruct{
-		RoutineStats: zmqpart.GetRoutineStats(),
-		GlobalStats:  zmqpart.ZmqStats.GetCopy(),
+	stats := collectorStatsStruct{
+		InputStats:  zmqpart.GetInputStats(),
+		OutputStats: zmqpart.ZmqStats.GetCopy(),
 	}
 	data, err := json.MarshalIndent(stats, "", "   ")
 	if err != nil {

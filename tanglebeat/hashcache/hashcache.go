@@ -1,6 +1,7 @@
 package hashcache
 
 import (
+	"github.com/lunfardo314/tanglebeat/lib/bufferwe"
 	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"sync"
 	"time"
@@ -14,49 +15,24 @@ type CacheEntry struct {
 }
 
 type cacheSegment struct {
-	themap  map[string]CacheEntry
-	created uint64
-	latest  uint64
-	next    *cacheSegment
+	themap map[string]CacheEntry
+	mutex  *sync.Mutex
 }
 
 type HashCacheBase struct {
-	mutex             *sync.Mutex
-	hashLen           int
-	segmentDurationMs uint64
-	retentionPeriodMs uint64
-	top               *cacheSegment
+	bufferwe.BufferWE
+	hashLen               int
+	segmentDurationMsCopy uint64
+	retentionPeriodMsCopy uint64
 }
 
-//type hashCache interface {
-//	shortHash(hash string) string
-//	__insertNew(shorthash string, Data interface{})
-//	__find(shorthash string) (uint64, interface{}, bool)
-//	SeenHash(hash string, Data interface{}) (uint64, interface{}, bool)
-//	__findWithDelete(shorthash string) (uint64, interface{}, bool)
-//	seenAtWithDelete(hash string, Data interface{}) (uint64, interface{}, bool)
-//	Stats() (int, int)
-//	__stats() (int, int)
-//	StartPurge()
-//}
-
-func NewHashCacheBase(hashLen int, segmentDurationSec uint64, retentionPeriodSec uint64) *HashCacheBase {
-	ret := &HashCacheBase{
-		hashLen:           hashLen,
-		segmentDurationMs: segmentDurationSec * 1000,
-		retentionPeriodMs: retentionPeriodSec * 1000,
-		mutex:             &sync.Mutex{},
+func NewHashCacheBase(hashLen int, segmentDurationSec int, retentionPeriodSec int) *HashCacheBase {
+	return &HashCacheBase{
+		BufferWE:              *bufferwe.NewBufferWE(true, segmentDurationSec, retentionPeriodSec, "HashCacheBase"),
+		hashLen:               hashLen,
+		segmentDurationMsCopy: uint64(segmentDurationSec * 1000),
+		retentionPeriodMsCopy: uint64(retentionPeriodSec * 1000),
 	}
-	ret.StartPurge()
-	return ret
-}
-
-func (cache *HashCacheBase) Lock() {
-	cache.mutex.Lock()
-}
-
-func (cache *HashCacheBase) Unlock() {
-	cache.mutex.Unlock()
 }
 
 func (cache *HashCacheBase) shortHash(hash string) string {
@@ -69,27 +45,46 @@ func (cache *HashCacheBase) shortHash(hash string) string {
 }
 
 func (cache *HashCacheBase) __insertNew(shorthash string, data interface{}) {
+	created, segtmp := cache.Last__()
+	var seg *cacheSegment
+	if segtmp != nil {
+		seg = segtmp.(*cacheSegment)
+	}
+
 	nowis := utils.UnixMs(time.Now())
-	if cache.top == nil || (len(cache.top.themap) != 0 && (nowis-cache.top.created > cache.segmentDurationMs)) {
-		cache.top = &cacheSegment{
-			themap:  make(map[string]CacheEntry),
-			next:    cache.top,
-			created: nowis,
+	if seg == nil || nowis-created > cache.segmentDurationMsCopy {
+		newseg := &cacheSegment{
+			themap: make(map[string]CacheEntry),
+			mutex:  &sync.Mutex{},
 		}
+		newseg.themap[shorthash] = CacheEntry{
+			FirstSeen: nowis,
+			LastSeen:  nowis,
+			Visits:    1,
+			Data:      data,
+		}
+		cache.Push__(newseg)
+	} else {
+		seg.themap[shorthash] = CacheEntry{
+			FirstSeen: nowis,
+			LastSeen:  nowis,
+			Visits:    1,
+			Data:      data,
+		}
+		cache.TouchLast__()
 	}
-	cache.top.themap[shorthash] = CacheEntry{
-		FirstSeen: nowis,
-		LastSeen:  nowis,
-		Visits:    1,
-		Data:      data,
-	}
-	cache.top.latest = nowis
 }
 
 // finds entry and increases visit counter if found
 func (cache *HashCacheBase) __find(shorthash string, ret *CacheEntry) bool {
-	for seg := cache.top; seg != nil; seg = seg.next {
-		if entry, ok := seg.themap[shorthash]; ok {
+	var found bool
+	cache.ForEach__(func(data interface{}) bool {
+		seg, _ := data.(*cacheSegment)
+		seg.mutex.Lock()
+		defer seg.mutex.Unlock()
+		entry, ok := seg.themap[shorthash]
+		if ok {
+			found = true
 			seg.themap[shorthash] = CacheEntry{
 				FirstSeen: entry.FirstSeen,
 				LastSeen:  utils.UnixMsNow(),
@@ -97,32 +92,39 @@ func (cache *HashCacheBase) __find(shorthash string, ret *CacheEntry) bool {
 				Data:      entry.Data,
 			}
 			if ret != nil {
-				*ret = entry
+				*ret = seg.themap[shorthash]
 			}
 			return true
 		}
-	}
-	return false
+		return false
+	})
+	return found
 }
 
 func (cache *HashCacheBase) Find(hash string, ret *CacheEntry) bool {
 	cache.Lock()
 	defer cache.Unlock()
-
 	return cache.__find(cache.shortHash(hash), ret)
 }
 
 func (cache *HashCacheBase) __findWithDelete(shorthash string, ret *CacheEntry) bool {
-	for seg := cache.top; seg != nil; seg = seg.next {
-		if entry, ok := seg.themap[shorthash]; ok {
+	var found bool
+	cache.ForEach__(func(data interface{}) bool {
+		seg, _ := data.(*cacheSegment)
+		seg.mutex.Lock()
+		defer seg.mutex.Unlock()
+		entry, ok := seg.themap[shorthash]
+		if ok {
+			found = true
 			if ret != nil {
 				*ret = entry
 			}
 			delete(seg.themap, shorthash)
 			return true
 		}
-	}
-	return false
+		return false
+	})
+	return found
 }
 
 // if seen, return entry and deletes it
@@ -146,27 +148,7 @@ func (cache *HashCacheBase) SeenHash(hash string, data interface{}, ret *CacheEn
 	return false
 }
 
-func (cache *HashCacheBase) StartPurge() {
-	if cache.segmentDurationMs > cache.retentionPeriodMs {
-		return
-	}
-	go func() {
-		for {
-			time.Sleep(1 * time.Minute)
-
-			cache.Lock()
-			nowis := utils.UnixMs(time.Now())
-			for top := cache.top; top != nil; top = top.next {
-				if top.next != nil && (nowis-top.next.latest > cache.retentionPeriodMs) {
-					top.next = nil // cut the tail
-				}
-			}
-			cache.Unlock()
-		}
-	}()
-}
-
-type hashcacheStats struct {
+type hashcacheStats2 struct {
 	Numseg         int     `json:"numseg"`
 	Numtx          int     `json:"numtx"`
 	NumNoVisit     int     `json:"numNoVisit"`
@@ -175,38 +157,30 @@ type hashcacheStats struct {
 	LatencySecAvg  float64 `json:"latencyMsAvg"`
 }
 
-func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
-	cache.Lock()
-	defer cache.Unlock()
-
+func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats2 {
 	earliest := utils.UnixMsNow() - msecBack
 	if msecBack == 0 {
 		earliest = 0 // count all of it
 	}
-	ret := &hashcacheStats{}
+	ret := &hashcacheStats2{}
 	var numVisited int
 	var lat float64
-	for seg := cache.top; seg != nil; seg = seg.next {
-		ret.Numseg += 1
-		if seg.latest < earliest {
-			continue
-		}
-		for _, entry := range seg.themap {
-			ret.Numtx++
-			if entry.LastSeen >= earliest {
-				if entry.Visits > 1 {
-					numVisited++
-					lat = float64(entry.LastSeen-entry.FirstSeen) / 1000
-					ret.LatencySecAvg += lat
-					if lat > ret.LatencySecMax {
-						ret.LatencySecMax = lat
-					}
-				} else {
-					ret.NumNoVisit++
+
+	cache.ForEachEntry(func(entry *CacheEntry) {
+		ret.Numtx++
+		if entry.LastSeen >= earliest {
+			if entry.Visits > 1 {
+				numVisited++
+				lat = float64(entry.LastSeen-entry.FirstSeen) / 1000
+				ret.LatencySecAvg += lat
+				if lat > ret.LatencySecMax {
+					ret.LatencySecMax = lat
 				}
+			} else {
+				ret.NumNoVisit++
 			}
 		}
-	}
+	})
 	if ret.Numtx > 0 {
 		ret.NumNoVisitPerc = (100 * ret.NumNoVisit) / ret.Numtx
 	}
@@ -218,11 +192,16 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 }
 
 func (cache *HashCacheBase) ForEachEntry(callback func(entry *CacheEntry)) {
-	cache.Lock()
-	defer cache.Unlock()
-	for seg := cache.top; seg != nil; seg = seg.next {
+	earliest := utils.UnixMsNow() - cache.retentionPeriodMsCopy
+	cache.ForEach(func(data interface{}) bool {
+		seg, _ := data.(*cacheSegment)
+		seg.mutex.Lock()
+		defer seg.mutex.Unlock()
 		for _, entry := range seg.themap {
-			callback(&entry)
+			if entry.LastSeen >= earliest {
+				callback(&entry)
+			}
 		}
-	}
+		return true
+	})
 }

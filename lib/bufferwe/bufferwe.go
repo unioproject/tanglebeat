@@ -133,7 +133,13 @@ func (buf *BufferWE) Last() (uint64, interface{}) {
 	}
 	buf.Lock()
 	defer buf.Unlock()
+	return buf.Last__()
+}
 
+func (buf *BufferWE) Last__() (uint64, interface{}) {
+	if buf == nil {
+		return 0, nil
+	}
 	if buf.top == nil {
 		return 0, nil
 	}
@@ -163,7 +169,13 @@ func (buf *BufferWE) ForEach(callback func(data interface{}) bool) {
 	}
 	buf.Lock()
 	defer buf.Unlock()
+	buf.ForEach__(callback)
+}
 
+func (buf *BufferWE) ForEach__(callback func(data interface{}) bool) {
+	if buf == nil {
+		return
+	}
 	earliest := utils.UnixMsNow() - uint64(buf.retentionPeriodMs)
 	for s := buf.top; s != nil; s = s.next {
 		if s.created < earliest {
