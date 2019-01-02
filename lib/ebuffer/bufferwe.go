@@ -1,4 +1,4 @@
-package bufferwe
+package ebuffer
 
 import (
 	"github.com/lunfardo314/tanglebeat/lib/utils"

@@ -1,7 +1,7 @@
 package hashcache
 
 import (
-	"github.com/lunfardo314/tanglebeat/lib/bufferwe"
+	"github.com/lunfardo314/tanglebeat/lib/ebuffer"
 	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"sync"
 	"time"
@@ -20,7 +20,7 @@ type cacheSegment struct {
 }
 
 type HashCacheBase struct {
-	bufferwe.BufferWithExpiration
+	ebuffer.BufferWithExpiration
 	hashLen               int
 	segmentDurationMsCopy uint64
 	retentionPeriodMsCopy uint64
@@ -28,7 +28,7 @@ type HashCacheBase struct {
 
 func NewHashCacheBase(hashLen int, segmentDurationSec int, retentionPeriodSec int) *HashCacheBase {
 	return &HashCacheBase{
-		BufferWithExpiration:  *bufferwe.NewBufferWE(true, segmentDurationSec, retentionPeriodSec, "HashCacheBase"),
+		BufferWithExpiration:  *ebuffer.NewBufferWE(true, segmentDurationSec, retentionPeriodSec, "HashCacheBase"),
 		hashLen:               hashLen,
 		segmentDurationMsCopy: uint64(segmentDurationSec * 1000),
 		retentionPeriodMsCopy: uint64(retentionPeriodSec * 1000),

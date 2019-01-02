@@ -1,4 +1,4 @@
-package bufferwe
+package ebuffer
 
 import (
 	"fmt"

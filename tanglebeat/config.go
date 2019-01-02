@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/lib/bufferwe"
 	"github.com/lunfardo314/tanglebeat/lib/config"
+	"github.com/lunfardo314/tanglebeat/lib/ebuffer"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/senderpart"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/zmqpart"
@@ -89,7 +89,7 @@ func mustReadConfig(cfgfile string) {
 	inreaders.SetLog(log, true)
 	zmqpart.SetLog(log, true)
 	senderpart.SetLog(log, true)
-	bufferwe.SetLog(log, true)
+	ebuffer.SetLog(log, true)
 }
 
 func errorf(format string, args ...interface{}) {

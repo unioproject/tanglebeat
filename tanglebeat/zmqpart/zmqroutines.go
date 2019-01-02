@@ -2,7 +2,7 @@ package zmqpart
 
 import (
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/lib/bufferwe"
+	"github.com/lunfardo314/tanglebeat/lib/ebuffer"
 	"github.com/lunfardo314/tanglebeat/lib/nanomsg"
 	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
@@ -11,7 +11,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 )
 
 const (
@@ -34,12 +33,14 @@ var (
 
 type zmqRoutine struct {
 	inreaders.InputReaderBase
-	uri               string
-	txCount           uint64
-	ctxCount          uint64
-	obsoleteSnCount   uint64
-	tsLastTXSomeMin   *bufferwe.BufferWithExpiration
-	tsLastSNSomeMin   *bufferwe.BufferWithExpiration
+	uri             string
+	txCount         uint64
+	ctxCount        uint64
+	obsoleteSnCount uint64
+	//tsLastTXSomeMin   *ebuffer.BufferWithExpiration
+	//tsLastSNSomeMin   *ebuffer.BufferWithExpiration
+	tsLastTXSomeMin   *ebuffer.EventTsExpiringBuffer
+	tsLastSNSomeMin   *ebuffer.EventTsExpiringBuffer
 	last100TXBehindMs *utils.RingArray
 	last100SNBehindMs *utils.RingArray
 }
@@ -90,10 +91,12 @@ func (r *zmqRoutine) init() {
 	tracef("++++++++++++ INIT zmqRoutine uri = '%v'", r.GetUri())
 	r.Lock()
 	defer r.Unlock()
-	r.tsLastTXSomeMin = bufferwe.NewBufferWE(
-		false, tlTXCacheSegmentDurationSec, 5*60, r.uri+"-tsLastTXSomeMin")
-	r.tsLastSNSomeMin = bufferwe.NewBufferWE(
-		false, tlSNCacheSegmentDurationSec, 5*60, r.uri+"-tsLastSNSomeMin")
+	//r.tsLastTXSomeMin = ebuffer.NewBufferWE(
+	//	false, tlTXCacheSegmentDurationSec, 5*60, r.uri+"-tsLastTXSomeMin")
+	//r.tsLastSNSomeMin = ebuffer.NewBufferWE(
+	//	false, tlSNCacheSegmentDurationSec, 5*60, r.uri+"-tsLastSNSomeMin")
+	r.tsLastTXSomeMin = ebuffer.NewEventTsExpiringBuffer(tlTXCacheSegmentDurationSec, 5*60)
+	r.tsLastSNSomeMin = ebuffer.NewEventTsExpiringBuffer(tlSNCacheSegmentDurationSec, 5*60)
 	r.last100TXBehindMs = utils.NewRingArray(100)
 	r.last100SNBehindMs = utils.NewRingArray(100)
 }
@@ -167,7 +170,7 @@ func (r *zmqRoutine) processTXMsg(msgData []byte, msgSplit []string) {
 	}
 	r.Lock()
 	r.txCount++
-	r.tsLastTXSomeMin.Push(utils.UnixMs(time.Now()))
+	r.tsLastTXSomeMin.RecordTS()
 	r.last100TXBehindMs.Push(behind)
 	r.Unlock()
 
@@ -213,7 +216,7 @@ func (r *zmqRoutine) processSNMsg(msgData []byte, msgSplit []string) {
 
 	r.Lock()
 	r.ctxCount++
-	r.tsLastSNSomeMin.Push(utils.UnixMs(time.Now()))
+	r.tsLastSNSomeMin.RecordTS()
 	r.last100SNBehindMs.Push(behind)
 	r.Unlock()
 
