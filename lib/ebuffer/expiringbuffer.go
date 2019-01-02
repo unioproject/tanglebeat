@@ -36,28 +36,44 @@ func NewExpiringBuffer(segDurationSec, retentionPeriodSec int, constructor func(
 	}
 }
 
-func (buf *ExpiringBuffer) isEmpty() bool {
+func (buf *ExpiringBuffer) Lock() {
+	buf.mutex.Lock()
+}
+
+func (buf *ExpiringBuffer) Unlock() {
+	buf.mutex.Unlock()
+}
+
+func (buf *ExpiringBuffer) RLock() {
 	buf.mutex.RLock()
-	defer buf.mutex.RUnlock()
+}
+
+func (buf *ExpiringBuffer) RUnlock() {
+	buf.mutex.RUnlock()
+}
+
+func (buf *ExpiringBuffer) isEmpty() bool {
+	buf.RLock()
+	defer buf.RUnlock()
 	return buf.top == nil
 }
 
 const purgeLoopSleepSec = 5
 
 func (buf *ExpiringBuffer) purgeLoop() {
-	tracef("Purge loop started")
-	defer tracef("Purge loop stopped")
+	tracef("Expiring Buffer purge routine: loop started")
+	defer tracef("Expiring Buffer purge routine: loop finished")
 
 	for {
 		if buf.isEmpty() {
 			return
 		}
 		if buf.top.IsExpired(buf.retentionPeriodMs) {
-			tracef("purged top segment size = %v", buf.top.Size())
+			tracef("Expiring Buffer purge routine: purged top segment with size = %v", buf.top.Size())
 			buf.top = nil
 			return
 		}
-		buf.mutex.Lock()
+		buf.Lock()
 		for s := buf.top; ; {
 			if s == nil {
 				break
@@ -67,13 +83,13 @@ func (buf *ExpiringBuffer) purgeLoop() {
 				break
 			}
 			if prev.IsExpired(buf.retentionPeriodMs) {
-				tracef("purged size = %v", prev.Size())
+				tracef("Expiring Buffer purge routine: purged segment of size = %v", prev.Size())
 				s.SetPrev_(nil)
 				break
 			}
 			s = prev
 		}
-		buf.mutex.Unlock()
+		buf.Unlock()
 		time.Sleep(time.Duration(purgeLoopSleepSec) * time.Second)
 	}
 }
@@ -81,9 +97,9 @@ func (buf *ExpiringBuffer) purgeLoop() {
 func (buf *ExpiringBuffer) NewEntry(data ...interface{}) {
 	empty := buf.isEmpty()
 	if empty || !buf.top.IsOpen(buf.segDurationMs) {
-		buf.mutex.Lock()
+		buf.Lock()
 		buf.top = buf.constructor(buf.top)
-		buf.mutex.Unlock()
+		buf.Unlock()
 		if empty {
 			go buf.purgeLoop()
 		}
@@ -93,8 +109,8 @@ func (buf *ExpiringBuffer) NewEntry(data ...interface{}) {
 }
 
 func (buf *ExpiringBuffer) Size() (int, int) {
-	buf.mutex.RLock()
-	defer buf.mutex.RUnlock()
+	buf.RLock()
+	defer buf.RUnlock()
 
 	var numseg, numentries int
 	for s := buf.top; s != nil; s = s.GetPrev_() {
@@ -102,6 +118,16 @@ func (buf *ExpiringBuffer) Size() (int, int) {
 		numentries += s.Size()
 	}
 	return numseg, numentries
+}
+
+func (buf *ExpiringBuffer) ForEachSegment_(callback func(interface{}) bool) {
+	for s := buf.top; s != nil; s = s.GetPrev_() {
+		if !s.IsExpired(buf.retentionPeriodMs) {
+			if !callback(s) {
+				return
+			}
+		}
+	}
 }
 
 //---------------------------------

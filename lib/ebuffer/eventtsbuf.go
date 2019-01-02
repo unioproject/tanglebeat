@@ -37,8 +37,8 @@ func NewEventTsExpiringBuffer(segDurationSec, retentionPeriodSec int) *EventTsEx
 }
 
 func (buf *EventTsExpiringBuffer) ForEachEntryRO(callback func(ts uint64) bool) {
-	buf.mutex.RLock()
-	defer buf.mutex.RUnlock()
+	buf.RLock()
+	defer buf.RUnlock()
 	earliest := utils.UnixMsNow() - buf.retentionPeriodMs
 	for s := buf.top; s != nil; s = s.GetPrev_() {
 		if s.IsExpired(buf.retentionPeriodMs) {
