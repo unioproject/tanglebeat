@@ -17,10 +17,10 @@ const (
 )
 
 var (
-	txcache          *hashcache.HashCacheBase
+	txcache          *hashcache.HashCacheBase2
 	sncache          *hashCacheSN
-	valueTxCache     *hashcache.HashCacheBase
-	valueBundleCache *hashcache.HashCacheBase
+	valueTxCache     *hashcache.HashCacheBase2
+	valueBundleCache *hashcache.HashCacheBase2
 )
 
 type zmqMsg struct {
@@ -40,10 +40,10 @@ func toFilter(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 }
 
 func initMsgFilter() {
-	txcache = hashcache.NewHashCacheBase(useFirstHashTrytes, segmentDurationTXSec, retentionPeriodSec)
+	txcache = hashcache.NewHashCacheBase2(useFirstHashTrytes, segmentDurationTXSec, retentionPeriodSec)
 	sncache = newHashCacheSN(useFirstHashTrytes, segmentDurationSNSec, retentionPeriodSec)
-	valueTxCache = hashcache.NewHashCacheBase(useFirstHashTrytes, segmentDurationValueTXSec, retentionPeriodSec)
-	valueBundleCache = hashcache.NewHashCacheBase(useFirstHashTrytes, segmentDurationValueBundleSec, retentionPeriodSec)
+	valueTxCache = hashcache.NewHashCacheBase2(useFirstHashTrytes, segmentDurationValueTXSec, retentionPeriodSec)
+	valueBundleCache = hashcache.NewHashCacheBase2(useFirstHashTrytes, segmentDurationValueBundleSec, retentionPeriodSec)
 	startCollectingLatencyMetrics(txcache, sncache)
 	go msgFilterRoutine()
 }
@@ -66,7 +66,7 @@ func filterMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 func filterTXMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 	var seen bool
 	var behind uint64
-	var entry hashcache.CacheEntry
+	var entry hashcache.CacheEntry2
 
 	if len(msgSplit) < 2 {
 		errorf("%v: Message %v is invalid", routine.GetUri(), string(msgData))

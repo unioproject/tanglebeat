@@ -24,7 +24,7 @@ type HashCacheBase2 struct {
 	retentionPeriodMsCopy uint64
 }
 
-var constructor = func(prev ebuffer.ExpiringSegment) ebuffer.ExpiringSegment {
+var segmentConstructor = func(prev ebuffer.ExpiringSegment) ebuffer.ExpiringSegment {
 	ret := &cacheSegment2{
 		ExpiringSegmentBase: *ebuffer.NewExpiringSegmentBase(),
 		themap:              make(map[string]CacheEntry2),
@@ -34,7 +34,7 @@ var constructor = func(prev ebuffer.ExpiringSegment) ebuffer.ExpiringSegment {
 
 func NewHashCacheBase2(hashLen int, segmentDurationSec int, retentionPeriodSec int) *HashCacheBase2 {
 	return &HashCacheBase2{
-		ExpiringBuffer:        *ebuffer.NewExpiringBuffer(segmentDurationSec, retentionPeriodSec, nil),
+		ExpiringBuffer:        *ebuffer.NewExpiringBuffer(segmentDurationSec, retentionPeriodSec, segmentConstructor),
 		hashLen:               hashLen,
 		segmentDurationMsCopy: uint64(segmentDurationSec * 1000),
 		retentionPeriodMsCopy: uint64(retentionPeriodSec * 1000),
@@ -165,6 +165,7 @@ func (cache *HashCacheBase2) Stats(msecBack uint64) *hashcacheStats2 {
 	var numVisited int
 	var lat float64
 
+	cache.Lock()
 	cache.ForEachEntry(func(entry *CacheEntry2) {
 		ret.Numtx++
 		if entry.LastSeen >= earliest {
@@ -180,6 +181,8 @@ func (cache *HashCacheBase2) Stats(msecBack uint64) *hashcacheStats2 {
 			}
 		}
 	})
+	cache.Unlock()
+
 	if ret.Numtx > 0 {
 		ret.NumNoVisitPerc = (100 * ret.NumNoVisit) / ret.Numtx
 	}

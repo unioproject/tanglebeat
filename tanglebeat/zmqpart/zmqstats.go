@@ -110,12 +110,16 @@ func (glb *ZmqOutputStatsStruct) updateSlowStats() {
 	vbs := valueBundleCache.Stats(0) // count all of it
 	var confbundles int
 	var confirmed *bool
-	valueBundleCache.ForEachEntry(func(entry *hashcache.CacheEntry) {
+
+	valueBundleCache.Lock()
+	valueBundleCache.ForEachEntry(func(entry *hashcache.CacheEntry2) {
 		confirmed, _ = entry.Data.(*bool)
 		if *confirmed {
 			confbundles++
 		}
 	})
+	valueBundleCache.Unlock()
+
 	glb.ConfBundleNumseg = vbs.Numseg
 	glb.ConfBundleNumhashes = vbs.Numtx
 	glb.ConfBundleNumconfirmed = confbundles
