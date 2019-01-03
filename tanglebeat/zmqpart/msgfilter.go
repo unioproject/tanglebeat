@@ -17,10 +17,10 @@ const (
 )
 
 var (
-	txcache          *hashcache.HashCacheBase2
+	txcache          *hashcache.HashCacheBase
 	sncache          *hashCacheSN
-	valueTxCache     *hashcache.HashCacheBase2
-	valueBundleCache *hashcache.HashCacheBase2
+	valueTxCache     *hashcache.HashCacheBase
+	valueBundleCache *hashcache.HashCacheBase
 )
 
 type zmqMsg struct {
@@ -66,7 +66,7 @@ func filterMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 func filterTXMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 	var seen bool
 	var behind uint64
-	var entry hashcache.CacheEntry2
+	var entry hashcache.CacheEntry
 
 	if len(msgSplit) < 2 {
 		errorf("%v: Message %v is invalid", routine.GetUri(), string(msgData))

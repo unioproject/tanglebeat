@@ -56,7 +56,7 @@ func processValueTxMsg(msgSplit []string) {
 		}
 	case "sn":
 		if len(msgSplit) >= 7 {
-			var entry hashcache.CacheEntry2
+			var entry hashcache.CacheEntry
 			// confirmed value transaction received
 			// checking if it was seen valueTxCache.
 			// If so, delete it from there and update corresponding metrics

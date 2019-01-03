@@ -112,7 +112,7 @@ func (glb *ZmqOutputStatsStruct) updateSlowStats() {
 	var confirmed *bool
 
 	valueBundleCache.Lock()
-	valueBundleCache.ForEachEntry(func(entry *hashcache.CacheEntry2) {
+	valueBundleCache.ForEachEntry(func(entry *hashcache.CacheEntry) {
 		confirmed, _ = entry.Data.(*bool)
 		if *confirmed {
 			confbundles++

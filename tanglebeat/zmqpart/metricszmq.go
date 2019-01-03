@@ -241,7 +241,7 @@ func startCollectingMiotaPrice(localLog *logging.Logger) {
 
 const latencyMsecBack = 10 * 60 * 1000
 
-func startCollectingLatencyMetrics(txc *hashcache.HashCacheBase2, snc *hashCacheSN) {
+func startCollectingLatencyMetrics(txc *hashcache.HashCacheBase, snc *hashCacheSN) {
 	go func() {
 		for {
 			time.Sleep(10 * time.Second)
