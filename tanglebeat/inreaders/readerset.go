@@ -39,6 +39,8 @@ func (irs *InputReaderSet) AddInputReader(name string, ir InputReader) {
 	}
 }
 
+const restartAfter = 1 * time.Minute
+
 func (irs *InputReaderSet) runStarter() {
 	debugf("---- running starter '%v'", irs.name)
 	for {
@@ -48,13 +50,14 @@ func (irs *InputReaderSet) runStarter() {
 			name := n
 			//----------------
 			inputRoutine.Lock()
-			if !inputRoutine.isRunning__() {
-				inputRoutine.setRunning__(true)
+			if !inputRoutine.isRunning__() && inputRoutine.isTimeToRestart__() {
+				inputRoutine.setRunning__()
 				go func() {
 					inputRoutine.Run(name)
 					inputRoutine.Lock()
-					inputRoutine.setRunning__(false)
+					inputRoutine.setIdle__(restartAfter)
 					inputRoutine.Unlock()
+					infof("Input routine '%v' will be restarted after %v", name, restartAfter)
 				}()
 			}
 			inputRoutine.Unlock()

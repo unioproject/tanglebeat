@@ -6,10 +6,17 @@ import (
 	"time"
 )
 
+// InputReader is abstract interface to the object with go routine which reads input from
+// ZeroMQ, Nanomsg or similar data sources
+// Upon i/o error routines stops running. Then starter routine restarts it again after some time
+
 type InputReader interface {
 	Lock()
 	Unlock()
-	setRunning__(bool)
+	setRunning__()
+	setIdle__(time.Duration)
+	isTimeToRestart__() bool
+
 	isRunning__() bool
 
 	SetReading(bool)
@@ -27,6 +34,7 @@ type InputReaderBase struct {
 	running       bool
 	reading       bool
 	lastErr       string
+	restartAt     time.Time
 	readingSince  time.Time
 	lastHeartbeat time.Time
 	mutex         *sync.Mutex
@@ -41,6 +49,7 @@ type InputReaderBaseStats struct {
 
 func NewInputReaderBase() *InputReaderBase {
 	return &InputReaderBase{
+		restartAt:     time.Now(),
 		lastHeartbeat: time.Now(),
 		mutex:         &sync.Mutex{},
 	}
@@ -90,8 +99,17 @@ func (r *InputReaderBase) isRunning__() bool {
 	return r.running
 }
 
-func (r *InputReaderBase) setRunning__(running bool) {
-	r.running = running
+func (r *InputReaderBase) setRunning__() {
+	r.running = true
+}
+
+func (r *InputReaderBase) setIdle__(restartAfter time.Duration) {
+	r.running = false
+	r.restartAt = time.Now().Add(restartAfter)
+}
+
+func (r *InputReaderBase) isTimeToRestart__() bool {
+	return time.Now().After(r.restartAt)
 }
 
 func (r *InputReaderBase) GetReaderBaseStats__() *InputReaderBaseStats {
