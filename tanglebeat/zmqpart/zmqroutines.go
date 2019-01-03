@@ -5,40 +5,23 @@ import (
 	"github.com/lunfardo314/tanglebeat/lib/ebuffer"
 	"github.com/lunfardo314/tanglebeat/lib/nanomsg"
 	"github.com/lunfardo314/tanglebeat/lib/utils"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
 	"math"
 	"sort"
-	"strconv"
 	"strings"
 )
 
 const (
-	useFirstHashTrytes            = 18 // first positions of the hash will only be used in hash table. To spare memory
-	segmentDurationTXSec          = 60
-	segmentDurationValueTXSec     = 10 * 60
-	segmentDurationValueBundleSec = 10 * 60
-	segmentDurationSNSec          = 1 * 60
-	retentionPeriodSec            = 60 * 60
-	tlTXCacheSegmentDurationSec   = 10
-	tlSNCacheSegmentDurationSec   = 60
-)
-
-var (
-	txcache          *hashcache.HashCacheBase
-	sncache          *hashCacheSN
-	valueTxCache     *hashcache.HashCacheBase
-	valueBundleCache *hashcache.HashCacheBase
+	tlTXCacheSegmentDurationSec = 10
+	tlSNCacheSegmentDurationSec = 60
 )
 
 type zmqRoutine struct {
 	inreaders.InputReaderBase
-	uri             string
-	txCount         uint64
-	ctxCount        uint64
-	obsoleteSnCount uint64
-	//tsLastTXSomeMin   *ebuffer.BufferWithExpiration
-	//tsLastSNSomeMin   *ebuffer.BufferWithExpiration
+	uri               string
+	txCount           uint64
+	ctxCount          uint64
+	obsoleteSnCount   uint64
 	tsLastTXSomeMin   *ebuffer.EventTsExpiringBuffer
 	tsLastSNSomeMin   *ebuffer.EventTsExpiringBuffer
 	last100TXBehindMs *utils.RingArray
@@ -59,12 +42,7 @@ var (
 )
 
 func MustInitZmqRoutines(outPort int, inputs []string) {
-	txcache = hashcache.NewHashCacheBase(useFirstHashTrytes, segmentDurationTXSec, retentionPeriodSec)
-	sncache = newHashCacheSN(useFirstHashTrytes, segmentDurationSNSec, retentionPeriodSec)
-	valueTxCache = hashcache.NewHashCacheBase(useFirstHashTrytes, segmentDurationValueTXSec, retentionPeriodSec)
-	valueBundleCache = hashcache.NewHashCacheBase(useFirstHashTrytes, segmentDurationValueBundleSec, retentionPeriodSec)
-	startCollectingLatencyMetrics(txcache, sncache)
-
+	initMsgFilter()
 	zmqRoutines = inreaders.NewInputReaderSet("zmq routine set")
 	var err error
 	compoundOutPublisher, err = nanomsg.NewPublisher(outPort, 0, nil)
@@ -91,10 +69,6 @@ func (r *zmqRoutine) init() {
 	tracef("++++++++++++ INIT zmqRoutine uri = '%v'", r.GetUri())
 	r.Lock()
 	defer r.Unlock()
-	//r.tsLastTXSomeMin = ebuffer.NewBufferWE(
-	//	false, tlTXCacheSegmentDurationSec, 5*60, r.uri+"-tsLastTXSomeMin")
-	//r.tsLastSNSomeMin = ebuffer.NewBufferWE(
-	//	false, tlSNCacheSegmentDurationSec, 5*60, r.uri+"-tsLastSNSomeMin")
 	r.tsLastTXSomeMin = ebuffer.NewEventTsExpiringBuffer(tlTXCacheSegmentDurationSec, 5*60)
 	r.tsLastSNSomeMin = ebuffer.NewEventTsExpiringBuffer(tlSNCacheSegmentDurationSec, 5*60)
 	r.last100TXBehindMs = utils.NewRingArray(100)
@@ -143,84 +117,31 @@ func (r *zmqRoutine) Run(name string) {
 
 		//updateVecMetrics(msgSplit[0], r.Uri)
 
-		switch msgSplit[0] {
-		case "tx":
-			r.processTXMsg(msg.Frames[0], msgSplit)
-		case "sn":
-			r.processSNMsg(msg.Frames[0], msgSplit)
-		}
+		// send to filer's channel
+		toFilter(r, msg.Frames[0], msgSplit)
 	}
 }
 
-func (r *zmqRoutine) processTXMsg(msgData []byte, msgSplit []string) {
-	var seen bool
-	var behind uint64
-	var entry hashcache.CacheEntry
-
-	if len(msgSplit) < 2 {
-		errorf("%v: Message %v is invalid", r.GetUri(), string(msgData))
-		return
-	}
-	seen = txcache.SeenHash(msgSplit[1], nil, &entry)
-
-	if seen {
-		behind = utils.SinceUnixMs(entry.FirstSeen)
-	} else {
-		behind = 0
-	}
+func (r *zmqRoutine) accountTx(behind uint64) {
 	r.Lock()
+	defer r.Unlock()
 	r.txCount++
 	r.tsLastTXSomeMin.RecordTS()
 	r.last100TXBehindMs.Push(behind)
-	r.Unlock()
-
-	toOutput(msgData, msgSplit, entry.Visits)
 }
 
-func (r *zmqRoutine) processSNMsg(msgData []byte, msgSplit []string) {
-	var hash string
-	var seen bool
-	var behind uint64
-	var index int
-	var err error
-	var entry hashcache.CacheEntry
-
-	if len(msgSplit) < 3 {
-		errorf("%v: Message %v is invalid", r.GetUri(), string(msgData))
-		return
-	}
-	index, err = strconv.Atoi(msgSplit[1])
-	seen = false
-	if err != nil {
-		errorf("expected index, found %v", msgSplit[1])
-		return
-	}
-	obsolete, _ := sncache.checkCurrentMilestoneIndex(index, r.GetUri())
-	if obsolete {
-		// if index of the current confirmetion message is less than the latest seen,
-		// confirmation is ignored.
-		// Reason: if it is not too old, it must had been seen from other sources
-		r.Lock()
-		r.obsoleteSnCount++
-		r.Unlock()
-		return
-	}
-	hash = msgSplit[2]
-
-	seen = sncache.SeenHash(hash, nil, &entry)
-	if seen {
-		behind = utils.SinceUnixMs(entry.FirstSeen)
-	} else {
-		behind = 0
-	}
-
+func (r *zmqRoutine) accountSn(behind uint64) {
 	r.Lock()
+	defer r.Unlock()
 	r.ctxCount++
 	r.tsLastSNSomeMin.RecordTS()
 	r.last100SNBehindMs.Push(behind)
-	r.Unlock()
+}
 
-	toOutput(msgData, msgSplit, entry.Visits)
+func (r *zmqRoutine) incObsoleteCount() {
+	r.Lock()
+	defer r.Unlock()
+	r.obsoleteSnCount++
 }
 
 type ZmqRoutineStats struct {
