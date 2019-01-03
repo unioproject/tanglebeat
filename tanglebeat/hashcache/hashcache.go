@@ -32,7 +32,7 @@ var segmentConstructor = func(prev ebuffer.ExpiringSegment) ebuffer.ExpiringSegm
 	return ebuffer.ExpiringSegment(ret)
 }
 
-func NewHashCacheBase2(hashLen int, segmentDurationSec int, retentionPeriodSec int) *HashCacheBase {
+func NewHashCacheBase(hashLen int, segmentDurationSec int, retentionPeriodSec int) *HashCacheBase {
 	return &HashCacheBase{
 		ExpiringBuffer:        *ebuffer.NewExpiringBuffer(segmentDurationSec, retentionPeriodSec, segmentConstructor),
 		hashLen:               hashLen,
