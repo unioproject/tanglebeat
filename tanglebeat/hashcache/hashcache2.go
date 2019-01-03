@@ -3,8 +3,6 @@ package hashcache
 import (
 	"github.com/lunfardo314/tanglebeat/lib/ebuffer"
 	"github.com/lunfardo314/tanglebeat/lib/utils"
-	"sync"
-	"time"
 )
 
 type CacheEntry2 struct {
@@ -44,8 +42,6 @@ func NewHashCacheBase2(hashLen int, segmentDurationSec int, retentionPeriodSec i
 }
 
 func (seg *cacheSegment2) Put(args ...interface{}) {
-	seg.Lock()
-	defer seg.Unlock()
 	shorthash := args[0].(string)
 	nowis := utils.UnixMsNow()
 	seg.themap[shorthash] = CacheEntry2{
@@ -57,14 +53,11 @@ func (seg *cacheSegment2) Put(args ...interface{}) {
 }
 
 func (seg *cacheSegment2) Size() int {
-	seg.RLock()
-	defer seg.RUnlock()
 	return len(seg.themap)
 }
 
+// searches for the hash, marks if found
 func (seg *cacheSegment2) Find(shorthash string, ret *CacheEntry2) bool {
-	seg.Lock()
-	defer seg.Unlock()
 	entry, ok := seg.themap[shorthash]
 	if !ok {
 		return false
@@ -82,8 +75,6 @@ func (seg *cacheSegment2) Find(shorthash string, ret *CacheEntry2) bool {
 }
 
 func (seg *cacheSegment2) FindWithDelete(shorthash string, ret *CacheEntry2) bool {
-	seg.Lock()
-	defer seg.Unlock()
 	entry, ok := seg.themap[shorthash]
 	if !ok {
 		return false
@@ -105,39 +96,32 @@ func (cache *HashCacheBase2) shortHash(hash string) string {
 }
 
 func (cache *HashCacheBase2) __insertNew(shorthash string, data interface{}) {
-	// TODO blogai -- dvigubas blokavimas
 	cache.NewEntry(shorthash, data)
 }
 
 // finds entry and increases visit counter if found
 func (cache *HashCacheBase2) __find(shorthash string, ret *CacheEntry2) bool {
 	var found bool
-	cache.ForEachSegment_(func(seg interface{}) bool {
-		hcseg := seg.(*cacheSegment2)
-		if hcseg.Find(shorthash, ret) {
+	cache.ForEachSegment(func(seg ebuffer.ExpiringSegment) {
+		if seg.(*cacheSegment2).Find(shorthash, ret) {
 			found = true
-			return false
 		}
-		return true
 	})
 	return found
 }
 
 func (cache *HashCacheBase2) Find(hash string, ret *CacheEntry2) bool {
-	cache.RLock()
-	defer cache.RUnlock()
+	cache.Lock()
+	defer cache.Unlock()
 	return cache.__find(cache.shortHash(hash), ret)
 }
 
 func (cache *HashCacheBase2) __findWithDelete(shorthash string, ret *CacheEntry2) bool {
 	var found bool
-	cache.ForEachSegment_(func(seg interface{}) bool {
-		hcseg := seg.(*cacheSegment2)
-		if hcseg.FindWithDelete(shorthash, ret) {
+	cache.ForEachSegment(func(seg ebuffer.ExpiringSegment) {
+		if seg.(*cacheSegment2).FindWithDelete(shorthash, ret) {
 			found = true
-			return false
 		}
-		return true
 	})
 	return found
 }
@@ -152,8 +136,8 @@ func (cache *HashCacheBase2) FindWithDelete(hash string, ret *CacheEntry2) bool 
 }
 
 func (cache *HashCacheBase2) SeenHash(hash string, data interface{}, ret *CacheEntry2) bool {
-	cache.RLock()
-	defer cache.RUnlock()
+	cache.Lock()
+	defer cache.Unlock()
 
 	shash := cache.shortHash(hash)
 	if seen := cache.__find(shash, ret); seen {
@@ -208,15 +192,12 @@ func (cache *HashCacheBase2) Stats(msecBack uint64) *hashcacheStats2 {
 
 func (cache *HashCacheBase2) ForEachEntry(callback func(entry *CacheEntry2)) {
 	earliest := utils.UnixMsNow() - cache.retentionPeriodMsCopy
-	cache.ForEach(func(data interface{}) bool {
-		seg, _ := data.(*cacheSegment2)
-		seg.mutex.Lock()
-		defer seg.mutex.Unlock()
+	cache.ForEachSegment(func(s ebuffer.ExpiringSegment) {
+		seg := s.(*cacheSegment2)
 		for _, entry := range seg.themap {
 			if entry.LastSeen >= earliest {
 				callback(&entry)
 			}
 		}
-		return true
 	})
 }

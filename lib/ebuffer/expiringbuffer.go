@@ -10,29 +10,35 @@ import (
 type ExpiringSegment interface {
 	IsExpired(retentionPeriodMs uint64) bool
 	IsOpen(segDurationMs uint64) bool
-	GetPrev_() ExpiringSegment
-	SetPrev_(ExpiringSegment)
+	GetPrev() ExpiringSegment
+	SetPrev(ExpiringSegment)
 	Put(data ...interface{})
-	Touch_()
+	Touch()
 	Size() int
 }
 
 //-------------------------------
-// ExpiringBuffer is linked list of ExpiringSegments and purge loop in the background
+// ExpiringBuffer is abstract type, mus be used for concrete thread safe implementation
+// It is linked list of ExpiringSegments and purge loop in the background
+// Provides low level functions for implementations.
+// Not thread safe, but has locking primitives to make it therad safe in implementations
+// Purge routine in the background is synchronized with locking
+
 type ExpiringBuffer struct {
-	segDurationMs     uint64
-	retentionPeriodMs uint64
-	constructor       func(prev ExpiringSegment) ExpiringSegment
-	top               ExpiringSegment
-	mutex             *sync.RWMutex
+	segDurationMs      uint64
+	retentionPeriodMs  uint64
+	segmentConstructor func(prev ExpiringSegment) ExpiringSegment
+	top                ExpiringSegment
+	mutex              *sync.Mutex
 }
 
+// Thread safe through the lock of the whole buffer
 func NewExpiringBuffer(segDurationSec, retentionPeriodSec int, constructor func(prev ExpiringSegment) ExpiringSegment) *ExpiringBuffer {
 	return &ExpiringBuffer{
-		segDurationMs:     uint64(segDurationSec * 1000),
-		retentionPeriodMs: uint64(retentionPeriodSec * 1000),
-		constructor:       constructor,
-		mutex:             &sync.RWMutex{},
+		segDurationMs:      uint64(segDurationSec * 1000),
+		retentionPeriodMs:  uint64(retentionPeriodSec * 1000),
+		segmentConstructor: constructor,
+		mutex:              &sync.Mutex{},
 	}
 }
 
@@ -44,88 +50,82 @@ func (buf *ExpiringBuffer) Unlock() {
 	buf.mutex.Unlock()
 }
 
-func (buf *ExpiringBuffer) RLock() {
-	buf.mutex.RLock()
-}
-
-func (buf *ExpiringBuffer) RUnlock() {
-	buf.mutex.RUnlock()
-}
-
 func (buf *ExpiringBuffer) isEmpty() bool {
-	buf.RLock()
-	defer buf.RUnlock()
 	return buf.top == nil
 }
 
 const purgeLoopSleepSec = 5
 
+// ---------------------- THREAD SAFE
+// purge is protected by locking
+func (buf *ExpiringBuffer) purge() bool {
+	buf.Lock()
+	defer buf.Unlock()
+	if buf.isEmpty() {
+		return false
+	}
+	if buf.top.IsExpired(buf.retentionPeriodMs) {
+		tracef("Expiring Buffer purge routine: purged top segment with size = %v", buf.top.Size())
+		buf.top = nil
+		return false
+	}
+	for s := buf.top; ; {
+		if s == nil {
+			break
+		}
+		prev := s.GetPrev()
+		if prev == nil {
+			break
+		}
+		if prev.IsExpired(buf.retentionPeriodMs) {
+			tracef("Expiring Buffer purge routine: purged segment of size = %v", prev.Size())
+			s.SetPrev(nil)
+			break
+		}
+		s = prev
+	}
+	return true
+}
+
 func (buf *ExpiringBuffer) purgeLoop() {
 	tracef("Expiring Buffer purge routine: loop started")
 	defer tracef("Expiring Buffer purge routine: loop finished")
 
-	for {
-		if buf.isEmpty() {
-			return
-		}
-		if buf.top.IsExpired(buf.retentionPeriodMs) {
-			tracef("Expiring Buffer purge routine: purged top segment with size = %v", buf.top.Size())
-			buf.top = nil
-			return
-		}
-		buf.Lock()
-		for s := buf.top; ; {
-			if s == nil {
-				break
-			}
-			prev := s.GetPrev_()
-			if prev == nil {
-				break
-			}
-			if prev.IsExpired(buf.retentionPeriodMs) {
-				tracef("Expiring Buffer purge routine: purged segment of size = %v", prev.Size())
-				s.SetPrev_(nil)
-				break
-			}
-			s = prev
-		}
-		buf.Unlock()
+	for buf.purge() {
 		time.Sleep(time.Duration(purgeLoopSleepSec) * time.Second)
 	}
 }
 
-func (buf *ExpiringBuffer) NewEntry(data ...interface{}) {
-	empty := buf.isEmpty()
-	if empty || !buf.top.IsOpen(buf.segDurationMs) {
-		buf.Lock()
-		buf.top = buf.constructor(buf.top)
-		buf.Unlock()
-		if empty {
-			go buf.purgeLoop()
-		}
-	}
-	buf.top.Put(data...)
-	buf.top.Touch_()
-}
-
 func (buf *ExpiringBuffer) Size() (int, int) {
-	buf.RLock()
-	defer buf.RUnlock()
-
+	buf.Lock()
+	defer buf.Unlock()
 	var numseg, numentries int
-	for s := buf.top; s != nil; s = s.GetPrev_() {
+	for s := buf.top; s != nil; s = s.GetPrev() {
 		numseg++
 		numentries += s.Size()
 	}
 	return numseg, numentries
 }
 
-func (buf *ExpiringBuffer) ForEachSegment_(callback func(interface{}) bool) {
-	for s := buf.top; s != nil; s = s.GetPrev_() {
+//------------------ NOT THREAD SAFE
+func (buf *ExpiringBuffer) NewEntry(data ...interface{}) {
+	empty := buf.isEmpty()
+	if empty || !buf.top.IsOpen(buf.segDurationMs) {
+		buf.top = buf.segmentConstructor(buf.top)
+		if empty {
+			go buf.purgeLoop()
+		}
+	}
+	buf.top.Put(data...)
+	buf.top.Touch()
+}
+
+func (buf *ExpiringBuffer) ForEachSegment(callback func(seg ExpiringSegment)) {
+	for s := buf.top; s != nil; s = s.GetPrev() {
 		if !s.IsExpired(buf.retentionPeriodMs) {
-			if !callback(s) {
-				return
-			}
+			callback(s)
+		} else {
+			return
 		}
 	}
 }
@@ -135,7 +135,6 @@ type ExpiringSegmentBase struct {
 	created   uint64
 	lastTouch uint64
 	prev      ExpiringSegment
-	mutex     *sync.RWMutex
 }
 
 func NewExpiringSegmentBase() *ExpiringSegmentBase {
@@ -143,47 +142,26 @@ func NewExpiringSegmentBase() *ExpiringSegmentBase {
 	return &ExpiringSegmentBase{
 		created:   nowis,
 		lastTouch: nowis,
-		mutex:     &sync.RWMutex{},
 	}
 }
 
 func (seg *ExpiringSegmentBase) IsExpired(retentionPeriodMs uint64) bool {
-	seg.RLock()
-	defer seg.RUnlock()
 	return utils.UnixMsNow()-seg.lastTouch >= retentionPeriodMs
 }
 
 func (seg *ExpiringSegmentBase) IsOpen(segDurationMs uint64) bool {
-	seg.RLock()
-	defer seg.RUnlock()
 	return utils.UnixMsNow()-seg.created < segDurationMs
 }
 
-func (seg *ExpiringSegmentBase) GetPrev_() ExpiringSegment {
+func (seg *ExpiringSegmentBase) GetPrev() ExpiringSegment {
 	return seg.prev
 }
 
-func (seg *ExpiringSegmentBase) SetPrev_(prev ExpiringSegment) {
+func (seg *ExpiringSegmentBase) SetPrev(prev ExpiringSegment) {
 	seg.prev = prev
 }
 
-func (seg *ExpiringSegmentBase) Lock() {
-	seg.mutex.Lock()
-}
-
-func (seg *ExpiringSegmentBase) Unlock() {
-	seg.mutex.Unlock()
-}
-
-func (seg *ExpiringSegmentBase) RLock() {
-	seg.mutex.RLock()
-}
-
-func (seg *ExpiringSegmentBase) RUnlock() {
-	seg.mutex.RUnlock()
-}
-
-func (seg *ExpiringSegmentBase) Touch_() {
+func (seg *ExpiringSegmentBase) Touch() {
 	seg.lastTouch = utils.UnixMsNow()
 }
 
