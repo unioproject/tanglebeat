@@ -66,11 +66,14 @@ func (r *zmqRoutine) GetUri() string {
 var topics = []string{"tx", "sn"}
 
 func (r *zmqRoutine) init() {
-	tracef("++++++++++++ INIT zmqRoutine uri = '%v'", r.GetUri())
+	uri := r.GetUri()
+	tracef("++++++++++++ INIT zmqRoutine uri = '%v'", uri)
 	r.Lock()
 	defer r.Unlock()
-	r.tsLastTXSomeMin = ebuffer.NewEventTsExpiringBuffer(tlTXCacheSegmentDurationSec, 5*60)
-	r.tsLastSNSomeMin = ebuffer.NewEventTsExpiringBuffer(tlSNCacheSegmentDurationSec, 5*60)
+	r.tsLastTXSomeMin = ebuffer.NewEventTsExpiringBuffer(
+		"tsLastTXSomeMin: "+uri, tlTXCacheSegmentDurationSec, 5*60)
+	r.tsLastSNSomeMin = ebuffer.NewEventTsExpiringBuffer(
+		"tsLastSNSomeMin: "+uri, tlSNCacheSegmentDurationSec, 5*60)
 	r.last100TXBehindMs = utils.NewRingArray(100)
 	r.last100SNBehindMs = utils.NewRingArray(100)
 }

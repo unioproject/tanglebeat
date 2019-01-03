@@ -25,6 +25,7 @@ type ExpiringSegment interface {
 // Purge routine in the background is synchronized with locking
 
 type ExpiringBuffer struct {
+	id                 string
 	segDurationMs      uint64
 	retentionPeriodMs  uint64
 	segmentConstructor func(prev ExpiringSegment) ExpiringSegment
@@ -33,8 +34,9 @@ type ExpiringBuffer struct {
 }
 
 // Thread safe through the lock of the whole buffer
-func NewExpiringBuffer(segDurationSec, retentionPeriodSec int, constructor func(prev ExpiringSegment) ExpiringSegment) *ExpiringBuffer {
+func NewExpiringBuffer(id string, segDurationSec, retentionPeriodSec int, constructor func(prev ExpiringSegment) ExpiringSegment) *ExpiringBuffer {
 	return &ExpiringBuffer{
+		id:                 id,
 		segDurationMs:      uint64(segDurationSec * 1000),
 		retentionPeriodMs:  uint64(retentionPeriodSec * 1000),
 		segmentConstructor: constructor,
@@ -54,6 +56,10 @@ func (buf *ExpiringBuffer) isEmpty() bool {
 	return buf.top == nil
 }
 
+func (buf *ExpiringBuffer) GetID() string {
+	return buf.id
+}
+
 const purgeLoopSleepSec = 5
 
 // ---------------------- THREAD SAFE
@@ -65,7 +71,8 @@ func (buf *ExpiringBuffer) purge() bool {
 		return false
 	}
 	if buf.top.IsExpired(buf.retentionPeriodMs) {
-		tracef("Expiring Buffer purge routine: purged top segment with size = %v", buf.top.Size())
+		tracef("Expiring Buffer purge routine for '%v': purged top segment with size = %v",
+			buf.id, buf.top.Size())
 		buf.top = nil
 		return false
 	}
@@ -78,7 +85,8 @@ func (buf *ExpiringBuffer) purge() bool {
 			break
 		}
 		if prev.IsExpired(buf.retentionPeriodMs) {
-			tracef("Expiring Buffer purge routine: purged segment of size = %v", prev.Size())
+			tracef("Expiring Buffer purge routine for %v: purged segment of size = %v",
+				buf.id, prev.Size())
 			s.SetPrev(nil)
 			break
 		}
@@ -88,8 +96,8 @@ func (buf *ExpiringBuffer) purge() bool {
 }
 
 func (buf *ExpiringBuffer) purgeLoop() {
-	tracef("Expiring Buffer purge routine: loop started")
-	defer tracef("Expiring Buffer purge routine: loop finished")
+	tracef("Expiring Buffer purge routine '%v': loop started", buf.id)
+	defer tracef("Expiring Buffer purge routine '%v': loop finished", buf.id)
 
 	for buf.purge() {
 		time.Sleep(time.Duration(purgeLoopSleepSec) * time.Second)

@@ -10,7 +10,7 @@ import (
 func Test_EventTSExpiringSegment(t *testing.T) {
 	SetLog(nil, true)
 	retentionPeriodSec := 15
-	bwe := NewEventTsExpiringBuffer(5, retentionPeriodSec)
+	bwe := NewEventTsExpiringBuffer("testEventTsExpiringBuffer", 5, retentionPeriodSec)
 	wg := &sync.WaitGroup{}
 	numrun := 10
 	numentries := 10

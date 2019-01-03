@@ -32,9 +32,9 @@ var segmentConstructor = func(prev ebuffer.ExpiringSegment) ebuffer.ExpiringSegm
 	return ebuffer.ExpiringSegment(ret)
 }
 
-func NewHashCacheBase(hashLen int, segmentDurationSec int, retentionPeriodSec int) *HashCacheBase {
+func NewHashCacheBase(id string, hashLen int, segmentDurationSec int, retentionPeriodSec int) *HashCacheBase {
 	return &HashCacheBase{
-		ExpiringBuffer:        *ebuffer.NewExpiringBuffer(segmentDurationSec, retentionPeriodSec, segmentConstructor),
+		ExpiringBuffer:        *ebuffer.NewExpiringBuffer(id, segmentDurationSec, retentionPeriodSec, segmentConstructor),
 		hashLen:               hashLen,
 		segmentDurationMsCopy: uint64(segmentDurationSec * 1000),
 		retentionPeriodMsCopy: uint64(retentionPeriodSec * 1000),
@@ -167,8 +167,8 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 
 	cache.Lock()
 	cache.ForEachEntry(func(entry *CacheEntry) {
-		ret.Numtx++
 		if entry.LastSeen >= earliest {
+			ret.Numtx++
 			if entry.Visits > 1 {
 				numVisited++
 				lat = float64(entry.LastSeen-entry.FirstSeen) / 1000

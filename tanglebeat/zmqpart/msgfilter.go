@@ -40,10 +40,10 @@ func toFilter(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 }
 
 func initMsgFilter() {
-	txcache = hashcache.NewHashCacheBase(useFirstHashTrytes, segmentDurationTXSec, retentionPeriodSec)
+	txcache = hashcache.NewHashCacheBase("txcache", useFirstHashTrytes, segmentDurationTXSec, retentionPeriodSec)
 	sncache = newHashCacheSN(useFirstHashTrytes, segmentDurationSNSec, retentionPeriodSec)
-	valueTxCache = hashcache.NewHashCacheBase(useFirstHashTrytes, segmentDurationValueTXSec, retentionPeriodSec)
-	valueBundleCache = hashcache.NewHashCacheBase(useFirstHashTrytes, segmentDurationValueBundleSec, retentionPeriodSec)
+	valueTxCache = hashcache.NewHashCacheBase("valueTxCache", useFirstHashTrytes, segmentDurationValueTXSec, retentionPeriodSec)
+	valueBundleCache = hashcache.NewHashCacheBase("valueBundleCache", useFirstHashTrytes, segmentDurationValueBundleSec, retentionPeriodSec)
 	startCollectingLatencyMetrics(txcache, sncache)
 	go msgFilterRoutine()
 }

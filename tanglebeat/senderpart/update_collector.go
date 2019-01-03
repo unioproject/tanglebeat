@@ -28,7 +28,8 @@ var (
 )
 
 func MustInitSenderDataCollector(outEnabled bool, outPort int, inputs []string) {
-	publishedUpdates = hashcache.NewHashCacheBase(0, 10*60, 60*60)
+	publishedUpdates = hashcache.NewHashCacheBase(
+		"publishedUpdates", 0, 10*60, 60*60)
 	senderUpdateSources = inreaders.NewInputReaderSet("sender update routine set")
 
 	if outEnabled {

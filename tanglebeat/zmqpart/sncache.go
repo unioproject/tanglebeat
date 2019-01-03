@@ -15,7 +15,7 @@ type hashCacheSN struct {
 
 func newHashCacheSN(hashLen int, segmentDurationSec int, retentionPeriodSec int) *hashCacheSN {
 	ret := &hashCacheSN{
-		HashCacheBase: *hashcache.NewHashCacheBase(hashLen, segmentDurationSec, retentionPeriodSec),
+		HashCacheBase: *hashcache.NewHashCacheBase("sncache", hashLen, segmentDurationSec, retentionPeriodSec),
 	}
 	//ret.StartPurge()
 	return ret

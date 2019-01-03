@@ -18,7 +18,7 @@ type EventTsExpiringBuffer struct {
 
 const defaulCapacityEventTSExpiringSegment = 50
 
-func NewEventTsExpiringBuffer(segDurationSec, retentionPeriodSec int) *EventTsExpiringBuffer {
+func NewEventTsExpiringBuffer(id string, segDurationSec, retentionPeriodSec int) *EventTsExpiringBuffer {
 	if retentionPeriodSec <= segDurationSec {
 		retentionPeriodSec = segDurationSec
 		retentionPeriodSec += retentionPeriodSec / 10
@@ -34,7 +34,7 @@ func NewEventTsExpiringBuffer(segDurationSec, retentionPeriodSec int) *EventTsEx
 		return ret
 	}
 	return &EventTsExpiringBuffer{
-		ExpiringBuffer: *NewExpiringBuffer(segDurationSec, retentionPeriodSec, constructor),
+		ExpiringBuffer: *NewExpiringBuffer(id, segDurationSec, retentionPeriodSec, constructor),
 	}
 }
 
