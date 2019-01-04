@@ -29,6 +29,7 @@ var segmentConstructor = func(prev ebuffer.ExpiringSegment) ebuffer.ExpiringSegm
 		ExpiringSegmentBase: *ebuffer.NewExpiringSegmentBase(),
 		themap:              make(map[string]CacheEntry),
 	}
+	ret.SetPrev(prev)
 	return ebuffer.ExpiringSegment(ret)
 }
 

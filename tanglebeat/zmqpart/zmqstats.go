@@ -1,6 +1,7 @@
 package zmqpart
 
 import (
+	"fmt"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
 	"runtime"
 	"strconv"
@@ -18,6 +19,11 @@ type ZmqOutputStatsStruct struct {
 	ValueNegativeTotal    uint64 `json:"valueNegativeTotalOut"`
 	ConfirmedValueTx      uint64 `json:"confirmedValueTx"`
 	ConfirmedValueTxTotal uint64 `json:"confirmedValueTxTotal"`
+
+	SizeTXCache          string `json:"sizeTXCache"`
+	SizeSNCache          string `json:"sizeSNCache"`
+	SizeValueTxCache     string `json:"sizeValueTxCache"`
+	SizeValueBundleCache string `json:"sizeValueBundleCache"`
 
 	TXNumseg        int     `json:"tx_numseg"`
 	TXNumtx         int     `json:"tx_numtx"`
@@ -92,6 +98,20 @@ const min10ms = 10 * 60 * 1000
 func (glb *ZmqOutputStatsStruct) updateSlowStats() {
 	glb.mutex.Lock()
 	defer glb.mutex.Unlock()
+
+	var nseg, nen int
+
+	nseg, nen = txcache.Size()
+	glb.SizeTXCache = fmt.Sprintf("%v, %v", nseg, nen)
+
+	nseg, nen = sncache.Size()
+	glb.SizeSNCache = fmt.Sprintf("%v, %v", nseg, nen)
+
+	nseg, nen = valueTxCache.Size()
+	glb.SizeValueTxCache = fmt.Sprintf("%v, %v", nseg, nen)
+
+	nseg, nen = valueBundleCache.Size()
+	glb.SizeValueBundleCache = fmt.Sprintf("%v, %v", nseg, nen)
 
 	txs := txcache.Stats(0)
 	glb.TXNumseg = txs.Numseg
