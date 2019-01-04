@@ -2,165 +2,150 @@ package zmqpart
 
 import (
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
-	"runtime"
-	"strconv"
+	"math"
 	"sync"
 	"time"
 )
 
 type ZmqOutputStatsStruct struct {
-	TXout                 uint64 `json:"txOut"`
-	SNout                 uint64 `json:"snOut"`
-	ValuePositiveTx       uint64 `json:"valuePositiveTxOut"`
-	ValueNegativeTx       uint64 `json:"valueNegativeTxOut"`
-	ValueZeroTx           uint64 `json:"valueZeroOutTx"`
-	ValuePositiveTotal    uint64 `json:"valuePositiveTotalOut"`
-	ValueNegativeTotal    uint64 `json:"valueNegativeTotalOut"`
-	ConfirmedValueTx      uint64 `json:"confirmedValueTx"`
-	ConfirmedValueTxTotal uint64 `json:"confirmedValueTxTotal"`
+	LastMin uint64 `json:"lastMin"`
 
+	TXCount         int     `json:"txCount"`
+	TXSeenOnceCount int     `json:"txSeenOnceCount"`
+	TXLatencySecAvg float64 `json:"txLatencySecAvg"`
+
+	SNCount         int     `json:"snCount"`
+	SNSeenOnceCount int     `json:"snSeenOnceCount"`
+	SNLatencySecAvg float64 `json:"snLatencySecAvg"`
+
+	ConfirmedTransferCount int    `json:"ConfirmedValueBundleCount"`
+	ValueVolumeApprox      uint64 `json:"valueVolumeApprox"`
+}
+
+type ZmqRuntimeStatsStruct struct {
 	SizeTXCache          string `json:"sizeTXCache"`
 	SizeSNCache          string `json:"sizeSNCache"`
 	SizeValueTxCache     string `json:"sizeValueTxCache"`
 	SizeValueBundleCache string `json:"sizeValueBundleCache"`
-
-	TXNumseg        int     `json:"tx_numseg"`
-	TXNumtx         int     `json:"tx_numtx"`
-	TXNumNoVisit    int     `json:"tx_numNoVisit"`
-	TXLatencySecMax float64 `json:"tx_latencySecMax"`
-	TXLatencySecAvg float64 `json:"tx_latencySecAvg"`
-
-	SNNumseg        int     `json:"sn_numseg"`
-	SNNumtx         int     `json:"sn_numtx"`
-	SNNumNoVisit    int     `json:"sn_numNoVisit"`
-	SNLatencySecMax float64 `json:"sn_latencySecMax"`
-	SNLatencySecAvg float64 `json:"sn_latencySecAvg"`
-
-	ConfBundleNumseg       int `json:"confBundleNumseg"`
-	ConfBundleNumhashes    int `json:"confBundleNumhashes"`
-	ConfBundleNumconfirmed int `json:"confBundleNumconfirmed"`
-
-	MemAllocMB   float32 `json:"memAllocMB"`
-	NumGoroutine int     `json:"numGoroutine"`
-	mutex        *sync.Mutex
+	mutex                *sync.RWMutex
 }
 
-var ZmqStats *ZmqOutputStatsStruct
+var (
+	zmqRuntimeStats     = &ZmqRuntimeStatsStruct{mutex: &sync.RWMutex{}}
+	zmqOutputStatsMutex = &sync.RWMutex{}
+	zmqOutputStats      = &ZmqOutputStatsStruct{}
+	zmqOutputStats10min = &ZmqOutputStatsStruct{}
+)
 
-func init() {
-	ZmqStats = &ZmqOutputStatsStruct{
-		mutex: &sync.Mutex{},
-	}
+func GetRuntimeStats() *ZmqRuntimeStatsStruct {
+	zmqRuntimeStats.mutex.RLock()
+	defer zmqRuntimeStats.mutex.RUnlock()
+	ret := *zmqRuntimeStats
+	return &ret
+}
+
+func GetOutputStats() (*ZmqOutputStatsStruct, *ZmqOutputStatsStruct) {
+	zmqRuntimeStats.mutex.RLock()
+	defer zmqRuntimeStats.mutex.RUnlock()
+	ret := *zmqOutputStats
+	ret10min := *zmqOutputStats10min
+	return &ret, &ret10min
+}
+
+func InitZmqStatsCollector(refreshEverySec int) {
 	go func() {
 		for {
-			time.Sleep(5 * time.Second)
-			ZmqStats.updateSlowStats()
+			updateZmqRuntimeStats()
+			time.Sleep(time.Duration(refreshEverySec) * time.Second)
+		}
+	}()
+	go func() {
+		for {
+			updateZmqOutputSlowStats()
+			time.Sleep(time.Duration(refreshEverySec) * time.Second)
 		}
 	}()
 }
 
-func abs(n int) uint64 {
-	if n < 0 {
-		return uint64(-n)
-	}
-	return uint64(n)
+func updateZmqRuntimeStats() {
+	zmqRuntimeStats.mutex.Lock()
+	defer zmqRuntimeStats.mutex.Unlock()
+
+	var s, e int
+	s, e = txcache.Size()
+	zmqRuntimeStats.SizeTXCache = fmt.Sprintf("%v, %v", s, e)
+	s, e = sncache.Size()
+	zmqRuntimeStats.SizeSNCache = fmt.Sprintf("%v, %v", s, e)
+	s, e = positiveValueTxCache.Size()
+	zmqRuntimeStats.SizeValueTxCache = fmt.Sprintf("%v, %v", s, e)
+	s, e = valueBundleCache.Size()
+	zmqRuntimeStats.SizeValueBundleCache = fmt.Sprintf("%v, %v", s, e)
 }
 
-func (glb *ZmqOutputStatsStruct) updateMsgStats(msg []string) {
-	glb.mutex.Lock()
-	defer glb.mutex.Unlock()
-	switch msg[0] {
-	case "tx":
-		glb.TXout++
-		if len(msg) >= 4 {
-			value, err := strconv.Atoi(msg[3])
-			if err == nil {
-				switch {
-				case value < 0:
-					glb.ValueNegativeTx++
-					glb.ValueNegativeTotal += abs(value)
-				case value == 0:
-					glb.ValueZeroTx++
-				case value > 0:
-					glb.ValuePositiveTx++
-					glb.ValuePositiveTotal += uint64(value)
-				}
-			}
-		}
-	case "sn":
-		glb.SNout++
-	}
-}
+func updateZmqOutputSlowStats() {
 
-const min10ms = 10 * 60 * 1000
-
-func (glb *ZmqOutputStatsStruct) updateSlowStats() {
-	glb.mutex.Lock()
-	defer glb.mutex.Unlock()
-
-	var nseg, nen int
-
-	nseg, nen = txcache.Size()
-	glb.SizeTXCache = fmt.Sprintf("%v, %v", nseg, nen)
-
-	nseg, nen = sncache.Size()
-	glb.SizeSNCache = fmt.Sprintf("%v, %v", nseg, nen)
-
-	nseg, nen = valueTxCache.Size()
-	glb.SizeValueTxCache = fmt.Sprintf("%v, %v", nseg, nen)
-
-	nseg, nen = valueBundleCache.Size()
-	glb.SizeValueBundleCache = fmt.Sprintf("%v, %v", nseg, nen)
-
+	// all retentionPeriod stats
+	var st ZmqOutputStatsStruct
 	txs := txcache.Stats(0)
-	glb.TXNumseg = txs.Numseg
-	glb.TXNumtx = txs.Numtx
-	glb.TXNumNoVisit = txs.NumNoVisit
-	glb.TXLatencySecMax = txs.LatencySecMax
-	glb.TXLatencySecAvg = txs.LatencySecAvg
+	st.TXCount = txs.TxCount
+	st.TXSeenOnceCount = txs.SeenOnce
+	st.TXLatencySecAvg = math.Round(txs.LatencySecAvg*100) / 100
 
 	sns := sncache.Stats(0)
-	glb.SNNumseg = sns.Numseg
-	glb.SNNumtx = sns.Numtx
-	glb.SNNumNoVisit = sns.NumNoVisit
-	glb.SNLatencySecMax = sns.LatencySecMax
-	glb.SNLatencySecAvg = sns.LatencySecAvg
+	st.SNCount = sns.TxCount
+	st.SNSeenOnceCount = sns.SeenOnce
+	st.SNLatencySecAvg = math.Round(sns.LatencySecAvg*100) / 100
 
-	vbs := valueBundleCache.Stats(0) // count all of it
-	var confbundles int
-	var confirmed *bool
+	st.ConfirmedTransferCount, st.ValueVolumeApprox = getValueConfirmationStats(0)
 
-	valueBundleCache.Lock()
-	valueBundleCache.ForEachEntry(func(entry *hashcache.CacheEntry) {
-		confirmed, _ = entry.Data.(*bool)
-		if *confirmed {
-			confbundles++
-		}
-	})
-	valueBundleCache.Unlock()
+	// 10 min stats
+	const msecBack = 10 * 60 * 1000
+	var st10 ZmqOutputStatsStruct
+	txs = txcache.Stats(msecBack)
+	st10.TXCount = txs.TxCount
+	st10.TXSeenOnceCount = txs.SeenOnce
+	st10.TXLatencySecAvg = math.Round(txs.LatencySecAvg*100) / 100
 
-	glb.ConfBundleNumseg = vbs.Numseg
-	glb.ConfBundleNumhashes = vbs.Numtx
-	glb.ConfBundleNumconfirmed = confbundles
+	sns = sncache.Stats(msecBack)
+	st10.SNCount = sns.TxCount
+	st10.SNSeenOnceCount = sns.SeenOnce
+	st10.SNLatencySecAvg = math.Round(sns.LatencySecAvg*100) / 100
 
-	var mem runtime.MemStats
-	runtime.ReadMemStats(&mem)
-	glb.MemAllocMB = float32(mem.Alloc/1024) / 1024
-	glb.NumGoroutine = runtime.NumGoroutine()
+	st10.ConfirmedTransferCount, st.ValueVolumeApprox = getValueConfirmationStats(msecBack)
+
+	zmqOutputStatsMutex.Lock()
+
+	*zmqOutputStats = st
+	zmqOutputStats.LastMin = retentionPeriodSec / 60
+	*zmqOutputStats10min = st10
+	zmqOutputStats10min.LastMin = msecBack / (60 * 1000)
+
+	zmqOutputStatsMutex.Unlock()
 }
 
-func (glb *ZmqOutputStatsStruct) updateConfirmedValueTxStats(value uint64) {
-	glb.mutex.Lock()
-	defer glb.mutex.Unlock()
-	glb.ConfirmedValueTx++
-	glb.ConfirmedValueTxTotal += value
+type latencyMetrics10min struct {
+	txAvgLatencySec     float64
+	txNotPropagatedPerc int
+	snAvgLatencySec     float64
+	snNotPropagatedPerc int
 }
 
-func (glb *ZmqOutputStatsStruct) GetCopy() ZmqOutputStatsStruct {
-	glb.mutex.Lock()
-	defer glb.mutex.Unlock()
-	ret := *glb
-	ret.mutex = nil
-	return ret
+func getLatencyStats10minForMetrics(ret *latencyMetrics10min) {
+	zmqOutputStatsMutex.RLock()
+	defer zmqOutputStatsMutex.RUnlock()
+
+	ret.txAvgLatencySec = zmqOutputStats10min.TXLatencySecAvg
+	ret.snAvgLatencySec = zmqOutputStats10min.SNLatencySecAvg
+
+	ret.txAvgLatencySec = ret.txAvgLatencySec
+	ret.snAvgLatencySec = ret.snAvgLatencySec
+
+	ret.txNotPropagatedPerc = 0
+	if zmqOutputStats10min.TXCount != 0 {
+		ret.txNotPropagatedPerc = (zmqOutputStats10min.TXSeenOnceCount * 100) / zmqOutputStats10min.TXCount
+	}
+	ret.snNotPropagatedPerc = 0
+	if zmqOutputStats10min.SNCount != 0 {
+		ret.snNotPropagatedPerc = (zmqOutputStats10min.SNSeenOnceCount * 100) / zmqOutputStats10min.SNCount
+	}
 }

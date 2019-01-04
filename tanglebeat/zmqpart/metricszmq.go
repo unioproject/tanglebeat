@@ -28,11 +28,9 @@ var (
 	zmqMetricsCtxCounterCompound Counter
 
 	zmqMetricsLatencyTXAvg        Gauge
-	zmqMetricsLatencyTXMax        Gauge
 	zmqMetricsNotPropagatedPercTX Gauge
 
 	zmqMetricsLatencySNAvg        Gauge
-	zmqMetricsLatencySNMax        Gauge
 	zmqMetricsNotPropagatedPercSN Gauge
 
 	//zmqMetricsTxCounterVec  *CounterVec
@@ -105,12 +103,6 @@ func init() {
 	})
 	MustRegister(zmqMetricsLatencyTXAvg)
 
-	zmqMetricsLatencyTXMax = NewGauge(GaugeOpts{
-		Name: "tanglebeat_latency_tx_max",
-		Help: "Maximum relative latency of transaction messages",
-	})
-	MustRegister(zmqMetricsLatencyTXMax)
-
 	zmqMetricsNotPropagatedPercTX = NewGauge(GaugeOpts{
 		Name: "tanglebeat_not_propagated_tx_perc",
 		Help: "Percentage of tx messages not propagated",
@@ -122,12 +114,6 @@ func init() {
 		Help: "Average relative latency of confirmation messages",
 	})
 	MustRegister(zmqMetricsLatencySNAvg)
-
-	zmqMetricsLatencySNMax = NewGauge(GaugeOpts{
-		Name: "tanglebeat_latency_confirm_max",
-		Help: "Maximum relative latency of confirmation messages",
-	})
-	MustRegister(zmqMetricsLatencySNMax)
 
 	zmqMetricsNotPropagatedPercSN = NewGauge(GaugeOpts{
 		Name: "tanglebeat_not_propagated_confirm_perc",
@@ -242,19 +228,18 @@ func startCollectingMiotaPrice(localLog *logging.Logger) {
 const latencyMsecBack = 10 * 60 * 1000
 
 func startCollectingLatencyMetrics(txc *hashcache.HashCacheBase, snc *hashCacheSN) {
+	var lm latencyMetrics10min
 	go func() {
 		for {
-			time.Sleep(10 * time.Second)
+			time.Sleep(5 * time.Second)
 
-			txcSats := txc.Stats(latencyMsecBack)
-			zmqMetricsLatencyTXAvg.Set(txcSats.LatencySecAvg)
-			zmqMetricsLatencyTXMax.Set(txcSats.LatencySecMax)
-			zmqMetricsNotPropagatedPercTX.Set(float64(txcSats.NumNoVisitPerc))
+			getLatencyStats10minForMetrics(&lm)
 
-			sncStats := snc.Stats(latencyMsecBack)
-			zmqMetricsLatencySNAvg.Set(sncStats.LatencySecAvg)
-			zmqMetricsLatencySNMax.Set(sncStats.LatencySecMax)
-			zmqMetricsNotPropagatedPercSN.Set(float64(sncStats.NumNoVisitPerc))
+			zmqMetricsLatencyTXAvg.Set(lm.txAvgLatencySec)
+			zmqMetricsNotPropagatedPercTX.Set(float64(lm.txNotPropagatedPerc))
+
+			zmqMetricsLatencySNAvg.Set(lm.txAvgLatencySec)
+			zmqMetricsNotPropagatedPercSN.Set(float64(lm.snNotPropagatedPerc))
 		}
 	}()
 }

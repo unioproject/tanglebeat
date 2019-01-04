@@ -149,12 +149,9 @@ func (cache *HashCacheBase) SeenHash(hash string, data interface{}, ret *CacheEn
 }
 
 type hashcacheStats struct {
-	Numseg         int     `json:"numseg"`
-	Numtx          int     `json:"numtx"`
-	NumNoVisit     int     `json:"numNoVisit"`
-	NumNoVisitPerc int     `json:"numNoVisitPerc"`
-	LatencySecMax  float64 `json:"latencyMsMax"`
-	LatencySecAvg  float64 `json:"latencyMsAvg"`
+	TxCount       int
+	SeenOnce      int
+	LatencySecAvg float64
 }
 
 func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
@@ -163,38 +160,34 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 		earliest = 0 // count all of it
 	}
 	ret := &hashcacheStats{}
-	var numVisited int
 	var lat float64
 
-	cache.Lock()
 	cache.ForEachEntry(func(entry *CacheEntry) {
 		if entry.LastSeen >= earliest {
-			ret.Numtx++
+			ret.TxCount++
 			if entry.Visits > 1 {
-				numVisited++
 				lat = float64(entry.LastSeen-entry.FirstSeen) / 1000
 				ret.LatencySecAvg += lat
-				if lat > ret.LatencySecMax {
-					ret.LatencySecMax = lat
-				}
 			} else {
-				ret.NumNoVisit++
+				ret.SeenOnce++
 			}
 		}
-	})
-	cache.Unlock()
+	}, true)
 
-	if ret.Numtx > 0 {
-		ret.NumNoVisitPerc = (100 * ret.NumNoVisit) / ret.Numtx
+	seenTwice := ret.TxCount - ret.SeenOnce
+	if seenTwice != 0 {
+		ret.LatencySecAvg = ret.LatencySecAvg / float64(seenTwice)
+	} else {
+		ret.LatencySecAvg = 0
 	}
-	if numVisited == 0 {
-		numVisited = 1
-	}
-	ret.LatencySecAvg = ret.LatencySecAvg / float64(numVisited)
 	return ret
 }
 
-func (cache *HashCacheBase) ForEachEntry(callback func(entry *CacheEntry)) {
+func (cache *HashCacheBase) ForEachEntry(callback func(entry *CacheEntry), lock bool) {
+	if lock {
+		cache.Lock()
+		defer cache.Unlock()
+	}
 	earliest := utils.UnixMsNow() - cache.retentionPeriodMsCopy
 	cache.ForEachSegment(func(s ebuffer.ExpiringSegment) {
 		seg := s.(*cacheSegment)

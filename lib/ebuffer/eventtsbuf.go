@@ -42,6 +42,7 @@ func NewEventTSExpiringSegment(capacity int) *eventTSExpiringSegment {
 	if capacity == 0 {
 		capacity = defaulCapacityEventTSExpiringSegment
 	}
+
 	return &eventTSExpiringSegment{
 		ExpiringSegmentBase: *NewExpiringSegmentBase(),
 		eventTs:             make([]uint64, 0, capacity),
@@ -49,7 +50,7 @@ func NewEventTSExpiringSegment(capacity int) *eventTSExpiringSegment {
 }
 
 func (seg *eventTSExpiringSegment) Put(args ...interface{}) {
-	seg.eventTs = append(seg.eventTs, utils.UnixMsNow())
+	seg.eventTs = append(seg.eventTs, args[0].(uint64))
 }
 
 func (seg *eventTSExpiringSegment) Size() int {
@@ -61,8 +62,6 @@ func (buf *EventTsExpiringBuffer) forEachEntry(callback func(ts uint64) bool) {
 	buf.ForEachSegment(func(s ExpiringSegment) {
 		s.(*eventTSExpiringSegment).forEachEntry(callback, earliest)
 	})
-	for s := buf.top; s != nil; s = s.GetPrev() {
-	}
 }
 
 func (seg *eventTSExpiringSegment) forEachEntry(callback func(ts uint64) bool, earliest uint64) {

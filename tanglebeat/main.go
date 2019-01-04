@@ -20,6 +20,7 @@ func main() {
 		Config.SenderMsgStream.OutputPort,
 		Config.SenderMsgStream.Inputs)
 
+	initGlobStatsCollector(5)
 	runWebServer(Config.WebServerPort)
 }
 

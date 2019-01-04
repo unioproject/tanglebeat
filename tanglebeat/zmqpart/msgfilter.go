@@ -2,25 +2,28 @@ package zmqpart
 
 import (
 	"fmt"
+	"github.com/lunfardo314/tanglebeat/lib/ebuffer"
 	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
 	"strconv"
 )
 
 const (
-	useFirstHashTrytes            = 18 // first positions of the hash will only be used in hash table. To spare memory
-	segmentDurationTXSec          = 60
-	segmentDurationValueTXSec     = 10 * 60
-	segmentDurationValueBundleSec = 10 * 60
-	segmentDurationSNSec          = 1 * 60
-	retentionPeriodSec            = 60 * 60
+	useFirstHashTrytes                   = 18 // first positions of the hash will only be used in hash table. To spare memory
+	segmentDurationTXSec                 = 60
+	segmentDurationValueTXSec            = 10 * 60
+	segmentDurationValueBundleSec        = 10 * 60
+	segmentDurationSNSec                 = 1 * 60
+	segmentDurationConfirmedTransfersSec = 10 * 60
+	retentionPeriodSec                   = 60 * 60
 )
 
 var (
-	txcache          *hashcache.HashCacheBase
-	sncache          *hashCacheSN
-	valueTxCache     *hashcache.HashCacheBase
-	valueBundleCache *hashcache.HashCacheBase
+	txcache              *hashcache.HashCacheBase
+	sncache              *hashCacheSN
+	positiveValueTxCache *hashcache.HashCacheBase
+	valueBundleCache     *hashcache.HashCacheBase
+	confirmedTransfers   *ebuffer.EventTsWithDataExpiringBuffer
 )
 
 type zmqMsg struct {
@@ -42,10 +45,17 @@ func toFilter(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 }
 
 func initMsgFilter() {
-	txcache = hashcache.NewHashCacheBase("txcache", useFirstHashTrytes, segmentDurationTXSec, retentionPeriodSec)
-	sncache = newHashCacheSN(useFirstHashTrytes, segmentDurationSNSec, retentionPeriodSec)
-	valueTxCache = hashcache.NewHashCacheBase("valueTxCache", useFirstHashTrytes, segmentDurationValueTXSec, retentionPeriodSec)
-	valueBundleCache = hashcache.NewHashCacheBase("valueBundleCache", useFirstHashTrytes, segmentDurationValueBundleSec, retentionPeriodSec)
+	txcache = hashcache.NewHashCacheBase(
+		"txcache", useFirstHashTrytes, segmentDurationTXSec, retentionPeriodSec)
+	sncache = newHashCacheSN(
+		useFirstHashTrytes, segmentDurationSNSec, retentionPeriodSec)
+	positiveValueTxCache = hashcache.NewHashCacheBase(
+		"positiveValueTxCache", useFirstHashTrytes, segmentDurationValueTXSec, retentionPeriodSec)
+	valueBundleCache = hashcache.NewHashCacheBase(
+		"valueBundleCache", useFirstHashTrytes, segmentDurationValueBundleSec, retentionPeriodSec)
+	confirmedTransfers = ebuffer.NewEventTsWithDataExpiringBuffer(
+		"confirmedTransfers", segmentDurationConfirmedTransfersSec, retentionPeriodSec)
+
 	startCollectingLatencyMetrics(txcache, sncache)
 	go msgFilterRoutine()
 }
