@@ -11,6 +11,7 @@ func main() {
 	mustReadConfig(CONFIG_FILE)
 
 	zmqpart.MustInitZmqRoutines(
+		Config.IriMsgStream.OutputEnabled,
 		Config.IriMsgStream.OutputPort,
 		Config.IriMsgStream.Inputs)
 

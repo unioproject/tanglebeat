@@ -41,16 +41,20 @@ var (
 	compoundOutPublisher *nanomsg.Publisher
 )
 
-func MustInitZmqRoutines(outPort int, inputs []string) {
+func MustInitZmqRoutines(outEnabled bool, outPort int, inputs []string) {
 	initMsgFilter()
 	zmqRoutines = inreaders.NewInputReaderSet("zmq routine set")
 	var err error
-	compoundOutPublisher, err = nanomsg.NewPublisher(outPort, 0, nil)
+	compoundOutPublisher, err = nanomsg.NewPublisher(outEnabled, outPort, 0, nil)
 	if err != nil {
 		errorf("Failed to create publishing channel. Publisher is disabled: %v", err)
 		panic(err)
 	}
-	infof("Publisher for zmq compound out stream initialized successfully on port %v", outPort)
+	if outEnabled {
+		infof("Publisher for zmq compound output stream initialized successfully on port %v", outPort)
+	} else {
+		infof("Publisher for zmq compound output stream is DISABLED")
+	}
 
 	for _, uri := range inputs {
 		createZmqRoutine(uri)

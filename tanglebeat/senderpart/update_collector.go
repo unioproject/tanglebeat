@@ -34,7 +34,7 @@ func MustInitSenderDataCollector(outEnabled bool, outPort int, inputs []string) 
 
 	if outEnabled {
 		var err error
-		senderOutPublisher, err = nanomsg.NewPublisher(outPort, 0, nil)
+		senderOutPublisher, err = nanomsg.NewPublisher(outEnabled, outPort, 0, nil)
 		if err != nil {
 			errorf("Failed to create sender output publishing channel: %v", err)
 			panic(err)
@@ -77,7 +77,7 @@ func (r *updateSource) Run(name string) {
 }
 
 func (r *updateSource) processUpdate(upd *sender_update.SenderUpdate) error {
-	infof("Processing update from '%v', source: %v, seq: %v(%v), index: %v",
+	tracef("Processing update from '%v', source: %v, seq: %v(%v), index: %v",
 		upd.UpdType, r.GetUri(), upd.SeqUID, upd.SeqName, upd.Index)
 
 	hash := upd.SeqUID + fmt.Sprintf("%v", upd.UpdateTs)
@@ -88,8 +88,13 @@ func (r *updateSource) processUpdate(upd *sender_update.SenderUpdate) error {
 	updateSenderMetrics(upd)
 
 	if senderOutPublisher != nil {
-		infof("Publish update '%v' received from %v, seq: %v(%v), index: %v",
-			upd.UpdType, r.GetUri(), upd.SeqUID, upd.SeqName, upd.Index)
+		if upd.UpdType == sender_update.SENDER_UPD_CONFIRM {
+			debugf("Publish update '%v' received from %v, seq: %v(%v), index: %v",
+				upd.UpdType, r.GetUri(), upd.SeqUID, upd.SeqName, upd.Index)
+		} else {
+			tracef("Publish update '%v' received from %v, seq: %v(%v), index: %v",
+				upd.UpdType, r.GetUri(), upd.SeqUID, upd.SeqName, upd.Index)
+		}
 		if err := senderOutPublisher.PublishAsJSON(upd); err != nil {
 			errorf("Process update: %v", err)
 			return err

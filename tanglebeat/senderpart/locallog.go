@@ -7,12 +7,12 @@ import (
 
 var (
 	localLog   *logging.Logger
-	localDebug bool
+	localTrace bool
 )
 
-func SetLog(log *logging.Logger, debug bool) {
+func SetLog(log *logging.Logger, trace bool) {
 	localLog = log
-	localDebug = debug
+	localTrace = trace
 }
 
 func errorf(format string, args ...interface{}) {
@@ -24,7 +24,15 @@ func errorf(format string, args ...interface{}) {
 }
 
 func debugf(format string, args ...interface{}) {
-	if !localDebug {
+	if localLog != nil {
+		localLog.Debugf(format, args...)
+	} else {
+		fmt.Printf("DEBU "+format+"\n", args...)
+	}
+}
+
+func tracef(format string, args ...interface{}) {
+	if !localTrace {
 		return
 	}
 	if localLog != nil {

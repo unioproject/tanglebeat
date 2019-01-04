@@ -29,7 +29,9 @@ type zmqMsg struct {
 	msgSplit []string // same split to strings
 }
 
-var toFilterChan = make(chan *zmqMsg)
+const filterChanBufSize = 100
+
+var toFilterChan = make(chan *zmqMsg, filterChanBufSize)
 
 func toFilter(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 	toFilterChan <- &zmqMsg{

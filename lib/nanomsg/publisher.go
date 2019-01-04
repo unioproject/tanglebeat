@@ -11,10 +11,11 @@ import (
 )
 
 type Publisher struct {
-	chIn chan []byte
-	sock mangos.Socket
-	url  string
-	log  *logging.Logger
+	enabled bool
+	chIn    chan []byte
+	sock    mangos.Socket
+	url     string
+	log     *logging.Logger
 }
 
 func (p *Publisher) errorf(format string, args ...interface{}) {
@@ -30,9 +31,13 @@ func (p *Publisher) infof(format string, args ...interface{}) {
 }
 
 // reads input stream of byte arrays and sends them to publish channel
-func NewPublisher(port int, bufflen int, localLog *logging.Logger) (*Publisher, error) {
+func NewPublisher(enabled bool, port int, bufflen int, localLog *logging.Logger) (*Publisher, error) {
 	ret := Publisher{
-		log: localLog,
+		enabled: enabled,
+		log:     localLog,
+	}
+	if !enabled {
+		return &ret, nil
 	}
 	var err error
 	if ret.sock, err = pub.NewSocket(); err != nil {
@@ -63,6 +68,9 @@ func (p *Publisher) loop() {
 }
 
 func (p *Publisher) PublishData(data []byte) error {
+	if !p.enabled {
+		return nil
+	}
 	select {
 	case p.chIn <- data:
 	case <-time.After(5 * time.Second):

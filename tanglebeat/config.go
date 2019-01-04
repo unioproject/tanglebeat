@@ -87,9 +87,9 @@ func mustReadConfig(cfgfile string) {
 		Config.RepeatToAcceptTX)
 
 	inreaders.SetLog(log, true)
-	zmqpart.SetLog(log, true)
-	senderpart.SetLog(log, true)
-	ebuffer.SetLog(log, true)
+	zmqpart.SetLog(log, false)
+	senderpart.SetLog(log, false)
+	ebuffer.SetLog(log, false)
 }
 
 func errorf(format string, args ...interface{}) {
