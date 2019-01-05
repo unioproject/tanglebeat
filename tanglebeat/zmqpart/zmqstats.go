@@ -2,6 +2,8 @@ package zmqpart
 
 import (
 	"fmt"
+	"github.com/lunfardo314/tanglebeat/lib/utils"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/cfg"
 	"math"
 	"sync"
 	"time"
@@ -10,9 +12,11 @@ import (
 type ZmqOutputStatsStruct struct {
 	LastMin uint64 `json:"lastMin"`
 
-	TXCount  int `json:"txCount"`
-	SNCount  int `json:"snCount"`
-	ConfRate int `json:"confRate"`
+	TXCount  int     `json:"txCount"`
+	SNCount  int     `json:"snCount"`
+	TPS      float64 `json:"tps"`
+	CTPS     float64 `json:"ctps"`
+	ConfRate int     `json:"confRate"`
 
 	ConfirmedTransferCount int    `json:"confirmedValueBundleCount"`
 	ValueVolumeApprox      uint64 `json:"valueVolumeApprox"`
@@ -132,12 +136,20 @@ func updateZmqCacheStats() {
 func updateZmqOutputSlowStats() {
 
 	// all retentionPeriod stats
+	retentionPeriodSec := uint64(cfg.Config.RetentionPeriodMin) * 60
 	var st ZmqOutputStatsStruct
-	txs := txcache.Stats(0)
+	txs := txcache.Stats(retentionPeriodSec * 1000)
 	st.TXCount = txs.TxCountPassed
 
-	sns := sncache.Stats(0)
+	sns := sncache.Stats(retentionPeriodSec * 1000)
 	st.SNCount = sns.TxCountPassed
+
+	secPassed := float64((utils.UnixMsNow() - txs.EarliestSeen) / 1000)
+
+	st.TPS = float64(st.TXCount) / secPassed
+	st.TPS = math.Round(st.TPS*100) / 100
+	st.CTPS = float64(st.SNCount) / secPassed
+	st.CTPS = math.Round(st.CTPS*100) / 100
 
 	if st.TXCount != 0 {
 		st.ConfRate = (st.SNCount * 100) / st.TXCount
@@ -145,27 +157,32 @@ func updateZmqOutputSlowStats() {
 	st.ConfirmedTransferCount, st.ValueVolumeApprox = getValueConfirmationStats(0)
 
 	// 10 min stats
-	const msecBack = 10 * 60 * 1000
+	const secBack = 10 * 60
 	var st10 ZmqOutputStatsStruct
-	txs = txcache.Stats(msecBack)
+	txs = txcache.Stats(secBack * 1000)
 	st10.TXCount = txs.TxCountPassed
 
-	sns = sncache.Stats(msecBack)
+	sns = sncache.Stats(secBack * 1000)
 	st10.SNCount = sns.TxCountPassed
+
+	secPassed = float64((utils.UnixMsNow() - txs.EarliestSeen) / 1000)
+
+	st10.TPS = float64(st10.TXCount) / secPassed
+	st10.TPS = math.Round(st10.TPS*100) / 100
+	st10.CTPS = float64(st10.SNCount) / secPassed
+	st10.CTPS = math.Round(st10.CTPS*100) / 100
 
 	if st10.TXCount != 0 {
 		st10.ConfRate = (st10.SNCount * 100) / st10.TXCount
 	}
-	st10.ConfirmedTransferCount, st10.ValueVolumeApprox = getValueConfirmationStats(msecBack)
+	st10.ConfirmedTransferCount, st10.ValueVolumeApprox = getValueConfirmationStats(secBack * 1000)
 
-	zmqOutputStatsMutex.Lock()
-
+	zmqOutputStatsMutex.Lock() //----
 	*zmqOutputStats = st
 	zmqOutputStats.LastMin = retentionPeriodSec / 60
 	*zmqOutputStats10min = st10
-	zmqOutputStats10min.LastMin = msecBack / (60 * 1000)
-
-	zmqOutputStatsMutex.Unlock()
+	zmqOutputStats10min.LastMin = secBack / 60
+	zmqOutputStatsMutex.Unlock() //----
 }
 
 type latencyMetrics10min struct {

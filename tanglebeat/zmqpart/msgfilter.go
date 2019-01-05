@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/lunfardo314/tanglebeat/lib/ebuffer"
 	"github.com/lunfardo314/tanglebeat/lib/utils"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/cfg"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
 	"strconv"
 )
@@ -15,7 +16,6 @@ const (
 	segmentDurationValueBundleSec        = 10 * 60
 	segmentDurationSNSec                 = 1 * 60
 	segmentDurationConfirmedTransfersSec = 10 * 60
-	retentionPeriodSec                   = 60 * 60
 )
 
 var (
@@ -45,6 +45,8 @@ func toFilter(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 }
 
 func initMsgFilter() {
+	retentionPeriodSec := cfg.Config.RetentionPeriodMin * 60
+
 	txcache = hashcache.NewHashCacheBase(
 		"txcache", useFirstHashTrytes, segmentDurationTXSec, retentionPeriodSec)
 	sncache = newHashCacheSN(

@@ -154,6 +154,7 @@ type hashcacheStats struct {
 	TxCountPassed int
 	SeenOnce      int
 	LatencySecAvg float64
+	EarliestSeen  uint64
 }
 
 func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
@@ -161,7 +162,7 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 	if msecBack == 0 {
 		earliest = 0 // count all of it
 	}
-	ret := &hashcacheStats{}
+	ret := &hashcacheStats{EarliestSeen: utils.UnixMsNow()}
 	var lat float64
 
 	cache.ForEachEntry(func(entry *CacheEntry) {
@@ -175,6 +176,9 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 			}
 			if entry.Visits >= cfg.Config.RepeatToAcceptTX {
 				ret.TxCountPassed++
+			}
+			if entry.FirstSeen < ret.EarliestSeen {
+				ret.EarliestSeen = entry.FirstSeen
 			}
 		}
 	}, true)

@@ -29,11 +29,12 @@ type inputsOutput struct {
 }
 
 type ConfigStructYAML struct {
-	siteDataDir      string
-	WebServerPort    int          `yaml:"webServerPort"`
-	IriMsgStream     inputsOutput `yaml:"iriMsgStream"`
-	SenderMsgStream  inputsOutput `yaml:"senderMsgStream"`
-	RepeatToAcceptTX int          `yaml:"repeatToAcceptTX"`
+	siteDataDir        string
+	WebServerPort      int          `yaml:"webServerPort"`
+	IriMsgStream       inputsOutput `yaml:"iriMsgStream"`
+	SenderMsgStream    inputsOutput `yaml:"senderMsgStream"`
+	RepeatToAcceptTX   int          `yaml:"repeatToAcceptTX"`
+	RetentionPeriodMin int          `yaml:"retentionPeriodMin"`
 }
 
 var Config = ConfigStructYAML{}
@@ -80,10 +81,12 @@ func MustReadConfig(cfgfile string) {
 	if Config.RepeatToAcceptTX == 0 {
 		Config.RepeatToAcceptTX = 2
 	}
+	if Config.RetentionPeriodMin == 0 {
+		Config.RetentionPeriodMin = 60
+	}
 
 	infof("TX message will be accepted after received %v times from different sources ('repeatToAcceptTX' parameter, default is 2)",
 		Config.RepeatToAcceptTX)
-
 }
 
 func errorf(format string, args ...interface{}) {
