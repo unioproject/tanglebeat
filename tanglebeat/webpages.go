@@ -88,7 +88,7 @@ var loadjs = `
 			seconds = hours_rem - minutes * 60
 			ret = ""
 			if (days > 0) ret = days + " days ";
-			if (hours > 0) ret = ret + hours + " hours ";
+			if (hours > 0) ret = ret + hours + " h ";
             if (minutes > 0) ret = ret + minutes + " min "
 			ret = ret + seconds +" sec ago";
 			return ret
