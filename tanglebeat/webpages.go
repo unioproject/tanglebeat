@@ -15,16 +15,18 @@ var indexPage = `
 			border-collapse: collapse;
 		}
 		th, td {
+		    font-family: "Liberation Mono", monospace;
+			font-size: 12px;
 			text-align: left;
 			padding: 3px;
-			font-stats: 14px;
+            vertical-align: top;
 		}
 		tr:nth-child(even){background-color: #f2f2f2}		
 	</style>
 	<script type="text/javascript" src="/loadjs">
 	</script>
 	<body onload=main()>
-        <h3> IRI Zero MQ inputs</h3>
+        <h3> IRI msg inputs (Zero MQ)</h3>
 		 <table id="maintable" border="1">
 			<tr> 
 				<td>ZMQ host</td>  
@@ -36,13 +38,30 @@ var indexPage = `
       			<td>runningAlreadyMin</td>	
             </tr>
 		</table>
-        <h3>Compound output</h3>
-		 <table id="globtable" border="1">
-           <tr></tr>
-         </table>
-        <h3>Debug</h3>
-		 <table id="debugtable" border="1">
-           <tr></tr>
+		 <table border="0">
+			<tr>
+				<td><b>Compound IRI msg output (Nanomsg)</b></td>
+				<td><b>Caches</b></td>
+				<td><b>Go runtime</b></td>
+            </tr>
+            <tr>
+              <td>
+				 <table id="outputtable" border="1">
+        		   <tr></tr>
+         		</table>
+              </td>
+              <td>
+				 <table id="rtt1" border="1">
+        		   <tr></tr>
+         		 </table>
+              </td>
+              <td>
+				 <table id="rtt2" border="1">
+        		   <tr></tr>
+         		 </table>
+              <td>
+              </td>
+	        </tr>
          </table>
 	</body>
 </html>
@@ -109,20 +128,21 @@ var loadjs = `
 	            tb.appendChild(row);
             }
 		}
-		function populate(tbname, datadict){
-   			tb = document.getElementById("globtable").tBodies[0];
+		function populate(tbname, datalist){
+   			tb = document.getElementById(tbname).tBodies[0];
             deleteChildren(tb);
-            for (key in datadict){
+            for (key in datalist[0]){
                 row = document.createElement('tr');
 
                 cell = document.createElement('td');
                 cell.innerHTML = key;
                 row.appendChild(cell);
-
-                cell = document.createElement('td');
-                cell.innerHTML = datadict[key];
-                row.appendChild(cell);
-                tb.appendChild(row);
+				for (idx in datalist){
+	                cell = document.createElement('td');
+    	            cell.innerHTML = datalist[idx][key];
+        	        row.appendChild(cell);
+            	    tb.appendChild(row);
+                }
 			}
 		}
 
@@ -133,8 +153,10 @@ var loadjs = `
         		if (this.readyState == 4){
             		if (this.status == 200) {
 		               resp = JSON.parse(this.response);
-						populateRoutineStats(resp.inputStats);
-                        populate("globtable", resp.outputStats)
+						populateRoutineStats(resp.zmqInputStats);
+  			            populate("outputtable", [resp.zmqOutputStats, resp.zmqOutputStats10min]);
+  			            populate("rtt1", [resp.zmqRuntimeStats]);
+  			            populate("rtt2", [resp.goRuntimeStats]);
                     }
                 }
       	    };
@@ -144,6 +166,6 @@ var loadjs = `
         }
 
 		function main(){
-			refresh(refreshStats, 5000);
+			refresh(refreshStats, 3000);
 		}
 `

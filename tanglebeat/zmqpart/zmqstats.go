@@ -18,35 +18,36 @@ type ZmqOutputStatsStruct struct {
 	SNSeenOnceCount int     `json:"snSeenOnceCount"`
 	SNLatencySecAvg float64 `json:"snLatencySecAvg"`
 
-	ConfirmedTransferCount int    `json:"ConfirmedValueBundleCount"`
+	ConfirmedTransferCount int    `json:"confirmedValueBundleCount"`
 	ValueVolumeApprox      uint64 `json:"valueVolumeApprox"`
 }
 
-type ZmqRuntimeStatsStruct struct {
-	SizeTXCache          string `json:"sizeTXCache"`
-	SizeSNCache          string `json:"sizeSNCache"`
-	SizeValueTxCache     string `json:"sizeValueTxCache"`
-	SizeValueBundleCache string `json:"sizeValueBundleCache"`
-	mutex                *sync.RWMutex
+type ZmqCacheStatsStruct struct {
+	SizeTXCache            string `json:"sizeTXCache"`
+	SizeSNCache            string `json:"sizeSNCache"`
+	SizeValueTxCache       string `json:"sizeValueTxCache"`
+	SizeValueBundleCache   string `json:"sizeValueBundleCache"`
+	SizeConfirmedTransfers string `json:"sizeConfirmedTransfers"`
+	mutex                  *sync.RWMutex
 }
 
 var (
-	zmqRuntimeStats     = &ZmqRuntimeStatsStruct{mutex: &sync.RWMutex{}}
+	zmqCacheStats       = &ZmqCacheStatsStruct{mutex: &sync.RWMutex{}}
 	zmqOutputStatsMutex = &sync.RWMutex{}
 	zmqOutputStats      = &ZmqOutputStatsStruct{}
 	zmqOutputStats10min = &ZmqOutputStatsStruct{}
 )
 
-func GetRuntimeStats() *ZmqRuntimeStatsStruct {
-	zmqRuntimeStats.mutex.RLock()
-	defer zmqRuntimeStats.mutex.RUnlock()
-	ret := *zmqRuntimeStats
+func GetZmqCacheStats() *ZmqCacheStatsStruct {
+	zmqCacheStats.mutex.RLock()
+	defer zmqCacheStats.mutex.RUnlock()
+	ret := *zmqCacheStats
 	return &ret
 }
 
 func GetOutputStats() (*ZmqOutputStatsStruct, *ZmqOutputStatsStruct) {
-	zmqRuntimeStats.mutex.RLock()
-	defer zmqRuntimeStats.mutex.RUnlock()
+	zmqCacheStats.mutex.RLock()
+	defer zmqCacheStats.mutex.RUnlock()
 	ret := *zmqOutputStats
 	ret10min := *zmqOutputStats10min
 	return &ret, &ret10min
@@ -55,7 +56,7 @@ func GetOutputStats() (*ZmqOutputStatsStruct, *ZmqOutputStatsStruct) {
 func InitZmqStatsCollector(refreshEverySec int) {
 	go func() {
 		for {
-			updateZmqRuntimeStats()
+			updateZmqCacheStats()
 			time.Sleep(time.Duration(refreshEverySec) * time.Second)
 		}
 	}()
@@ -67,19 +68,21 @@ func InitZmqStatsCollector(refreshEverySec int) {
 	}()
 }
 
-func updateZmqRuntimeStats() {
-	zmqRuntimeStats.mutex.Lock()
-	defer zmqRuntimeStats.mutex.Unlock()
+func updateZmqCacheStats() {
+	zmqCacheStats.mutex.Lock()
+	defer zmqCacheStats.mutex.Unlock()
 
 	var s, e int
 	s, e = txcache.Size()
-	zmqRuntimeStats.SizeTXCache = fmt.Sprintf("%v, %v", s, e)
+	zmqCacheStats.SizeTXCache = fmt.Sprintf("%v, %v", s, e)
 	s, e = sncache.Size()
-	zmqRuntimeStats.SizeSNCache = fmt.Sprintf("%v, %v", s, e)
+	zmqCacheStats.SizeSNCache = fmt.Sprintf("%v, %v", s, e)
 	s, e = positiveValueTxCache.Size()
-	zmqRuntimeStats.SizeValueTxCache = fmt.Sprintf("%v, %v", s, e)
+	zmqCacheStats.SizeValueTxCache = fmt.Sprintf("%v, %v", s, e)
 	s, e = valueBundleCache.Size()
-	zmqRuntimeStats.SizeValueBundleCache = fmt.Sprintf("%v, %v", s, e)
+	zmqCacheStats.SizeValueBundleCache = fmt.Sprintf("%v, %v", s, e)
+	s, e = confirmedTransfers.Size()
+	zmqCacheStats.SizeConfirmedTransfers = fmt.Sprintf("%v, %v", s, e)
 }
 
 func updateZmqOutputSlowStats() {
@@ -111,7 +114,7 @@ func updateZmqOutputSlowStats() {
 	st10.SNSeenOnceCount = sns.SeenOnce
 	st10.SNLatencySecAvg = math.Round(sns.LatencySecAvg*100) / 100
 
-	st10.ConfirmedTransferCount, st.ValueVolumeApprox = getValueConfirmationStats(msecBack)
+	st10.ConfirmedTransferCount, st10.ValueVolumeApprox = getValueConfirmationStats(msecBack)
 
 	zmqOutputStatsMutex.Lock()
 

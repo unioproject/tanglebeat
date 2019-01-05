@@ -10,11 +10,11 @@ import (
 )
 
 type GlbStats struct {
-	GoRuntimeStats      memStatsStruct                `json:"goRuntimeStats"`
-	ZmqRuntimeStats     zmqpart.ZmqRuntimeStatsStruct `json:"zmqRuntimeStats"`
-	ZmqOutputStats      zmqpart.ZmqOutputStatsStruct  `json:"zmqOutputStats"`
-	ZmqOutputStats10min zmqpart.ZmqOutputStatsStruct  `json:"zmqOutputStats10min"`
-	ZmqInputStats       []*zmqpart.ZmqRoutineStats    `json:"zmqInputStats"`
+	GoRuntimeStats      memStatsStruct               `json:"goRuntimeStats"`
+	ZmqCacheStats       zmqpart.ZmqCacheStatsStruct  `json:"zmqRuntimeStats"`
+	ZmqOutputStats      zmqpart.ZmqOutputStatsStruct `json:"zmqOutputStats"`
+	ZmqOutputStats10min zmqpart.ZmqOutputStatsStruct `json:"zmqOutputStats10min"`
+	ZmqInputStats       []*zmqpart.ZmqRoutineStats   `json:"zmqInputStats"`
 
 	mutex *sync.RWMutex
 }
@@ -41,7 +41,7 @@ func updateGlbStatsLoop(refreshStatsEverySec int) {
 
 		glbStats.mutex.Lock()
 		glbStats.ZmqInputStats = inp
-		glbStats.ZmqRuntimeStats = *zmqpart.GetRuntimeStats()
+		glbStats.ZmqCacheStats = *zmqpart.GetZmqCacheStats()
 		t1, t2 := zmqpart.GetOutputStats()
 		glbStats.ZmqOutputStats, glbStats.ZmqOutputStats10min = *t1, *t2
 
@@ -53,8 +53,14 @@ func updateGlbStatsLoop(refreshStatsEverySec int) {
 	}
 }
 
-func getGlbStatsJSON() []byte {
-	data, err := json.MarshalIndent(glbStats, "", "   ")
+func getGlbStatsJSON(formatted bool) []byte {
+	var data []byte
+	var err error
+	if formatted {
+		data, err = json.MarshalIndent(glbStats, "", "   ")
+	} else {
+		data, err = json.Marshal(glbStats)
+	}
 	if err != nil {
 		return []byte(fmt.Sprintf("marshal error: %v", err))
 	}
