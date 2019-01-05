@@ -14,19 +14,20 @@ var indexPage = `
 		table {
 			border-collapse: collapse;
 		}
-		th, td {
+		th, td, #runningOnly {
 		    font-family: "Liberation Mono", monospace;
 			font-size: 12px;
 			text-align: left;
 			padding: 3px;
             vertical-align: top;
 		}
-		tr:nth-child(even){background-color: #f2f2f2}		
+		tr:nth-child(even){background-color: #f2f2f2}
 	</style>
 	<script type="text/javascript" src="/loadjs">
 	</script>
 	<body onload=main()>
         <h3> IRI msg inputs (Zero MQ)</h3>
+		 <input type="checkbox" id="runningOnly" onclick="clickRunningOnly()">Show running only</input>
 		 <table id="maintable" border="1">
 			<tr> 
 				<td>ZMQ host</td>  
@@ -68,6 +69,30 @@ var indexPage = `
 `
 
 var loadjs = `
+		var runningOnly = false;
+        function clickRunningOnly(){
+            var checkBox = document.getElementById("runningOnly");
+            runningOnly = checkBox.checked;
+		}
+		function ts2TimeAgo(ts) {
+    		var d=new Date(); 
+    		var nowTs = d.getTime(); 
+            var seconds = Math.floor((nowTs-ts)/1000);
+
+			days = Math.floor(seconds / (24 * 3600));
+			days_rem = seconds - days * 24 * 3600;
+			hours = Math.floor(days_rem/3600) 
+
+			hours_rem = days_rem - hours * 3600
+			minutes = Math.floor(hours_rem/60)
+			seconds = hours_rem - minutes * 60
+			ret = ""
+			if (days > 0) ret = days + " days ";
+			if (hours > 0) ret = ret + hours + " hours ";
+            if (minutes > 0) ret = ret + minutes + " min "
+			ret = ret + seconds +" sec ago";
+			return ret
+		}
 		function refresh(fun, millis){
 			fun();
 			setInterval(fun, millis);
@@ -86,30 +111,38 @@ var loadjs = `
 	    	  			row.appendChild(el);
                     }
                 }
-            } else {
-				if (data.running){
-	                for (key in data){
-                        if (key != "lastErr"){
-			                el = document.createElement('td');
-                            el.innerHTML = data[key];
-	      					row.appendChild(el);
+                return true;
+            } 
+			if (data.running){
+                for (key in data){
+                    if (key != "lastErr"){
+		                el = document.createElement('td');
+                        if (key == "runningSince" || key == "lastHeartbeat"){
+                            el.innerHTML = ts2TimeAgo(data[key]);
+                        } else {
+                           el.innerHTML = data[key];
                         }
-                	}
-                } else {
-        	        el = document.createElement('td');
-	        	    el.innerHTML = data["uri"];
-      			    row.appendChild(el);
-
-        	        el = document.createElement('td');
-	        	    el.innerHTML = data["running"];
-      			    row.appendChild(el);
-
-        	        el = document.createElement('td');
-    	            el.setAttribute("colspan", Object.keys(data).length - 2)
-	        	    el.innerHTML = data["lastErr"];
-      			    row.appendChild(el);
-                }
+      					 row.appendChild(el);
+                    }
+              	}
+                return true;
             }
+            if (runningOnly){
+   	            return false;
+       	    }
+			el = document.createElement('td');
+	       	el.innerHTML = data["uri"];
+   			row.appendChild(el);
+	
+   	    	el = document.createElement('td');
+    	    el.innerHTML = data["running"];
+   			row.appendChild(el);
+
+       	    el = document.createElement('td');
+   	        el.setAttribute("colspan", Object.keys(data).length - 2)
+        	el.innerHTML = data["lastErr"];
+   			row.appendChild(el);
+            return true;
         }
 		function populateRoutineStats(resp){
    			tb = document.getElementById("maintable").tBodies[0];
@@ -123,9 +156,9 @@ var loadjs = `
                     first = false
                 }
     		    row = document.createElement('tr');
-	            populateRow(row, resp[idx], false)
-                row.appendChild(el);
-	            tb.appendChild(row);
+	            if (populateRow(row, resp[idx], false)){
+		            tb.appendChild(row);
+                }
             }
 		}
 		function populate(tbname, datalist){
