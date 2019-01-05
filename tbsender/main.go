@@ -26,9 +26,8 @@ func main() {
 	mustReadMasterConfig(CONFIG_FILE)
 	var enabled bool
 
+	mustInitAndRunPublisher()
 	if Config.SenderUpdatePublisher.Enabled {
-		log.Infof("Starting sender update publisher")
-		mustInitAndRunPublisher()
 		enabled = true
 	}
 	if Config.Sender.Enabled {

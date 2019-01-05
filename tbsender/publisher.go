@@ -15,4 +15,9 @@ func mustInitAndRunPublisher() {
 		Config.SenderUpdatePublisher.Enabled = false
 		panic(err)
 	}
+	if Config.SenderUpdatePublisher.Enabled {
+		log.Infof("Publisher channel created on port %v", Config.SenderUpdatePublisher.OutputPort)
+	} else {
+		log.Infof("Publisher channel is DISABLED")
+	}
 }
