@@ -1,6 +1,9 @@
 package main
 
 import (
+	"github.com/lunfardo314/tanglebeat/lib/ebuffer"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/cfg"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/senderpart"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/zmqpart"
 )
@@ -8,20 +11,28 @@ import (
 const CONFIG_FILE = "tanglebeat.yml"
 
 func main() {
-	mustReadConfig(CONFIG_FILE)
-
+	cfg.MustReadConfig(CONFIG_FILE)
+	setLogs()
 	zmqpart.MustInitZmqRoutines(
-		Config.IriMsgStream.OutputEnabled,
-		Config.IriMsgStream.OutputPort,
-		Config.IriMsgStream.Inputs)
+		cfg.Config.IriMsgStream.OutputEnabled,
+		cfg.Config.IriMsgStream.OutputPort,
+		cfg.Config.IriMsgStream.Inputs)
 
 	senderpart.MustInitSenderDataCollector(
-		Config.SenderMsgStream.OutputEnabled,
-		Config.SenderMsgStream.OutputPort,
-		Config.SenderMsgStream.Inputs)
+		cfg.Config.SenderMsgStream.OutputEnabled,
+		cfg.Config.SenderMsgStream.OutputPort,
+		cfg.Config.SenderMsgStream.Inputs)
 
 	initGlobStatsCollector(5)
-	runWebServer(Config.WebServerPort)
+	runWebServer(cfg.Config.WebServerPort)
+}
+
+func setLogs() {
+	SetLog(cfg.GetLog(), false)
+	inreaders.SetLog(cfg.GetLog(), true)
+	zmqpart.SetLog(cfg.GetLog(), false)
+	senderpart.SetLog(cfg.GetLog(), false)
+	ebuffer.SetLog(cfg.GetLog(), false)
 }
 
 /*

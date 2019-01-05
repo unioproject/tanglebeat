@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/zmqpart"
+	"math"
 	"runtime"
 	"sync"
 	"time"
@@ -20,7 +21,7 @@ type GlbStats struct {
 }
 
 type memStatsStruct struct {
-	MemAllocMB   float32 `json:"memAllocMB"`
+	MemAllocMB   float64 `json:"memAllocMB"`
 	NumGoroutine int     `json:"numGoroutine"`
 	mutex        *sync.Mutex
 }
@@ -45,7 +46,7 @@ func updateGlbStatsLoop(refreshStatsEverySec int) {
 		t1, t2 := zmqpart.GetOutputStats()
 		glbStats.ZmqOutputStats, glbStats.ZmqOutputStats10min = *t1, *t2
 
-		glbStats.GoRuntimeStats.MemAllocMB = float32(mem.Alloc/1024) / 1024
+		glbStats.GoRuntimeStats.MemAllocMB = math.Round(100*(float64(mem.Alloc/1024)/1024)) / 100
 		glbStats.GoRuntimeStats.NumGoroutine = runtime.NumGoroutine()
 		glbStats.mutex.Unlock()
 

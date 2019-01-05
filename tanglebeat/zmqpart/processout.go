@@ -1,14 +1,10 @@
 package zmqpart
 
-var repeatToAcceptTX int
-
-func SetRepeatToAcceptTX(val int) {
-	repeatToAcceptTX = val
-}
+import "github.com/lunfardo314/tanglebeat/tanglebeat/cfg"
 
 func toOutput(msgData []byte, msgSplit []string, repeatedTimes int) {
 	// check if message was seen exactly number of times as configured (usually 2)
-	if repeatedTimes == repeatToAcceptTX {
+	if repeatedTimes == cfg.Config.RepeatToAcceptTX {
 		// publish message to output Nanomsg channel exactly as reaceived from ZeroMQ. For others to consume
 		if err := compoundOutPublisher.PublishData(msgData); err != nil {
 			errorf("Error while publishing data: %v", err)

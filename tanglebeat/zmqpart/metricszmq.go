@@ -2,7 +2,6 @@ package zmqpart
 
 import (
 	"github.com/lunfardo314/tanglebeat/lib/utils"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
 	"github.com/op/go-logging"
 	. "github.com/prometheus/client_golang/prometheus"
 	"time"
@@ -225,9 +224,7 @@ func startCollectingMiotaPrice(localLog *logging.Logger) {
 	}()
 }
 
-const latencyMsecBack = 10 * 60 * 1000
-
-func startCollectingLatencyMetrics(txc *hashcache.HashCacheBase, snc *hashCacheSN) {
+func startCollectingLatencyMetrics() {
 	var lm latencyMetrics10min
 	go func() {
 		for {
@@ -236,10 +233,10 @@ func startCollectingLatencyMetrics(txc *hashcache.HashCacheBase, snc *hashCacheS
 			getLatencyStats10minForMetrics(&lm)
 
 			zmqMetricsLatencyTXAvg.Set(lm.txAvgLatencySec)
-			zmqMetricsNotPropagatedPercTX.Set(float64(lm.txNotPropagatedPerc))
+			zmqMetricsNotPropagatedPercTX.Set(lm.txNotPropagatedPerc)
 
 			zmqMetricsLatencySNAvg.Set(lm.txAvgLatencySec)
-			zmqMetricsNotPropagatedPercSN.Set(float64(lm.snNotPropagatedPerc))
+			zmqMetricsNotPropagatedPercSN.Set(lm.snNotPropagatedPerc)
 		}
 	}()
 }

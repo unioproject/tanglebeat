@@ -3,6 +3,7 @@ package hashcache
 import (
 	"github.com/lunfardo314/tanglebeat/lib/ebuffer"
 	"github.com/lunfardo314/tanglebeat/lib/utils"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/cfg"
 )
 
 type CacheEntry struct {
@@ -150,6 +151,7 @@ func (cache *HashCacheBase) SeenHash(hash string, data interface{}, ret *CacheEn
 
 type hashcacheStats struct {
 	TxCount       int
+	TxCountPassed int
 	SeenOnce      int
 	LatencySecAvg float64
 }
@@ -170,6 +172,9 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 				ret.LatencySecAvg += lat
 			} else {
 				ret.SeenOnce++
+			}
+			if entry.Visits >= cfg.Config.RepeatToAcceptTX {
+				ret.TxCountPassed++
 			}
 		}
 	}, true)

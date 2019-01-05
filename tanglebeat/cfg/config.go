@@ -1,12 +1,8 @@
-package main
+package cfg
 
 import (
 	"fmt"
 	"github.com/lunfardo314/tanglebeat/lib/config"
-	"github.com/lunfardo314/tanglebeat/lib/ebuffer"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/senderpart"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/zmqpart"
 	"github.com/op/go-logging"
 	"os"
 )
@@ -21,6 +17,10 @@ var (
 	log            *logging.Logger
 	logInitialized bool
 )
+
+func GetLog() *logging.Logger {
+	return log
+}
 
 type inputsOutput struct {
 	OutputEnabled bool     `yaml:"outputEnabled"`
@@ -60,7 +60,7 @@ func flushMsgBeforeLog(msgBeforeLog []string) {
 	}
 }
 
-func mustReadConfig(cfgfile string) {
+func MustReadConfig(cfgfile string) {
 	msgBeforeLog := make([]string, 0, 10)
 	msgBeforeLog = append(msgBeforeLog, "---- Starting Tanglebeat hub module ver. "+version)
 	var success bool
@@ -81,15 +81,9 @@ func mustReadConfig(cfgfile string) {
 		Config.RepeatToAcceptTX = 2
 	}
 
-	zmqpart.SetRepeatToAcceptTX(Config.RepeatToAcceptTX) // global setting for zmq part
-
 	infof("TX message will be accepted after received %v times from different sources ('repeatToAcceptTX' parameter, default is 2)",
 		Config.RepeatToAcceptTX)
 
-	inreaders.SetLog(log, true)
-	zmqpart.SetLog(log, false)
-	senderpart.SetLog(log, false)
-	ebuffer.SetLog(log, false)
 }
 
 func errorf(format string, args ...interface{}) {

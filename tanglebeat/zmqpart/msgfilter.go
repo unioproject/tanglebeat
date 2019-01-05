@@ -56,7 +56,7 @@ func initMsgFilter() {
 	confirmedTransfers = ebuffer.NewEventTsWithDataExpiringBuffer(
 		"confirmedTransfers", segmentDurationConfirmedTransfersSec, retentionPeriodSec)
 
-	startCollectingLatencyMetrics(txcache, sncache)
+	startCollectingLatencyMetrics()
 	go msgFilterRoutine()
 }
 
