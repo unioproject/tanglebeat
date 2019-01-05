@@ -95,7 +95,10 @@ func filterTXMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 	}
 	routine.accountTx(behind)
 
-	toOutput(msgData, msgSplit, entry.Visits)
+	// check if message was seen exactly number of times as configured (usually 2)
+	if entry.Visits == cfg.Config.RepeatToAcceptTX {
+		toOutput(msgData, msgSplit)
+	}
 }
 
 func filterSNMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
@@ -115,7 +118,7 @@ func filterSNMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 		return
 	}
 	if obsolete {
-		// if index of the current confirmetion message is less than the latest seen,
+		// if index of the current confirmation message is less than the latest seen,
 		// confirmation is ignored.
 		// Reason: if it is not too old, it must had been seen from other sources
 		routine.incObsoleteCount()
@@ -131,7 +134,10 @@ func filterSNMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 	}
 	routine.accountSn(behind)
 
-	toOutput(msgData, msgSplit, entry.Visits)
+	// check if message was seen exactly number of times as configured (usually 2)
+	if entry.Visits == cfg.Config.RepeatToAcceptTX {
+		toOutput(msgData, msgSplit)
+	}
 }
 
 func checkObsoleteMsg(msgData []byte, msgSplit []string, uri string) (bool, error) {
