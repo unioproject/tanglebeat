@@ -183,9 +183,8 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 		}
 	}, true)
 
-	seenTwice := ret.TxCount - ret.SeenOnce
-	if seenTwice != 0 {
-		ret.LatencySecAvg = ret.LatencySecAvg / float64(seenTwice)
+	if ret.TxCountPassed != 0 {
+		ret.LatencySecAvg = ret.LatencySecAvg / float64(ret.TxCountPassed)
 	} else {
 		ret.LatencySecAvg = 0
 	}
