@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	Version                 = "1.2"
-	PREFIX_MODULE           = "tanglebeat"
+	Version                 = "1.3"
+	PREFIX_MODULE           = "tbsender"
 	ROTATE_LOG_HOURS        = 12
 	ROTATE_LOG_RETAIN_HOURS = 12
 	defaultTag              = "TANGLE9BEAT"
