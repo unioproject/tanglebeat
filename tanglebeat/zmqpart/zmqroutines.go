@@ -21,6 +21,8 @@ type zmqRoutine struct {
 	uri               string
 	txCount           uint64
 	ctxCount          uint64
+	lmiCount          int
+	lastLmi           int
 	obsoleteSnCount   uint64
 	tsLastTXSomeMin   *ebuffer.EventTsExpiringBuffer
 	tsLastSNSomeMin   *ebuffer.EventTsExpiringBuffer
@@ -67,7 +69,16 @@ func (r *zmqRoutine) GetUri() string {
 	return r.uri
 }
 
-var topics = []string{"tx", "sn"}
+var topics = []string{"tx", "sn", "lmi"}
+
+func expectedTopic(topic string) bool {
+	for _, t := range topics {
+		if t == topic {
+			return true
+		}
+	}
+	return false
+}
 
 func (r *zmqRoutine) init() {
 	uri := r.GetUri()
@@ -122,10 +133,10 @@ func (r *zmqRoutine) Run(name string) {
 		r.SetLastHeartbeatNow()
 		msgSplit := strings.Split(string(msg.Frames[0]), " ")
 
-		//updateVecMetrics(msgSplit[0], r.Uri)
-
-		// send to filer's channel
-		toFilter(r, msg.Frames[0], msgSplit)
+		// send to filter's channel
+		if expectedTopic(msgSplit[0]) {
+			toFilter(r, msg.Frames[0], msgSplit)
+		}
 	}
 }
 
@@ -145,6 +156,13 @@ func (r *zmqRoutine) accountSn(behind uint64) {
 	r.last100SNBehindMs.Push(behind)
 }
 
+func (r *zmqRoutine) accountLmi(index int) {
+	r.Lock()
+	defer r.Unlock()
+	r.lmiCount++
+	r.lastLmi = index
+}
+
 func (r *zmqRoutine) incObsoleteCount() {
 	r.Lock()
 	defer r.Unlock()
@@ -162,6 +180,8 @@ type ZmqRoutineStats struct {
 	Confrate             uint64  `json:"confrate"`
 	BehindTX             uint64  `json:"behindTX"`
 	BehindSN             uint64  `json:"behindSN"`
+	LmiCount             int     `json:"lmiCount"`
+	LastLmi              int     `json:"lastLmi"`
 }
 
 func (r *zmqRoutine) getStats() *ZmqRoutineStats {
@@ -193,6 +213,8 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 		Confrate:             confrate,
 		BehindTX:             behindTX,
 		BehindSN:             behindSN,
+		LmiCount:             r.lmiCount,
+		LastLmi:              r.lastLmi,
 	}
 	return ret
 }

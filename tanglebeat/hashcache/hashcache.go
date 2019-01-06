@@ -174,7 +174,7 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 			} else {
 				ret.SeenOnce++
 			}
-			if entry.Visits >= cfg.Config.RepeatToAcceptTX {
+			if entry.Visits >= cfg.Config.RepeatToAccept {
 				ret.TxCountPassed++
 			}
 			if entry.FirstSeen < ret.EarliestSeen {

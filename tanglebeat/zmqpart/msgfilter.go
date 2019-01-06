@@ -24,6 +24,10 @@ var (
 	positiveValueTxCache *hashcache.HashCacheBase
 	valueBundleCache     *hashcache.HashCacheBase
 	confirmedTransfers   *ebuffer.EventTsWithDataExpiringBuffer
+	lastLMI              int
+	lastLMITimesSeen     int
+	lastLMIFirstSeen     uint64
+	lastLMILastSeen      uint64
 )
 
 type zmqMsg struct {
@@ -74,6 +78,8 @@ func filterMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 		filterTXMsg(routine, msgData, msgSplit)
 	case "sn":
 		filterSNMsg(routine, msgData, msgSplit)
+	case "lmi":
+		filterLMIMsg(routine, msgData, msgSplit)
 	}
 }
 
@@ -96,7 +102,7 @@ func filterTXMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 	routine.accountTx(behind)
 
 	// check if message was seen exactly number of times as configured (usually 2)
-	if entry.Visits == cfg.Config.RepeatToAcceptTX {
+	if entry.Visits == cfg.Config.RepeatToAccept {
 		toOutput(msgData, msgSplit)
 	}
 }
@@ -135,7 +141,7 @@ func filterSNMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 	routine.accountSn(behind)
 
 	// check if message was seen exactly number of times as configured (usually 2)
-	if entry.Visits == cfg.Config.RepeatToAcceptTX {
+	if entry.Visits == cfg.Config.RepeatToAccept {
 		toOutput(msgData, msgSplit)
 	}
 }
@@ -150,4 +156,27 @@ func checkObsoleteMsg(msgData []byte, msgSplit []string, uri string) (bool, erro
 	}
 	obsolete, _ := sncache.checkCurrentMilestoneIndex(index, uri)
 	return obsolete, nil
+}
+
+func filterLMIMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
+	index, err := strconv.Atoi(msgSplit[1])
+	if err != nil {
+		errorf("Invalid 'lmi' message: at index 1 expected to be milestone index: %v", err)
+		return
+	}
+	routine.accountLmi(index)
+	switch {
+	case index > lastLMI:
+		lastLMI = index
+		lastLMITimesSeen = 0
+		lastLMIFirstSeen = utils.UnixMsNow()
+		lastLMILastSeen = utils.UnixMsNow()
+	case index == lastLMI:
+		lastLMITimesSeen++
+		lastLMILastSeen = utils.UnixMsNow()
+		if lastLMITimesSeen == cfg.Config.RepeatToAccept {
+			toOutput(msgData, msgSplit)
+		}
+	}
+	// TODO display lastLMI
 }
