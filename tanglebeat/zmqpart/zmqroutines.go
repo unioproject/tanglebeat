@@ -45,7 +45,7 @@ func MustInitZmqRoutines(outEnabled bool, outPort int, inputs []string) {
 	initMsgFilter()
 	zmqRoutines = inreaders.NewInputReaderSet("zmq routine set")
 	var err error
-	compoundOutPublisher, err = nanomsg.NewPublisher(outEnabled, outPort, 0, nil)
+	compoundOutPublisher, err = nanomsg.NewPublisher(outEnabled, outPort, 0, localLog)
 	if err != nil {
 		errorf("Failed to create publishing channel. Publisher is disabled: %v", err)
 		panic(err)

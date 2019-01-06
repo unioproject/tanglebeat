@@ -5,6 +5,7 @@ import (
 	"github.com/lunfardo314/tanglebeat/lib/nanomsg"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/pubupdate"
 	"github.com/lunfardo314/tanglebeat/tbsender/sender_update"
 )
 
@@ -34,7 +35,7 @@ func MustInitSenderDataCollector(outEnabled bool, outPort int, inputs []string) 
 
 	if outEnabled {
 		var err error
-		senderOutPublisher, err = nanomsg.NewPublisher(outEnabled, outPort, 0, nil)
+		senderOutPublisher, err = nanomsg.NewPublisher(outEnabled, outPort, 0, localLog)
 		if err != nil {
 			errorf("Failed to create sender output publishing channel: %v", err)
 			panic(err)
@@ -95,7 +96,7 @@ func (r *updateSource) processUpdate(upd *sender_update.SenderUpdate) error {
 			tracef("Publish update '%v' received from %v, seq: %v(%v), index: %v",
 				upd.UpdType, r.GetUri(), upd.SeqUID, upd.SeqName, upd.Index)
 		}
-		if err := senderOutPublisher.PublishAsJSON(upd); err != nil {
+		if err := pubupdate.PublishSenderUpdate(senderOutPublisher, upd); err != nil {
 			errorf("Process update: %v", err)
 			return err
 		}

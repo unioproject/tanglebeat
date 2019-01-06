@@ -8,6 +8,7 @@ import (
 	"github.com/lunfardo314/tanglebeat/lib/confirmer"
 	"github.com/lunfardo314/tanglebeat/lib/multiapi"
 	"github.com/lunfardo314/tanglebeat/lib/utils"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/pubupdate"
 	"github.com/lunfardo314/tanglebeat/tbsender/bundle_source"
 	"github.com/lunfardo314/tanglebeat/tbsender/sender_update"
 	"github.com/op/go-logging"
@@ -171,7 +172,7 @@ func (seq *TransferSequence) processStartUpdate(bundleData *bundle_source.FirstB
 	if !ok {
 		seq.log.Errorf("No stopwatch entry for bundle hash %v", bundleHash)
 	}
-	_ = updatePublisher.PublishAsJSON(&sender_update.SenderUpdate{
+	_ = pubupdate.PublishSenderUpdate(updatePublisher, &sender_update.SenderUpdate{
 		Version:               Version,
 		SeqUID:                seq.params.GetUID(),
 		SeqName:               seq.name,
@@ -212,7 +213,7 @@ func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.Confirmer
 	if !ok {
 		seq.log.Errorf("processConfirmerUpdate: No stopwatch entry for %v", bundleHash)
 	}
-	_ = updatePublisher.PublishAsJSON(
+	_ = pubupdate.PublishSenderUpdate(updatePublisher,
 		&sender_update.SenderUpdate{
 			Version:               Version,
 			SeqUID:                seq.params.GetUID(),

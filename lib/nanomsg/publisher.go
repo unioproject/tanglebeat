@@ -18,15 +18,27 @@ type Publisher struct {
 	log     *logging.Logger
 }
 
-func (p *Publisher) errorf(format string, args ...interface{}) {
+func (p *Publisher) Errorf(format string, args ...interface{}) {
 	if p.log != nil {
 		p.log.Errorf(format, args...)
+	} else {
+		fmt.Printf("ERRO "+format+"\n", args...)
 	}
 }
 
-func (p *Publisher) infof(format string, args ...interface{}) {
+func (p *Publisher) Infof(format string, args ...interface{}) {
 	if p.log != nil {
 		p.log.Infof(format, args...)
+	} else {
+		fmt.Printf("INFO "+format+"\n", args...)
+	}
+}
+
+func (p *Publisher) Debugf(format string, args ...interface{}) {
+	if p.log != nil {
+		p.log.Debugf(format, args...)
+	} else {
+		fmt.Printf("DEBU "+format+"\n", args...)
 	}
 }
 
@@ -50,7 +62,7 @@ func NewPublisher(enabled bool, port int, bufflen int, localLog *logging.Logger)
 	if err = ret.sock.Listen(ret.url); err != nil {
 		return nil, fmt.Errorf("can't listen new pub socket: %v", err)
 	}
-	ret.infof("Publisher: PUB socket listening on %v", ret.url)
+	ret.Infof("Publisher: PUB socket listening on %v", ret.url)
 	go func() {
 		ret.loop()
 		ret.sock.Close()
@@ -62,7 +74,7 @@ func (p *Publisher) loop() {
 	for data := range p.chIn {
 		err := p.sock.Send(data)
 		if err != nil {
-			p.errorf("Nanomsg publisher of %v: %v", p.url, err)
+			p.Errorf("Nanomsg publisher of %v: %v", p.url, err)
 		}
 	}
 }
@@ -82,7 +94,7 @@ func (p *Publisher) PublishData(data []byte) error {
 func (p *Publisher) PublishAsJSON(obj interface{}) error {
 	data, err := json.Marshal(obj)
 	if err != nil {
-		p.errorf("Publisher: marshal error %v", err)
+		p.Errorf("Publisher: marshal error %v", err)
 		return err
 	}
 	return p.PublishData(data)
