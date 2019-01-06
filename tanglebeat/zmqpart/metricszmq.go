@@ -235,7 +235,7 @@ func startCollectingLatencyMetrics() {
 			zmqMetricsLatencyTXAvg.Set(lm.txAvgLatencySec)
 			zmqMetricsNotPropagatedPercTX.Set(lm.txNotPropagatedPerc)
 
-			zmqMetricsLatencySNAvg.Set(lm.txAvgLatencySec)
+			zmqMetricsLatencySNAvg.Set(lm.snAvgLatencySec)
 			zmqMetricsNotPropagatedPercSN.Set(lm.snNotPropagatedPerc)
 		}
 	}()
