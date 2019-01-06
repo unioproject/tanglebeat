@@ -4,7 +4,7 @@ var indexPage = `
 <!DOCTYPE html>
 <html>
     <head>
-        <title>tbreadzmq dashboard</title>
+        <title>Tanglebeat dashboard</title>
         <meta charset="UTF-8">
         <meta name="description" content="Page displays state of the Tanglebeat instance">
         <meta name="keywords" content="IOTA, Tangle, Tanglebeat, crypto, token, metrics">
