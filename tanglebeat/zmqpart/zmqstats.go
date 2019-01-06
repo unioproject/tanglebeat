@@ -45,6 +45,9 @@ type ZmqCacheStatsStruct struct {
 	TXLatencySecAvg10min float64 `json:"txLatencySecAvg10min"`
 	SNLatencySecAvg10min float64 `json:"snLatencySecAvg10min"`
 
+	LastLmi       int     `json:"lastLmi"`
+	LmiLatencySec float64 `json:"lmiLatencySec"`
+
 	mutex *sync.RWMutex
 }
 
@@ -131,6 +134,8 @@ func updateZmqCacheStats() {
 
 	zmqCacheStats.TXLatencySecAvg10min = math.Round(txcacheStats10min.LatencySecAvg*100) / 100
 	zmqCacheStats.SNLatencySecAvg10min = math.Round(sncacheStats10min.LatencySecAvg*100) / 100
+
+	zmqCacheStats.LastLmi, zmqCacheStats.LmiLatencySec = getLmiStats()
 }
 
 func updateZmqOutputSlowStats() {

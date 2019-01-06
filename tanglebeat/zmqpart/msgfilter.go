@@ -6,7 +6,9 @@ import (
 	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/cfg"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
+	"math"
 	"strconv"
+	"sync"
 )
 
 const (
@@ -28,6 +30,7 @@ var (
 	lastLMITimesSeen     int
 	lastLMIFirstSeen     uint64
 	lastLMILastSeen      uint64
+	lastLmiMutex         = &sync.RWMutex{}
 )
 
 type zmqMsg struct {
@@ -165,6 +168,10 @@ func filterLMIMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 		return
 	}
 	routine.accountLmi(index)
+
+	lastLmiMutex.Lock()
+	defer lastLmiMutex.Unlock()
+
 	switch {
 	case index > lastLMI:
 		lastLMI = index
@@ -178,5 +185,12 @@ func filterLMIMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 			toOutput(msgData, msgSplit)
 		}
 	}
-	// TODO display lastLMI
+}
+
+func getLmiStats() (int, float64) {
+	lastLmiMutex.RLock()
+	defer lastLmiMutex.RUnlock()
+	latencySec := float64(lastLMILastSeen-lastLMIFirstSeen) / 1000
+	latencySec = math.Round(latencySec*100) / 100
+	return lastLMI, latencySec
 }
