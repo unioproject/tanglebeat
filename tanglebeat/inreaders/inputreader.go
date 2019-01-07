@@ -18,7 +18,7 @@ type InputReader interface {
 	isTimeToRestart__() bool
 
 	SetId__(byte)
-	GetId() byte
+	GetId__() byte
 
 	isRunning__() bool
 
@@ -71,9 +71,7 @@ func (r *InputReaderBase) SetId__(id byte) {
 	r.id = id
 }
 
-func (r *InputReaderBase) GetId() byte {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
+func (r *InputReaderBase) GetId__() byte {
 	return r.id
 }
 
