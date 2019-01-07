@@ -14,6 +14,7 @@ import (
 const (
 	tlTXCacheSegmentDurationSec = 10
 	tlSNCacheSegmentDurationSec = 60
+	routineBufferRetention10Min = 10
 )
 
 type zmqRoutine struct {
@@ -86,9 +87,9 @@ func (r *zmqRoutine) init() {
 	r.Lock()
 	defer r.Unlock()
 	r.tsLastTX10Min = ebuffer.NewEventTsExpiringBuffer(
-		"tsLastTX10Min: "+uri, tlTXCacheSegmentDurationSec, 10*60)
+		"tsLastTX10Min: "+uri, tlTXCacheSegmentDurationSec, routineBufferRetention10Min*60)
 	r.tsLastSN10Min = ebuffer.NewEventTsExpiringBuffer(
-		"tsLastSN10Min: "+uri, tlSNCacheSegmentDurationSec, 10*60)
+		"tsLastSN10Min: "+uri, tlSNCacheSegmentDurationSec, routineBufferRetention10Min*60)
 	r.last100TXBehindMs = utils.NewRingArray(100)
 	r.last100SNBehindMs = utils.NewRingArray(100)
 }
@@ -189,16 +190,16 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 	r.Lock()
 	defer r.Unlock()
 
-	numLastTXSomeMin := r.tsLastTX10Min.CountAll()
-	tps := float64(numLastTXSomeMin) / (5 * 60)
+	numLastTX10Min := r.tsLastTX10Min.CountAll()
+	tps := float64(numLastTX10Min) / (routineBufferRetention10Min * 60)
 	tps = math.Round(100*tps) / 100
 
 	nopRate := getNotPropagatedById10Min(r.GetId__())
-	if numLastTXSomeMin != 0 {
-		nopRate = (100 * nopRate) / numLastTXSomeMin
+	if numLastTX10Min != 0 {
+		nopRate = (100 * nopRate) / numLastTX10Min
 	}
 
-	ctps := float64(r.tsLastSN10Min.CountAll()) / (5 * 60)
+	ctps := float64(r.tsLastSN10Min.CountAll()) / (routineBufferRetention10Min * 60)
 	ctps = math.Round(100*ctps) / 100
 
 	confrate := uint64(0)
