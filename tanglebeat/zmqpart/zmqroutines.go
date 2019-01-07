@@ -18,16 +18,18 @@ const (
 
 type zmqRoutine struct {
 	inreaders.InputReaderBase
-	uri               string
-	txCount           uint64
-	ctxCount          uint64
-	lmiCount          int
-	lastLmi           int
-	obsoleteSnCount   uint64
-	tsLastTXSomeMin   *ebuffer.EventTsExpiringBuffer
-	tsLastSNSomeMin   *ebuffer.EventTsExpiringBuffer
-	last100TXBehindMs *utils.RingArray
-	last100SNBehindMs *utils.RingArray
+	uri                     string
+	txCount                 uint64
+	ctxCount                uint64
+	lmiCount                int
+	lastLmi                 int
+	obsoleteSnCount         uint64
+	notPropagatedCount      int
+	notPropagatedCount10min int
+	tsLastTXSomeMin         *ebuffer.EventTsExpiringBuffer
+	tsLastSNSomeMin         *ebuffer.EventTsExpiringBuffer
+	last100TXBehindMs       *utils.RingArray
+	last100SNBehindMs       *utils.RingArray
 }
 
 func createZmqRoutine(uri string) {
@@ -182,6 +184,7 @@ type ZmqRoutineStats struct {
 	BehindSN             uint64  `json:"behindSN"`
 	LmiCount             int     `json:"lmiCount"`
 	LastLmi              int     `json:"lastLmi"`
+	NotPropagatedRate    int     `json:"notPropagatedRate"`
 }
 
 func (r *zmqRoutine) getStats() *ZmqRoutineStats {
@@ -220,9 +223,19 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 }
 
 func GetInputStats() []*ZmqRoutineStats {
+	notPropagatedTx := txcache.NotPropagatedById()
 	ret := make([]*ZmqRoutineStats, 0, 10)
+	var st *ZmqRoutineStats
+	var nonP int
+	var ok bool
 	zmqRoutines.ForEach(func(name string, ir inreaders.InputReader) {
-		ret = append(ret, ir.(*zmqRoutine).getStats())
+		st = ir.(*zmqRoutine).getStats()
+		if nonP, ok = notPropagatedTx[ir.GetId()]; ok {
+			if st.TxCount != 0 {
+				st.NotPropagatedRate = (nonP * 100) / int(st.TxCount)
+			}
+		}
+		ret = append(ret, st)
 	})
 	sort.Sort(ZmqRoutineStatsSlice(ret))
 	return ret

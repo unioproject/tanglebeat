@@ -17,6 +17,9 @@ type InputReader interface {
 	setIdle__(time.Duration)
 	isTimeToRestart__() bool
 
+	SetId__(byte)
+	GetId() byte
+
 	isRunning__() bool
 
 	SetReading(bool)
@@ -31,13 +34,14 @@ type InputReader interface {
 }
 
 type InputReaderBase struct {
+	id            byte
 	running       bool
 	reading       bool
 	lastErr       string
 	restartAt     time.Time
 	readingSince  time.Time
 	lastHeartbeat time.Time
-	mutex         *sync.Mutex
+	mutex         *sync.RWMutex
 }
 
 type InputReaderBaseStats struct {
@@ -51,7 +55,7 @@ func NewInputReaderBase() *InputReaderBase {
 	return &InputReaderBase{
 		restartAt:     time.Now(),
 		lastHeartbeat: time.Now(),
-		mutex:         &sync.Mutex{},
+		mutex:         &sync.RWMutex{},
 	}
 }
 
@@ -61,6 +65,16 @@ func (r *InputReaderBase) Lock() {
 
 func (r *InputReaderBase) Unlock() {
 	r.mutex.Unlock()
+}
+
+func (r *InputReaderBase) SetId__(id byte) {
+	r.id = id
+}
+
+func (r *InputReaderBase) GetId() byte {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	return r.id
 }
 
 func (r *InputReaderBase) SetReading(reading bool) {
@@ -90,8 +104,8 @@ func (r *InputReaderBase) SetLastHeartbeatNow() {
 }
 
 func (r *InputReaderBase) GetLastHeartbeat() time.Time {
-	r.Lock()
-	defer r.Unlock()
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
 	return r.lastHeartbeat
 }
 
