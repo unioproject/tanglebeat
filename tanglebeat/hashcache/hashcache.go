@@ -7,10 +7,11 @@ import (
 )
 
 type CacheEntry struct {
-	FirstSeen uint64
-	LastSeen  uint64
-	Visits    int
-	Data      interface{}
+	FirstSeen    uint64
+	LastSeen     uint64
+	Visits       byte
+	FirstVisitId byte
+	Data         interface{}
 }
 
 type cacheSegment struct {
@@ -47,10 +48,11 @@ func (seg *cacheSegment) Put(args ...interface{}) {
 	shorthash := args[0].(string)
 	nowis := utils.UnixMsNow()
 	seg.themap[shorthash] = CacheEntry{
-		FirstSeen: nowis,
-		LastSeen:  nowis,
-		Visits:    1,
-		Data:      args[1],
+		FirstSeen:    nowis,
+		LastSeen:     nowis,
+		Visits:       1,
+		FirstVisitId: args[1].(byte),
+		Data:         args[2],
 	}
 }
 
@@ -97,8 +99,8 @@ func (cache *HashCacheBase) shortHash(hash string) string {
 	return string(ret)
 }
 
-func (cache *HashCacheBase) __insertNew(shorthash string, data interface{}) {
-	cache.NewEntry(shorthash, data)
+func (cache *HashCacheBase) __insertNew(shorthash string, id byte, data interface{}) {
+	cache.NewEntry(shorthash, id, data)
 }
 
 // finds entry and increases visit counter if found
@@ -137,7 +139,7 @@ func (cache *HashCacheBase) FindWithDelete(hash string, ret *CacheEntry) bool {
 	return cache.__findWithDelete(shash, ret)
 }
 
-func (cache *HashCacheBase) SeenHash(hash string, data interface{}, ret *CacheEntry) bool {
+func (cache *HashCacheBase) SeenHashBy(hash string, id byte, data interface{}, ret *CacheEntry) bool {
 	cache.Lock()
 	defer cache.Unlock()
 
@@ -145,7 +147,7 @@ func (cache *HashCacheBase) SeenHash(hash string, data interface{}, ret *CacheEn
 	if seen := cache.__find(shash, ret); seen {
 		return true
 	}
-	cache.__insertNew(shash, data)
+	cache.__insertNew(shash, id, data)
 	return false
 }
 
@@ -174,7 +176,7 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 			} else {
 				ret.SeenOnce++
 			}
-			if entry.Visits >= cfg.Config.RepeatToAccept {
+			if int(entry.Visits) >= cfg.Config.RepeatToAccept {
 				ret.TxCountPassed++
 			}
 			if entry.FirstSeen < ret.EarliestSeen {
@@ -205,4 +207,18 @@ func (cache *HashCacheBase) ForEachEntry(callback func(entry *CacheEntry), lock 
 			}
 		}
 	})
+}
+
+func (cache *HashCacheBase) NotPropagatedById() map[byte]int {
+	ret := make(map[byte]int)
+	cache.ForEachEntry(func(entry *CacheEntry) {
+		if entry.Visits == 1 {
+			_, ok := ret[entry.FirstVisitId]
+			if !ok {
+				ret[entry.FirstVisitId] = 1
+			}
+			ret[entry.FirstVisitId] += 1
+		}
+	}, true)
+	return ret
 }

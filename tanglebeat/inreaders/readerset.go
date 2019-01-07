@@ -34,6 +34,7 @@ func (irs *InputReaderSet) AddInputReader(name string, ir InputReader) {
 	defer irs.unlock()
 	_, ok := irs.theSet[name]
 	if !ok {
+		ir.SetId__(byte(len(irs.theSet)))
 		irs.theSet[name] = ir
 		debugf("Routine set '%v': added routine '%v'", irs.name, name)
 	}

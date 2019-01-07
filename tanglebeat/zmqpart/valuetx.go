@@ -24,10 +24,10 @@ func processValueTxMsg(msgSplit []string) {
 					lastInBundle: msgSplit[6] == msgSplit[7],
 				}
 				// Store tx hash is seen first time to wait for corresponding 'sn' message
-				positiveValueTxCache.SeenHash(msgSplit[1], data, nil) // transaction
+				positiveValueTxCache.SeenHashBy(msgSplit[1], 0, data, nil) // transaction
 				conf := false
 				// Store bundle hash is seen first time to wait for corresponding 'sn' message (track bundle confirmation)
-				valueBundleCache.SeenHash(msgSplit[8], &conf, nil) // bundle. data is *bool
+				valueBundleCache.SeenHashBy(msgSplit[8], 0, &conf, nil) // bundle. data is *bool
 			}
 		} else {
 			errorf("toOutput: expected at least 9 fields in TX message")

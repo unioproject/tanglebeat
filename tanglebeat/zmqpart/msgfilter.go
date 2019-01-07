@@ -95,7 +95,7 @@ func filterTXMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 		errorf("%v: Message %v is invalid", routine.GetUri(), string(msgData))
 		return
 	}
-	seen = txcache.SeenHash(msgSplit[1], nil, &entry)
+	seen = txcache.SeenHashBy(msgSplit[1], routine.GetId(), nil, &entry)
 
 	if seen {
 		behind = utils.SinceUnixMs(entry.FirstSeen)
@@ -105,7 +105,7 @@ func filterTXMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 	routine.accountTx(behind)
 
 	// check if message was seen exactly number of times as configured (usually 2)
-	if entry.Visits == cfg.Config.RepeatToAccept {
+	if int(entry.Visits) == cfg.Config.RepeatToAccept {
 		toOutput(msgData, msgSplit)
 	}
 }
@@ -135,7 +135,7 @@ func filterSNMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 	}
 	hash = msgSplit[2]
 
-	seen = sncache.SeenHash(hash, nil, &entry)
+	seen = sncache.SeenHashBy(hash, routine.GetId(), nil, &entry)
 	if seen {
 		behind = utils.SinceUnixMs(entry.FirstSeen)
 	} else {
@@ -144,7 +144,7 @@ func filterSNMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 	routine.accountSn(behind)
 
 	// check if message was seen exactly number of times as configured (usually 2)
-	if entry.Visits == cfg.Config.RepeatToAccept {
+	if int(entry.Visits) == cfg.Config.RepeatToAccept {
 		toOutput(msgData, msgSplit)
 	}
 }

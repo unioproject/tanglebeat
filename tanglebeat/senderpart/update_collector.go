@@ -82,7 +82,7 @@ func (r *updateSource) processUpdate(upd *sender_update.SenderUpdate) error {
 		upd.UpdType, r.GetUri(), upd.SeqUID, upd.SeqName, upd.Index)
 
 	hash := upd.SeqUID + fmt.Sprintf("%v", upd.UpdateTs)
-	if publishedUpdates.SeenHash(hash, nil, nil) {
+	if publishedUpdates.SeenHashBy(hash, 0, nil, nil) {
 		return nil
 	}
 
