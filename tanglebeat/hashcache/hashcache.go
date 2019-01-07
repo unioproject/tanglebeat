@@ -152,11 +152,12 @@ func (cache *HashCacheBase) SeenHashBy(hash string, id byte, data interface{}, r
 }
 
 type hashcacheStats struct {
-	TxCount       int
-	TxCountPassed int
-	SeenOnce      int
-	LatencySecAvg float64
-	EarliestSeen  uint64
+	TxCount           int
+	TxCountPassed     int
+	SeenOnce          int
+	LatencySecAvg     float64
+	EarliestSeen      uint64
+	NotPropagatedById map[byte]int
 }
 
 func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
@@ -164,9 +165,12 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 	if msecBack == 0 {
 		earliest = 0 // count all of it
 	}
-	ret := &hashcacheStats{EarliestSeen: utils.UnixMsNow()}
+	ret := &hashcacheStats{
+		EarliestSeen:      utils.UnixMsNow(),
+		NotPropagatedById: make(map[byte]int),
+	}
 	var lat float64
-
+	var ok bool
 	cache.ForEachEntry(func(entry *CacheEntry) {
 		if entry.LastSeen >= earliest {
 			ret.TxCount++
@@ -175,6 +179,10 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 				ret.LatencySecAvg += lat
 			} else {
 				ret.SeenOnce++
+				if _, ok = ret.NotPropagatedById[entry.FirstVisitId]; !ok {
+					ret.NotPropagatedById[entry.FirstVisitId] = 0
+				}
+				ret.NotPropagatedById[entry.FirstVisitId] += 1
 			}
 			if int(entry.Visits) >= cfg.Config.RepeatToAccept {
 				ret.TxCountPassed++
@@ -207,18 +215,4 @@ func (cache *HashCacheBase) ForEachEntry(callback func(entry *CacheEntry), lock 
 			}
 		}
 	})
-}
-
-func (cache *HashCacheBase) NotPropagatedById() map[byte]int {
-	ret := make(map[byte]int)
-	cache.ForEachEntry(func(entry *CacheEntry) {
-		if entry.Visits == 1 {
-			_, ok := ret[entry.FirstVisitId]
-			if !ok {
-				ret[entry.FirstVisitId] = 1
-			}
-			ret[entry.FirstVisitId] += 1
-		}
-	}, true)
-	return ret
 }

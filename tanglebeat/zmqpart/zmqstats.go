@@ -48,6 +48,8 @@ type ZmqCacheStatsStruct struct {
 	LastLmi       int     `json:"lastLmi"`
 	LmiLatencySec float64 `json:"lmiLatencySec"`
 
+	notPropagatedById10Min map[byte]int
+
 	mutex *sync.RWMutex
 }
 
@@ -125,6 +127,8 @@ func updateZmqCacheStats() {
 	zmqCacheStats.TXSeenOnceCount10min = txcacheStats10min.SeenOnce
 	zmqCacheStats.SNSeenOnceCount10min = sncacheStats10min.SeenOnce
 
+	zmqCacheStats.notPropagatedById10Min = txcacheStats10min.NotPropagatedById
+
 	if txcacheStats10min.TxCount != 0 {
 		zmqCacheStats.TXNonPropagationRate10min = (txcacheStats10min.SeenOnce * 100) / txcacheStats10min.TxCount
 	}
@@ -136,6 +140,14 @@ func updateZmqCacheStats() {
 	zmqCacheStats.SNLatencySecAvg10min = math.Round(sncacheStats10min.LatencySecAvg*100) / 100
 
 	zmqCacheStats.LastLmi, zmqCacheStats.LmiLatencySec = getLmiStats()
+}
+
+func getNotPropagatedById10Min(id byte) int {
+	ret, ok := zmqCacheStats.notPropagatedById10Min[id]
+	if !ok {
+		ret = 0
+	}
+	return ret
 }
 
 func updateZmqOutputSlowStats() {

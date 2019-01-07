@@ -18,18 +18,16 @@ const (
 
 type zmqRoutine struct {
 	inreaders.InputReaderBase
-	uri                     string
-	txCount                 uint64
-	ctxCount                uint64
-	lmiCount                int
-	lastLmi                 int
-	obsoleteSnCount         uint64
-	notPropagatedCount      int
-	notPropagatedCount10min int
-	tsLastTXSomeMin         *ebuffer.EventTsExpiringBuffer
-	tsLastSNSomeMin         *ebuffer.EventTsExpiringBuffer
-	last100TXBehindMs       *utils.RingArray
-	last100SNBehindMs       *utils.RingArray
+	uri               string
+	txCount           uint64
+	ctxCount          uint64
+	lmiCount          int
+	lastLmi           int
+	obsoleteSnCount   uint64
+	tsLastTX10Min     *ebuffer.EventTsExpiringBuffer
+	tsLastSN10Min     *ebuffer.EventTsExpiringBuffer
+	last100TXBehindMs *utils.RingArray
+	last100SNBehindMs *utils.RingArray
 }
 
 func createZmqRoutine(uri string) {
@@ -87,10 +85,10 @@ func (r *zmqRoutine) init() {
 	tracef("++++++++++++ INIT zmqRoutine uri = '%v'", uri)
 	r.Lock()
 	defer r.Unlock()
-	r.tsLastTXSomeMin = ebuffer.NewEventTsExpiringBuffer(
-		"tsLastTXSomeMin: "+uri, tlTXCacheSegmentDurationSec, 5*60)
-	r.tsLastSNSomeMin = ebuffer.NewEventTsExpiringBuffer(
-		"tsLastSNSomeMin: "+uri, tlSNCacheSegmentDurationSec, 5*60)
+	r.tsLastTX10Min = ebuffer.NewEventTsExpiringBuffer(
+		"tsLastTX10Min: "+uri, tlTXCacheSegmentDurationSec, 10*60)
+	r.tsLastSN10Min = ebuffer.NewEventTsExpiringBuffer(
+		"tsLastSN10Min: "+uri, tlSNCacheSegmentDurationSec, 10*60)
 	r.last100TXBehindMs = utils.NewRingArray(100)
 	r.last100SNBehindMs = utils.NewRingArray(100)
 }
@@ -99,9 +97,9 @@ func (r *zmqRoutine) uninit() {
 	tracef("++++++++++++ UNINIT zmqRoutine uri = '%v'", r.GetUri())
 	r.Lock()
 	defer r.Unlock()
-	r.tsLastTXSomeMin = nil
+	r.tsLastTX10Min = nil
 	r.last100TXBehindMs = nil
-	r.tsLastSNSomeMin = nil
+	r.tsLastSN10Min = nil
 	r.last100SNBehindMs = nil
 }
 
@@ -146,7 +144,7 @@ func (r *zmqRoutine) accountTx(behind uint64) {
 	r.Lock()
 	defer r.Unlock()
 	r.txCount++
-	r.tsLastTXSomeMin.RecordTS()
+	r.tsLastTX10Min.RecordTS()
 	r.last100TXBehindMs.Push(behind)
 }
 
@@ -154,7 +152,7 @@ func (r *zmqRoutine) accountSn(behind uint64) {
 	r.Lock()
 	defer r.Unlock()
 	r.ctxCount++
-	r.tsLastSNSomeMin.RecordTS()
+	r.tsLastSN10Min.RecordTS()
 	r.last100SNBehindMs.Push(behind)
 }
 
@@ -191,10 +189,16 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 	r.Lock()
 	defer r.Unlock()
 
-	tps := float64(r.tsLastTXSomeMin.CountAll()) / (5 * 60)
+	numLastTXSomeMin := r.tsLastTX10Min.CountAll()
+	tps := float64(numLastTXSomeMin) / (5 * 60)
 	tps = math.Round(100*tps) / 100
 
-	ctps := float64(r.tsLastSNSomeMin.CountAll()) / (5 * 60)
+	nopRate := getNotPropagatedById10Min(r.GetId__())
+	if numLastTXSomeMin != 0 {
+		nopRate = (100 * nopRate) / numLastTXSomeMin
+	}
+
+	ctps := float64(r.tsLastSN10Min.CountAll()) / (5 * 60)
 	ctps = math.Round(100*ctps) / 100
 
 	confrate := uint64(0)
@@ -218,24 +222,15 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 		BehindSN:             behindSN,
 		LmiCount:             r.lmiCount,
 		LastLmi:              r.lastLmi,
+		NotPropagatedRate:    nopRate,
 	}
 	return ret
 }
 
 func GetInputStats() []*ZmqRoutineStats {
-	notPropagatedTx := txcache.NotPropagatedById()
 	ret := make([]*ZmqRoutineStats, 0, 10)
-	var st *ZmqRoutineStats
-	var nonP int
-	var ok bool
 	zmqRoutines.ForEach(func(name string, ir inreaders.InputReader) {
-		st = ir.(*zmqRoutine).getStats()
-		if nonP, ok = notPropagatedTx[ir.GetId()]; ok {
-			if st.TxCount != 0 {
-				st.NotPropagatedRate = (nonP * 100) / int(st.TxCount)
-			}
-		}
-		ret = append(ret, st)
+		ret = append(ret, ir.(*zmqRoutine).getStats())
 	})
 	sort.Sort(ZmqRoutineStatsSlice(ret))
 	return ret
