@@ -42,7 +42,7 @@ var indexPage = `
 		 <table border="0">
 			<tr>
 				<td><b>Compound IRI msg output (Nanomsg)</b></td>
-				<td><b>Caches</b></td>
+				<td><b>Buffers</b></td>
 				<td><b>Go runtime</b></td>
             </tr>
             <tr>
@@ -193,7 +193,7 @@ var loadjs = `
                     }
                 }
       	    };
-      	    req = "stats";
+      	    req = "/api1/internal_stats";
             xhttp.open("GET", req, true);
             xhttp.send();
         }

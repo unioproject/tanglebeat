@@ -57,25 +57,6 @@ func (seg *eventTSExpiringSegment) Size() int {
 	return len(seg.eventTs)
 }
 
-func (buf *EventTsExpiringBuffer) forEachEntry(callback func(ts uint64) bool) {
-	earliest := utils.UnixMsNow() - buf.retentionPeriodMs
-	buf.ForEachSegment(func(s ExpiringSegment) {
-		s.(*eventTSExpiringSegment).forEachEntry(callback, earliest)
-	})
-}
-
-func (seg *eventTSExpiringSegment) forEachEntry(callback func(ts uint64) bool, earliest uint64) {
-	for _, ts := range seg.eventTs {
-		if ts < earliest {
-			return
-		}
-		if !callback(ts) {
-			return
-		}
-	}
-	return
-}
-
 func (buf *EventTsExpiringBuffer) CountAll() int {
 	if buf == nil {
 		return 0
@@ -83,8 +64,19 @@ func (buf *EventTsExpiringBuffer) CountAll() int {
 	buf.Lock()
 	defer buf.Unlock()
 	var ret int
-	buf.forEachEntry(func(ts uint64) bool {
-		ret++
+	var seg *eventTSExpiringSegment
+	earliest := utils.UnixMsNow() - buf.retentionPeriodMs
+	buf.ForEachSegment__(func(s ExpiringSegment) bool {
+		seg = s.(*eventTSExpiringSegment)
+		if seg.created >= earliest {
+			ret += len(seg.eventTs)
+		} else {
+			for _, ts := range seg.eventTs {
+				if ts >= earliest {
+					ret++
+				}
+			}
+		}
 		return true
 	})
 	return ret

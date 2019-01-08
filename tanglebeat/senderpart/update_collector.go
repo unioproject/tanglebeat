@@ -6,6 +6,7 @@ import (
 	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/pubupdate"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/senderstats"
 	"github.com/lunfardo314/tanglebeat/tbsender/sender_update"
 )
 
@@ -85,6 +86,8 @@ func (r *updateSource) processUpdate(upd *sender_update.SenderUpdate) error {
 	if publishedUpdates.SeenHashBy(hash, 0, nil, nil) {
 		return nil
 	}
+
+	senderstats.SenderUpdateToStats(upd)
 
 	updateSenderMetrics(upd)
 

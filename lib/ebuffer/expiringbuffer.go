@@ -128,10 +128,12 @@ func (buf *ExpiringBuffer) NewEntry(data ...interface{}) {
 	buf.top.Touch()
 }
 
-func (buf *ExpiringBuffer) ForEachSegment(callback func(seg ExpiringSegment)) {
+func (buf *ExpiringBuffer) ForEachSegment__(callback func(seg ExpiringSegment) bool) {
 	for s := buf.top; s != nil; s = s.GetPrev() {
 		if !s.IsExpired(buf.retentionPeriodMs) {
-			callback(s)
+			if !callback(s) {
+				return
+			}
 		} else {
 			return
 		}
