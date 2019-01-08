@@ -48,7 +48,7 @@ type ZmqCacheStatsStruct struct {
 	LastLmi       int     `json:"lastLmi"`
 	LmiLatencySec float64 `json:"lmiLatencySec"`
 
-	notPropagatedById10Min map[byte]int
+	seenOnceCountById10Min map[byte]int
 
 	mutex *sync.RWMutex
 }
@@ -127,7 +127,7 @@ func updateZmqCacheStats() {
 	zmqCacheStats.TXSeenOnceCount10min = txcacheStats10min.SeenOnce
 	zmqCacheStats.SNSeenOnceCount10min = sncacheStats10min.SeenOnce
 
-	zmqCacheStats.notPropagatedById10Min = txcacheStats10min.NotPropagatedById
+	zmqCacheStats.seenOnceCountById10Min = txcacheStats10min.SeenOnceCountById
 
 	if txcacheStats10min.TxCount != 0 {
 		zmqCacheStats.TXNonPropagationRate10min = (txcacheStats10min.SeenOnce * 100) / txcacheStats10min.TxCount
@@ -142,8 +142,10 @@ func updateZmqCacheStats() {
 	zmqCacheStats.LastLmi, zmqCacheStats.LmiLatencySec = getLmiStats()
 }
 
-func getNotPropagatedById10Min(id byte) int {
-	ret, ok := zmqCacheStats.notPropagatedById10Min[id]
+func getSeenOnceCount10Min(id byte) int {
+	zmqCacheStats.mutex.RLock()
+	defer zmqCacheStats.mutex.RUnlock()
+	ret, ok := zmqCacheStats.seenOnceCountById10Min[id]
 	if !ok {
 		ret = 0
 	}
@@ -167,6 +169,7 @@ func updateZmqOutputSlowStats() {
 	st.TPS = math.Round(st.TPS*100) / 100
 	st.CTPS = float64(st.SNCount) / secPassed
 	st.CTPS = math.Round(st.CTPS*100) / 100
+	//debugf("+++++++++++++ secPassed = %v st = %+v", secPassed, st)
 
 	if st.TXCount != 0 {
 		st.ConfRate = (st.SNCount * 100) / st.TXCount
@@ -176,18 +179,19 @@ func updateZmqOutputSlowStats() {
 	// 10 min stats
 	const secBack = 10 * 60
 	var st10 ZmqOutputStatsStruct
-	txs = txcache.Stats(secBack * 1000)
-	st10.TXCount = txs.TxCountPassed
+	txs10 := txcache.Stats(secBack * 1000)
+	st10.TXCount = txs10.TxCountPassed
 
-	sns = sncache.Stats(secBack * 1000)
-	st10.SNCount = sns.TxCountPassed
+	sns10 := sncache.Stats(secBack * 1000)
+	st10.SNCount = sns10.TxCountPassed
 
-	secPassed = float64((utils.UnixMsNow() - txs.EarliestSeen) / 1000)
+	secPassed10 := float64((utils.UnixMsNow() - txs10.EarliestSeen) / 1000)
 
-	st10.TPS = float64(st10.TXCount) / secPassed
+	st10.TPS = float64(st10.TXCount) / secPassed10
 	st10.TPS = math.Round(st10.TPS*100) / 100
-	st10.CTPS = float64(st10.SNCount) / secPassed
+	st10.CTPS = float64(st10.SNCount) / secPassed10
 	st10.CTPS = math.Round(st10.CTPS*100) / 100
+	//debugf("+++++++++++++ secPassed10 = %v st = %+v", secPassed10, st10)
 
 	if st10.TXCount != 0 {
 		st10.ConfRate = (st10.SNCount * 100) / st10.TXCount
