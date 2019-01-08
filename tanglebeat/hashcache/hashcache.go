@@ -106,10 +106,12 @@ func (cache *HashCacheBase) __insertNew(shorthash string, id byte, data interfac
 // finds entry and increases visit counter if found
 func (cache *HashCacheBase) __find(shorthash string, ret *CacheEntry) bool {
 	var found bool
-	cache.ForEachSegment(func(seg ebuffer.ExpiringSegment) {
+	cache.ForEachSegment__(func(seg ebuffer.ExpiringSegment) bool {
 		if seg.(*cacheSegment).Find(shorthash, ret) {
 			found = true
+			return false // stop traversing, it was found
 		}
+		return true
 	})
 	return found
 }
@@ -122,10 +124,12 @@ func (cache *HashCacheBase) Find(hash string, ret *CacheEntry) bool {
 
 func (cache *HashCacheBase) __findWithDelete(shorthash string, ret *CacheEntry) bool {
 	var found bool
-	cache.ForEachSegment(func(seg ebuffer.ExpiringSegment) {
+	cache.ForEachSegment__(func(seg ebuffer.ExpiringSegment) bool {
 		if seg.(*cacheSegment).FindWithDelete(shorthash, ret) {
 			found = true
+			return false // stop traversing, it was found
 		}
+		return true
 	})
 	return found
 }
@@ -172,26 +176,24 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 	var lat float64
 	var ok bool
 	cache.ForEachEntry(func(entry *CacheEntry) {
-		if entry.LastSeen >= earliest {
-			ret.TxCount++
-			if entry.Visits > 1 {
-				lat = float64(entry.LastSeen-entry.FirstSeen) / 1000
-				ret.LatencySecAvg += lat
-			} else {
-				ret.SeenOnce++
-				if _, ok = ret.SeenOnceCountById[entry.FirstVisitId]; !ok {
-					ret.SeenOnceCountById[entry.FirstVisitId] = 0
-				}
-				ret.SeenOnceCountById[entry.FirstVisitId] += 1
+		ret.TxCount++
+		if entry.Visits > 1 {
+			lat = float64(entry.LastSeen-entry.FirstSeen) / 1000
+			ret.LatencySecAvg += lat
+		} else {
+			ret.SeenOnce++
+			if _, ok = ret.SeenOnceCountById[entry.FirstVisitId]; !ok {
+				ret.SeenOnceCountById[entry.FirstVisitId] = 0
 			}
-			if int(entry.Visits) >= cfg.Config.RepeatToAccept {
-				ret.TxCountPassed++
-			}
-			if entry.LastSeen < ret.EarliestSeen {
-				ret.EarliestSeen = entry.LastSeen
-			}
+			ret.SeenOnceCountById[entry.FirstVisitId] += 1
 		}
-	}, true)
+		if int(entry.Visits) >= cfg.Config.RepeatToAccept {
+			ret.TxCountPassed++
+		}
+		if entry.LastSeen < ret.EarliestSeen {
+			ret.EarliestSeen = entry.LastSeen
+		}
+	}, earliest, true)
 
 	if ret.TxCountPassed != 0 {
 		ret.LatencySecAvg = ret.LatencySecAvg / float64(ret.TxCountPassed)
@@ -201,18 +203,23 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 	return ret
 }
 
-func (cache *HashCacheBase) ForEachEntry(callback func(entry *CacheEntry), lock bool) {
+func (cache *HashCacheBase) ForEachEntry(callback func(entry *CacheEntry), earliest uint64, lock bool) uint64 {
 	if lock {
 		cache.Lock()
 		defer cache.Unlock()
 	}
-	earliest := utils.UnixMsNow() - cache.retentionPeriodMsCopy
-	cache.ForEachSegment(func(s ebuffer.ExpiringSegment) {
+	retEarliest := utils.UnixMsNow()
+	cache.ForEachSegment__(func(s ebuffer.ExpiringSegment) bool {
 		seg := s.(*cacheSegment)
 		for _, entry := range seg.themap {
 			if entry.LastSeen >= earliest {
 				callback(&entry)
+				if entry.LastSeen < retEarliest {
+					retEarliest = entry.LastSeen
+				}
 			}
 		}
+		return true // always continue
 	})
+	return retEarliest
 }

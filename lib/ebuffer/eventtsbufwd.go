@@ -4,9 +4,6 @@ import (
 	"github.com/lunfardo314/tanglebeat/lib/utils"
 )
 
-// Thread safe expiring buffer
-//--------------------------------------------
-
 type eventTSWithDataExpiringSegment struct {
 	ExpiringSegmentBase
 	eventTs   []uint64
@@ -30,7 +27,7 @@ func NewEventTsWithDataExpiringBuffer(id string, segDurationSec, retentionPeriod
 			capacity = prev.Size()
 			capacity += capacity / 20 // 5% more
 		}
-		ret := ExpiringSegment(NewEventTSWithDataExpiringSegment(capacity))
+		ret := ExpiringSegment(newEventTSWithDataExpiringSegment(capacity))
 		ret.SetPrev(prev)
 		return ret
 	}
@@ -39,7 +36,7 @@ func NewEventTsWithDataExpiringBuffer(id string, segDurationSec, retentionPeriod
 	}
 }
 
-func NewEventTSWithDataExpiringSegment(capacity int) *eventTSWithDataExpiringSegment {
+func newEventTSWithDataExpiringSegment(capacity int) *eventTSWithDataExpiringSegment {
 	if capacity == 0 {
 		capacity = defaultCapacityEventTSWithDataExpiringSegment
 	}
@@ -52,34 +49,44 @@ func NewEventTSWithDataExpiringSegment(capacity int) *eventTSWithDataExpiringSeg
 
 func (seg *eventTSWithDataExpiringSegment) Put(args ...interface{}) {
 	seg.eventTs = append(seg.eventTs, args[0].(uint64))
-	seg.eventData = append(seg.eventData, args[0])
+	seg.eventData = append(seg.eventData, args[1])
 }
 
 func (seg *eventTSWithDataExpiringSegment) Size() int {
 	return len(seg.eventTs)
 }
 
-func (buf *EventTsWithDataExpiringBuffer) ForEachEntry(callback func(ts uint64, data interface{}) bool, lock bool) {
+func (buf *EventTsWithDataExpiringBuffer) ForEachEntry(callback func(ts uint64, data interface{}) bool, earliest uint64, lock bool) uint64 {
 	if lock {
 		buf.Lock()
 		defer buf.Unlock()
 	}
-	earliest := utils.UnixMsNow() - buf.retentionPeriodMs
-	buf.ForEachSegment(func(s ExpiringSegment) {
-		s.(*eventTSWithDataExpiringSegment).forEachEntry(callback, earliest)
+	var retEarliest = utils.UnixMsNow()
+	var t uint64
+	buf.ForEachSegment__(func(s ExpiringSegment) bool {
+		t = s.(*eventTSWithDataExpiringSegment).forEachEntry(callback, earliest)
+		if t < retEarliest {
+			retEarliest = t
+		}
+		return true
 	})
+	return retEarliest
+
 }
 
-func (seg *eventTSWithDataExpiringSegment) forEachEntry(callback func(ts uint64, data interface{}) bool, earliest uint64) {
+func (seg *eventTSWithDataExpiringSegment) forEachEntry(callback func(ts uint64, data interface{}) bool, earliest uint64) uint64 {
+	var retEarliest = utils.UnixMsNow()
 	for idx, ts := range seg.eventTs {
-		if ts < earliest {
-			return
-		}
-		if !callback(ts, seg.eventData[idx]) {
-			return
+		if ts >= earliest {
+			if ts < retEarliest {
+				retEarliest = ts
+			}
+			if !callback(ts, seg.eventData[idx]) {
+				break
+			}
 		}
 	}
-	return
+	return retEarliest
 }
 
 func (buf *EventTsWithDataExpiringBuffer) RecordTS(data interface{}) {

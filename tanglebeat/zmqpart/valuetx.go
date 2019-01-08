@@ -82,11 +82,9 @@ func getValueConfirmationStats(msecBack uint64) (int, uint64) {
 		earliest = 0
 	}
 	confirmedTransfers.ForEachEntry(func(ts uint64, data interface{}) bool {
-		if ts >= earliest {
-			count++
-			value += data.(uint64)
-		}
+		count++
+		value += data.(uint64)
 		return true
-	}, true)
+	}, earliest, true)
 	return count, value
 }
