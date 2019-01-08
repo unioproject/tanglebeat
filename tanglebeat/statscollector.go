@@ -55,6 +55,9 @@ func updateGlbStatsLoop(refreshStatsEverySec int) {
 }
 
 func getGlbStatsJSON(formatted bool) []byte {
+	glbStats.mutex.RLock()
+	defer glbStats.mutex.RUnlock()
+
 	var data []byte
 	var err error
 	if formatted {

@@ -14,7 +14,7 @@ import (
 const (
 	tlTXCacheSegmentDurationSec = 10
 	tlSNCacheSegmentDurationSec = 60
-	routineBufferRetention10Min = 10
+	routineBufferRetention10Min = 5
 )
 
 type zmqRoutine struct {
@@ -183,7 +183,7 @@ type ZmqRoutineStats struct {
 	BehindSN             uint64  `json:"behindSN"`
 	LmiCount             int     `json:"lmiCount"`
 	LastLmi              int     `json:"lastLmi"`
-	NotPropagatedRate    int     `json:"notPropagatedRate"`
+	SeenOnceCount10Min   int     `json:"seenOnceCount10Min"`
 }
 
 func (r *zmqRoutine) getStats() *ZmqRoutineStats {
@@ -193,11 +193,6 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 	numLastTX10Min := r.tsLastTX10Min.CountAll()
 	tps := float64(numLastTX10Min) / (routineBufferRetention10Min * 60)
 	tps = math.Round(100*tps) / 100
-
-	nopRate := getNotPropagatedById10Min(r.GetId__())
-	if numLastTX10Min != 0 {
-		nopRate = (100 * nopRate) / numLastTX10Min
-	}
 
 	ctps := float64(r.tsLastSN10Min.CountAll()) / (routineBufferRetention10Min * 60)
 	ctps = math.Round(100*ctps) / 100
@@ -223,7 +218,7 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 		BehindSN:             behindSN,
 		LmiCount:             r.lmiCount,
 		LastLmi:              r.lastLmi,
-		NotPropagatedRate:    nopRate,
+		SeenOnceCount10Min:   getSeenOnceCount10Min(r.GetId__()),
 	}
 	return ret
 }
