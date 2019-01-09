@@ -88,6 +88,7 @@ func (r *updateSource) processUpdate(upd *sender_update.SenderUpdate) error {
 
 	senderUpdateToStats(upd)
 	updateSenderMetrics(upd)
+	updateLastState(upd)
 
 	if senderOutPublisher != nil {
 		if upd.UpdType == sender_update.SENDER_UPD_CONFIRM {
