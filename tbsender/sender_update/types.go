@@ -25,6 +25,7 @@ type SenderUpdate struct {
 	SeqName string           `json:"seqname"` // name of the sequence as specified in the config
 	UpdType SenderUpdateType `json:"updtype"` // update type
 	Index   uint64           `json:"addridx"` // address index
+	Balance uint64           `json:"balance"` // balance is being sent
 	Addr    trinary.Hash     `json:"addr"`    // address
 	Bundle  trinary.Hash     `json:"bundle"`  // bundle hash
 	StartTs uint64           `json:"start"`   // unix time miliseconds when first bundle was creates.

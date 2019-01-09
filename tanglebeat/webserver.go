@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/senderstats"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/senderpart"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 	"strings"
@@ -13,7 +13,8 @@ func runWebServer(port int) {
 	http.HandleFunc("/loadjs", loadjsHandler)
 	http.HandleFunc("/dashboard", dashboardHandler)
 	http.HandleFunc("/api1/internal_stats/", internalStatsHandler)
-	http.HandleFunc("/api1/conf_time", senderstats.HandlerConfStats)
+	http.HandleFunc("/api1/conf_time", senderpart.HandlerConfStats)
+	http.HandleFunc("/api1/senders", senderpart.HandlerSenderStates)
 	http.Handle("/metrics", promhttp.Handler())
 	panic(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }

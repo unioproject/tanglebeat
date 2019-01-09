@@ -182,7 +182,7 @@ func (gen *transferBundleGenerator) runGenerator() {
 			}
 			if bundleData == nil {
 				// didn't find any ready to confirm, initialize new transfer
-				bundleData, err = gen.sendToNext(addr)
+				bundleData, err = gen.sendToNext(addr) // will fill up Balance field
 				if err != nil {
 					gen.log.Errorf("Transfer Bundles: '%v' sendToNext returned: %v", gen.name, err)
 					time.Sleep(5 * time.Second)
@@ -193,6 +193,7 @@ func (gen *transferBundleGenerator) runGenerator() {
 				gen.log.Debugf("Transfer Bundles: '%v' Initialized new transfer idx=%v->%v, %v->",
 					gen.name, gen.index, gen.index+1, addr)
 			} else {
+				bundleData.Balance = balance
 				isNew = false
 				gen.log.Debugf("Transfer Bundles '%v': Found existing transfer to confirm idx=%v->%v, %v->",
 					gen.name, gen.index, gen.index+1, addr)
@@ -336,6 +337,7 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr Trytes, balance
 	seed Trytes, fromIndex uint64) (*bundle_source.FirstBundleData, error) {
 
 	ret := &bundle_source.FirstBundleData{
+		Balance:   balance,
 		NumAttach: 1,
 	}
 	//------ prepare transfer

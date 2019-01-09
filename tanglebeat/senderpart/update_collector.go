@@ -6,7 +6,6 @@ import (
 	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/pubupdate"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/senderstats"
 	"github.com/lunfardo314/tanglebeat/tbsender/sender_update"
 )
 
@@ -79,7 +78,7 @@ func (r *updateSource) Run(name string) {
 }
 
 func (r *updateSource) processUpdate(upd *sender_update.SenderUpdate) error {
-	tracef("Processing update from '%v', source: %v, seq: %v(%v), index: %v",
+	tracef("Processing update from '%v', source: %v, seq: %v(%v), Index: %v",
 		upd.UpdType, r.GetUri(), upd.SeqUID, upd.SeqName, upd.Index)
 
 	hash := upd.SeqUID + fmt.Sprintf("%v", upd.UpdateTs)
@@ -87,16 +86,16 @@ func (r *updateSource) processUpdate(upd *sender_update.SenderUpdate) error {
 		return nil
 	}
 
-	senderstats.SenderUpdateToStats(upd)
-
+	senderUpdateToStats(upd)
 	updateSenderMetrics(upd)
+	updateLastState(upd)
 
 	if senderOutPublisher != nil {
 		if upd.UpdType == sender_update.SENDER_UPD_CONFIRM {
-			debugf("Publish update '%v' received from %v, seq: %v(%v), index: %v",
+			debugf("Publish update '%v' received from %v, seq: %v(%v), Index: %v",
 				upd.UpdType, r.GetUri(), upd.SeqUID, upd.SeqName, upd.Index)
 		} else {
-			tracef("Publish update '%v' received from %v, seq: %v(%v), index: %v",
+			tracef("Publish update '%v' received from %v, seq: %v(%v), Index: %v",
 				upd.UpdType, r.GetUri(), upd.SeqUID, upd.SeqName, upd.Index)
 		}
 		if err := pubupdate.PublishSenderUpdate(senderOutPublisher, upd); err != nil {

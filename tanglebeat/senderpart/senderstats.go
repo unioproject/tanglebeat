@@ -1,4 +1,4 @@
-package senderstats
+package senderpart
 
 import (
 	"encoding/json"
@@ -119,7 +119,7 @@ func HandlerConfStats(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func SenderUpdateToStats(upd *sender_update.SenderUpdate) {
+func senderUpdateToStats(upd *sender_update.SenderUpdate) {
 	if upd.UpdType == sender_update.SENDER_UPD_CONFIRM {
 		sampleDurations.RecordInt(int(upd.UpdateTs) - int(upd.StartTs))
 	}

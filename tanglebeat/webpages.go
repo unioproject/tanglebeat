@@ -64,6 +64,10 @@ var indexPage = `
               </td>
 	        </tr>
          </table>
+        <h3>Senders</h3>
+		 <table id="sendertable" border="0">
+            <tr></tr>
+         </table>
 	</body>
 </html>
 `
@@ -74,7 +78,7 @@ var loadjs = `
             var checkBox = document.getElementById("runningOnly");
             runningOnly = checkBox.checked;
 		}
-		function ts2TimeAgo(ts) {
+		function ts2Time(ts, ago) {
     		var d=new Date(); 
     		var nowTs = d.getTime(); 
             var seconds = Math.floor((nowTs-ts)/1000);
@@ -90,7 +94,10 @@ var loadjs = `
 			if (days > 0) ret = days + " days ";
 			if (hours > 0) ret = ret + hours + " h ";
             if (minutes > 0) ret = ret + minutes + " min "
-			ret = ret + seconds +" sec ago";
+			ret = ret + seconds +" sec";
+            if (ago){
+                ret = ret + " ago";
+            }
 			return ret
 		}
 		function refresh(fun, millis){
@@ -118,7 +125,7 @@ var loadjs = `
                     if (key != "lastErr"){
 		                el = document.createElement('td');
                         if (key == "runningSince" || key == "lastHeartbeat"){
-                            el.innerHTML = ts2TimeAgo(data[key]);
+                            el.innerHTML = ts2Time(data[key], true);
                         } else {
                            el.innerHTML = data[key];
                         }
@@ -174,8 +181,8 @@ var loadjs = `
 	                cell = document.createElement('td');
     	            cell.innerHTML = datalist[idx][key];
         	        row.appendChild(cell);
-            	    tb.appendChild(row);
                 }
+           	    tb.appendChild(row);
 			}
 		}
 
@@ -198,7 +205,88 @@ var loadjs = `
             xhttp.send();
         }
 
+		var colNames = ["Seq", "Addr idx", "Balance", "Bundle", "Duration", "State", "(Re)attach/<br>Promote", "Last heartbeat"];
+
+		function bundleLink(bundle){
+           d = 'https://thetangle.org/bundle/' + bundle;
+           s = bundle.substring(0, 12) + "..";
+           return '<a href="' + d + '" target="_blank">' + s + '</a>';
+		}
+		function populateSenderStates(resp){
+   			tb = document.getElementById("sendertable").tBodies[0];
+            deleteChildren(tb);
+			firstRow = true;
+			for (r in resp){
+                if (firstRow){
+	                row = document.createElement('tr');
+    				for (i in colNames){
+		                cell = document.createElement('td');
+    	                cell.innerHTML = '<b>'+colNames[i]+'</b>';
+						row.appendChild(cell);
+                    }                
+                    firstRow = false;
+					tb.appendChild(row);
+                }
+                row = document.createElement('tr');
+
+                cell = document.createElement('td');
+                cell.innerHTML = resp[r].seqName;
+    			row.appendChild(cell);
+
+                cell = document.createElement('td');
+                cell.innerHTML = resp[r].index;
+    			row.appendChild(cell);
+
+                cell = document.createElement('td');
+                cell.innerHTML = resp[r].balance;
+    			row.appendChild(cell);
+
+                cell = document.createElement('td');
+                cell.innerHTML = bundleLink(resp[r].bundle);
+    			row.appendChild(cell);
+
+                cell = document.createElement('td');
+                cell.innerHTML = ts2Time(resp[r].startedTs, false);
+    			row.appendChild(cell);
+
+                cell = document.createElement('td');
+                cell.innerHTML = resp[r].state;
+    			row.appendChild(cell);
+
+                cell = document.createElement('td');
+                cell.innerHTML = resp[r].numAttach + "/" + resp[r].numPromo;
+    			row.appendChild(cell);
+
+                cell = document.createElement('td');
+                cell.innerHTML = ts2Time(resp[r].lastHeartbeat, true)
+    			row.appendChild(cell);
+
+				tb.appendChild(row);
+           }
+		}
+
+	    function refreshSenderStates(){
+    		var xhttp = new XMLHttpRequest();
+			xhttp.onreadystatechange = function() {
+        		var resp;
+        		if (this.readyState == 4){
+            		if (this.status == 200) {
+		               resp = JSON.parse(this.response);
+						populateSenderStates(resp);
+                    }
+                }
+      	    };
+      	    req = "/api1/senders";
+            xhttp.open("GET", req, true);
+            xhttp.send();
+        }
+
 		function main(){
 			refresh(refreshStats, 3000);
+			refresh(refreshSenderStates, 3000);
 		}
+`
+var loadJsSenderState = `
+	
+
 `
