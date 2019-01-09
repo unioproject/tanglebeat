@@ -1,25 +1,28 @@
 package senderpart
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"github.com/lunfardo314/tanglebeat/tbsender/sender_update"
+	"net/http"
+	"sort"
 	"sync"
 )
 
 type senderState struct {
 	id            string
-	name          string
-	index         uint64
-	value         uint64
+	Name          string `json:"seqName"`
+	Index         uint64 `json:"index"`
+	Balance       uint64 `json:"balance"`
 	fromAddr      string
-	toAddr        string
-	bundle        string
-	startedTs     uint64
+	Bundle        string `json:"bundle"`
+	StartedTs     uint64 `json:"startedTs"`
 	updateTs      uint64
-	state         string
-	numPromo      uint64
-	numAttach     uint64
-	lastHeartbeat uint64
+	State         string `json:"state"`
+	NumPromo      uint64 `json:"numPromo"`
+	NumAttach     uint64 `json:"numAttach"`
+	LastHeartbeat uint64 `json:"lastHeartbeat"`
 }
 
 var (
@@ -35,20 +38,53 @@ func updateLastState(upd *sender_update.SenderUpdate) {
 	if !ok {
 		state = &senderState{
 			id:   upd.SeqUID,
-			name: upd.SeqName,
+			Name: upd.SeqName,
 		}
 		senders[upd.SeqUID] = state
 	}
 
-	state.index = upd.Index
-	state.value = upd.Balance
+	state.Index = upd.Index
+	state.Balance = upd.Balance
 	state.fromAddr = upd.Addr
-	state.toAddr = ""
-	state.bundle = upd.Bundle
-	state.startedTs = upd.StartTs
+	state.Bundle = upd.Bundle
+	state.StartedTs = upd.StartTs
 	state.updateTs = upd.UpdateTs
-	state.state = string(upd.UpdType)
-	state.numPromo = upd.NumPromotions
-	state.numAttach = upd.NumAttaches
-	state.lastHeartbeat = utils.UnixMsNow()
+	state.State = string(upd.UpdType)
+	state.NumPromo = upd.NumPromotions
+	state.NumAttach = upd.NumAttaches
+	state.LastHeartbeat = utils.UnixMsNow()
+}
+
+func HandlerSenderStates(w http.ResponseWriter, r *http.Request) {
+	_, _ = w.Write(getSenderStatesJSON())
+}
+
+func getSenderStatesJSON() []byte {
+	sendersMutex.RLock()
+	defer sendersMutex.RUnlock()
+
+	sl := make(SenderStateSlice, 0, len(senders))
+	for _, st := range senders {
+		sl = append(sl, st)
+	}
+	sort.Sort(sl)
+	ret, err := json.MarshalIndent(sl, "", "  ")
+	if err != nil {
+		ret = []byte(fmt.Sprintf("getSenderStatesJSON: %v", err))
+	}
+	return ret
+}
+
+type SenderStateSlice []*senderState
+
+func (a SenderStateSlice) Len() int {
+	return len(a)
+}
+
+func (a SenderStateSlice) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+func (a SenderStateSlice) Less(i, j int) bool {
+	return a[i].Name < a[j].Name
 }

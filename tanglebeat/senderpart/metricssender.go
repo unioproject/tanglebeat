@@ -22,7 +22,7 @@ func init() {
 
 	confPoWCostCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "tanglebeat_pow_cost_counter",
-		Help: "Counter for number of tx attached during the confirmation = num. attachments * bundle size + num. promotions * promo bundle size",
+		Help: "Counter for number of tx attached during the confirmation = num. attachments * Bundle size + num. promotions * promo Bundle size",
 	}, []string{"seqid"})
 
 	confDurationSecCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -59,7 +59,7 @@ func updateSenderMetrics(upd *sender_update.SenderUpdate) {
 	//if !restartIncreased {
 	//	if time.Since(restarted) > 30*time.Second {
 	//		// increase restart counter only 30 sec after restart
-	//		// to give  time to prometheus to scrape 0 value
+	//		// to give  time to prometheus to scrape 0 Balance
 	//		restartCounter.Inc()
 	//		restartIncreased = true
 	//	}
@@ -67,7 +67,7 @@ func updateSenderMetrics(upd *sender_update.SenderUpdate) {
 	if upd.UpdType != sender_update.SENDER_UPD_CONFIRM {
 		return
 	}
-	debugf("'confirm' received. Update metrics for %v(%v), index = %v",
+	debugf("'confirm' received. Update metrics for %v(%v), Index = %v",
 		upd.SeqUID, upd.SeqName, upd.Index)
 
 	confCounter.With(prometheus.Labels{"seqid": upd.SeqUID}).Inc()
