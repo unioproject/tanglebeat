@@ -16,8 +16,6 @@ import (
 	"time"
 )
 
-// TODO make Sequences more abstract
-
 type TransferSequence struct {
 	// common for all sequences
 	bundleSource *bundle_source.BundleSourceChan
@@ -109,6 +107,9 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 	}
 	return &ret, nil
 }
+
+// TODO galimybė cancel siuntima iš generatoriaus pusės
+// to reikia tais atvejais, kai seka užstringa: dėl inconsistent bundle
 
 func (seq *TransferSequence) Run() {
 	seq.log.Infof("Start running sequence '%v'", seq.name)

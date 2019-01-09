@@ -143,7 +143,6 @@ func FindTransactionObjectsMulti(query FindTransactionsQuery, mapi multiapi.Mult
 		if upper > len(ftHashes) {
 			upper = len(ftHashes)
 		}
-		// TODO with multi mapi
 		rawTrytes, err := mapi.GetTrytes(hashesInterfaces[i:upper]...)
 		if err != nil {
 			return nil, err
