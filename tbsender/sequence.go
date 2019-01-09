@@ -108,7 +108,7 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 	return &ret, nil
 }
 
-// TODO galimybė cancel siuntima iš generatoriaus pusės
+// TODO galimybė cancel siuntima iš generatoriaus pusės arba iš konfirmerio puses (resend)
 // to reikia tais atvejais, kai seka užstringa: dėl inconsistent bundle
 
 func (seq *TransferSequence) Run() {
