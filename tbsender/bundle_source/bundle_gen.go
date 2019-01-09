@@ -21,6 +21,7 @@ import (
 type FirstBundleData struct {
 	Addr         trinary.Hash
 	Index        uint64
+	Balance      uint64
 	BundleTrytes []trinary.Trytes // raw bundle trytes to start with confirmation.
 	IsNew        bool             // new BundleTrytes created or existing one found
 	//StartTime             uint64           // unix milisec	set when bundle was read from tangle. Tx timestamps not used

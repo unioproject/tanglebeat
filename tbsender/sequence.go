@@ -142,7 +142,7 @@ func (seq *TransferSequence) Run() {
 				updConf.TotalDurationATTMsec += bundleData.TotalDurationPoWMs
 				updConf.TotalDurationGTTAMsec += bundleData.TotalDurationTipselMs
 
-				seq.processConfirmerUpdate(updConf, bundleData.Addr, bundleData.Index, bundleHash)
+				seq.processConfirmerUpdate(updConf, bundleData.Addr, bundleData.Index, bundleData.Balance, bundleHash)
 			}
 		}
 		seq.log.Debugf("TransferSequence '%v': finished processing updates for bundle %v", seq.GetLongName(), bundleHash)
@@ -178,6 +178,7 @@ func (seq *TransferSequence) processStartUpdate(bundleData *bundle_source.FirstB
 		SeqName:               seq.name,
 		UpdType:               updType,
 		Index:                 bundleData.Index,
+		Balance:               bundleData.Balance,
 		Addr:                  bundleData.Addr,
 		Bundle:                bundleHash,
 		StartTs:               startTs,
@@ -197,7 +198,7 @@ func (seq *TransferSequence) processStartUpdate(bundleData *bundle_source.FirstB
 }
 
 func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.ConfirmerUpdate,
-	addr Hash, index uint64, bundleHash Hash) {
+	addr Hash, index uint64, balance uint64, bundleHash Hash) {
 
 	updType := confirmerUpdType2Sender(updConf.UpdateType)
 	seq.log.Debugf("Update '%v' for %v index = %v",
@@ -220,6 +221,7 @@ func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.Confirmer
 			SeqName:               seq.name,
 			UpdType:               updType,
 			Index:                 index,
+			Balance:               balance,
 			Addr:                  addr,
 			Bundle:                bundleHash,
 			StartTs:               started,
