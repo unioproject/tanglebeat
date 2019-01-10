@@ -255,38 +255,6 @@ func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash Hash) {
 	confirmer.WaitfForConfirmation(bundleHash, gen.iotaMultiAPI, gen.log, AEC)
 }
 
-//const sleepEveryLoop = 5 * time.Second
-//
-//// loops until confirmation or until failure
-//// returns only upon success
-//func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash Hash) {
-//	gen.log.Debugf("waitUntilBundleConfirmed: '%v' start waiting for the bundle to be confirmed", gen.name)
-//	defer gen.log.Debugf("waitUntilBundleConfirmed: '%v' %v left", gen.name, bundleHash)
-//
-//	startWaiting := time.Now()
-//	var sinceWaiting time.Duration
-//
-//	for count := 0; ; count++ {
-//		time.Sleep(sleepEveryLoop)
-//		sinceWaiting = time.Since(startWaiting)
-//		if count%5 == 0 {
-//			gen.log.Debugf("'%v': waitUntilBundleConfirmed: %v Time since waiting: %v", gen.name, bundleHash, sinceWaiting)
-//		}
-//		//confirmed, err := lib.IsBundleHashConfirmed(bundleHash, gen.iotaAPI)
-//		var retMapi multiapi.MultiCallRet
-//		confirmed, err := lib.IsBundleHashConfirmedMulti(bundleHash, gen.iotaMultiAPI, &retMapi)
-//
-//		if AEC.CheckError(retMapi.Endpoint, err) {
-//			gen.log.Errorf("'%v' waitUntilBundleConfirmed: FindTransactions returned: %v. Time since waiting: %v",
-//				gen.name, err, sinceWaiting)
-//		} else {
-//			if confirmed {
-//				return
-//			}
-//		}
-//	}
-//}
-
 func (gen *transferBundleGenerator) isSpentAddr(address Hash) (bool, error) {
 	var apiret multiapi.MultiCallRet
 	spent, err := gen.iotaMultiAPI.WereAddressesSpentFrom(address, &apiret)
