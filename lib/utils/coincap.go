@@ -20,6 +20,8 @@ func GetMiotaPriceUSD() (float64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("GetMiotaPriceUSD: %v", err)
 	}
+	defer response.Body.Close() // https://golang.org/pkg/net/http/
+
 	data, _ = ioutil.ReadAll(response.Body)
 	err = json.Unmarshal(data, &unm)
 	if err != nil {
