@@ -77,7 +77,6 @@ type senderYAML struct {
 }
 
 type senderParamsYAML struct {
-	externalSource        bool     // tmp TODO
 	Enabled               bool     `yaml:"enabled"`
 	IOTANode              []string `yaml:"iotaNode"`
 	IOTANodeTipsel        []string `yaml:"iotaNodeTipsel"`

@@ -12,7 +12,7 @@ import (
 //
 // Traveling IOTA -style of BundleTrytes source produces sequences of transfer bundles, each
 // spends whole balances from the previous address to the next
-// It produces new budnles only upon and immediately after confirmation of the previous transfer.
+// It produces new bundles only upon and immediately after confirmation of the previous transfer.
 //
 // BundleTrytes source in principle it can be any BundleTrytes generator,
 // for example sequence of MAM bundles to confirm

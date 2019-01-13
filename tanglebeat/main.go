@@ -5,7 +5,6 @@ import (
 	"github.com/lunfardo314/tanglebeat/tanglebeat/cfg"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/senderpart"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/senderstats"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/zmqpart"
 )
 
@@ -34,7 +33,6 @@ func setLogs() {
 	zmqpart.SetLog(cfg.GetLog(), false)
 	senderpart.SetLog(cfg.GetLog(), false)
 	ebuffer.SetLog(cfg.GetLog(), false)
-	senderstats.SetLog(cfg.GetLog(), false)
 }
 
 /*
