@@ -177,12 +177,12 @@ func updateZmqOutputSlowStats() {
 	st.ConfirmedTransferCount, st.ValueVolumeApprox = getValueConfirmationStats(0)
 
 	// 10 min stats
-	const secBack = 10 * 60
+	const secBack10min = 10 * 60
 	var st10 ZmqOutputStatsStruct
-	txs10 := txcache.Stats(secBack * 1000)
+	txs10 := txcache.Stats(secBack10min * 1000)
 	st10.TXCount = txs10.TxCountPassed
 
-	sns10 := sncache.Stats(secBack * 1000)
+	sns10 := sncache.Stats(secBack10min * 1000)
 	st10.SNCount = sns10.TxCountPassed
 
 	secPassed10 := float64((utils.UnixMsNow() - txs10.EarliestSeen) / 1000)
@@ -196,13 +196,13 @@ func updateZmqOutputSlowStats() {
 	if st10.TXCount != 0 {
 		st10.ConfRate = (st10.SNCount * 100) / st10.TXCount
 	}
-	st10.ConfirmedTransferCount, st10.ValueVolumeApprox = getValueConfirmationStats(secBack * 1000)
+	st10.ConfirmedTransferCount, st10.ValueVolumeApprox = getValueConfirmationStats(secBack10min * 1000)
 
 	zmqOutputStatsMutex.Lock() //----
 	*zmqOutputStats = st
 	zmqOutputStats.LastMin = retentionPeriodSec / 60
 	*zmqOutputStats10min = st10
-	zmqOutputStats10min.LastMin = secBack / 60
+	zmqOutputStats10min.LastMin = secBack10min / 60
 	zmqOutputStatsMutex.Unlock() //----
 }
 

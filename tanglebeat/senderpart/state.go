@@ -11,18 +11,20 @@ import (
 )
 
 type senderState struct {
-	id            string
-	Name          string `json:"seqName"`
-	Index         uint64 `json:"index"`
-	Balance       uint64 `json:"balance"`
-	fromAddr      string
-	Bundle        string `json:"bundle"`
-	StartedTs     uint64 `json:"startedTs"`
-	updateTs      uint64
-	State         string `json:"state"`
-	NumPromo      uint64 `json:"numPromo"`
-	NumAttach     uint64 `json:"numAttach"`
-	LastHeartbeat uint64 `json:"lastHeartbeat"`
+	id              string
+	Name            string `json:"seqName"`
+	Index           uint64 `json:"index"`
+	Balance         uint64 `json:"balance"`
+	fromAddr        string
+	Bundle          string `json:"bundle"`
+	StartedTs       uint64 `json:"startedTs"`
+	updateTs        uint64
+	State           string `json:"state"`
+	NumPromo        uint64 `json:"numPromo"`
+	NumAttach       uint64 `json:"numAttach"`
+	PromoteEverySec uint64 `json:"promoteEverySec"`
+	PromoteChain    bool   `json:"promoteChain"`
+	LastHeartbeat   uint64 `json:"lastHeartbeat"`
 }
 
 var (
@@ -52,6 +54,8 @@ func updateLastState(upd *sender_update.SenderUpdate) {
 	state.State = string(upd.UpdType)
 	state.NumPromo = upd.NumPromotions
 	state.NumAttach = upd.NumAttaches
+	state.PromoteEverySec = upd.PromoteEverySec
+	state.PromoteChain = upd.PromoteChain
 	state.LastHeartbeat = utils.UnixMsNow()
 }
 
