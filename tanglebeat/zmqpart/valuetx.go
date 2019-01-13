@@ -8,8 +8,12 @@ import (
 
 type valueTxData struct {
 	value        uint64
-	tag          string
 	lastInBundle bool
+}
+
+type valueBundleData struct {
+	confirmed bool
+	when      uint64
 }
 
 func processValueTxMsg(msgSplit []string) {
@@ -17,17 +21,19 @@ func processValueTxMsg(msgSplit []string) {
 	case "tx":
 		// track hashes of >0 value transaction if 'positiveValueTxCache'.
 		if len(msgSplit) >= 9 {
-			if value, err := strconv.Atoi(msgSplit[3]); err == nil && value > 0 {
-				data := &valueTxData{
-					value:        uint64(value),
-					tag:          msgSplit[4],
-					lastInBundle: msgSplit[6] == msgSplit[7],
+			if value, err := strconv.Atoi(msgSplit[3]); err == nil {
+				if value > 0 {
+					data := &valueTxData{
+						value:        uint64(value),
+						lastInBundle: msgSplit[6] == msgSplit[7],
+					}
+					// Store tx hash is seen first time to wait for corresponding 'sn' message
+					positiveValueTxCache.SeenHashBy(msgSplit[1], 0, data, nil) // transaction
+					// Store bundle hash is seen first time to wait for corresponding 'sn' message (track bundle confirmation)
+					valueBundleCache.SeenHashBy(msgSplit[8], 0, &valueBundleData{}, nil)
 				}
-				// Store tx hash is seen first time to wait for corresponding 'sn' message
-				positiveValueTxCache.SeenHashBy(msgSplit[1], 0, data, nil) // transaction
-				conf := false
-				// Store bundle hash is seen first time to wait for corresponding 'sn' message (track bundle confirmation)
-				valueBundleCache.SeenHashBy(msgSplit[8], 0, &conf, nil) // bundle. data is *bool
+			} else {
+				errorf("toOutput: expected integer in value field")
 			}
 		} else {
 			errorf("toOutput: expected at least 9 fields in TX message")
@@ -41,16 +47,16 @@ func processValueTxMsg(msgSplit []string) {
 			// tx is not needed in the cache anymore because another message with the same hash won't come
 			seen := positiveValueTxCache.FindWithDelete(msgSplit[2], &entry)
 			if seen {
-				if entry.Data == nil {
-					errorf("ValueTX entry.data == nil")
-					panic("ValueTX entry.data == nil")
-				}
 				if vtd, ok := entry.Data.(*valueTxData); ok {
-					confirmedTransfers.RecordTS(vtd.value)
+					// move value tx data to confirmedPositiveValueTx
+					confirmedPositiveValueTx.RecordTS(entry.Data)
 					updateConfirmedValueTxMetrics(vtd.value, vtd.lastInBundle)
-					infof("Confirmed value tx %v value = %v tag = %v duration %v min",
-						msgSplit[2], vtd.value, vtd.tag, float32(utils.SinceUnixMs(entry.FirstSeen))/60000,
+					infof("Confirmed value tx %v value = %v duration %v min",
+						msgSplit[2], vtd.value, float32(utils.SinceUnixMs(entry.FirstSeen))/60000,
 					)
+				} else {
+					errorf("confirmedPositiveValueTx cache: wrong data type")
+					panic("confirmedPositiveValueTx cache: wrong data type")
 				}
 			}
 			// confirmed value bundle
@@ -61,12 +67,17 @@ func processValueTxMsg(msgSplit []string) {
 			// that is because bundle must be kept in the cache as long as confirmations with that bundle hash are coming
 			seen = valueBundleCache.Find(msgSplit[6], &entry)
 			if seen {
-				pconf := entry.Data.(*bool)
-				if !*pconf {
+				vbd, _ := entry.Data.(*valueBundleData)
+				if !vbd.confirmed {
+					// not 100% correct
+					valueBundleCache.Lock()
+					vbd.confirmed = true
+					vbd.when = utils.UnixMsNow()
+					valueBundleCache.Unlock()
+
 					updateConfirmedValueBundleMetrics()
 					infof("Confirmed bundle %v", msgSplit[6])
 				}
-				*pconf = true
 			}
 		} else {
 			errorf("toOutput: expected at least 7 fields in SN message")
@@ -74,17 +85,34 @@ func processValueTxMsg(msgSplit []string) {
 	}
 }
 
-func getValueConfirmationStats(msecBack uint64) (int, uint64) {
-	var count int
-	var value uint64
+// return num confirmed bundles, total value, total value without last in bundle
+func getValueConfirmationStats(msecBack uint64) (int, uint64, uint64) {
+	var confBundlesCount int
+	var valueTotal uint64
+	var valueTotalNotLastInBundle uint64
+
 	earliest := utils.UnixMsNow() - msecBack
 	if msecBack == 0 {
 		earliest = 0
 	}
-	confirmedTransfers.ForEachEntry(func(ts uint64, data interface{}) bool {
-		count++
-		value += data.(uint64)
+
+	confirmedPositiveValueTx.ForEachEntry(func(ts uint64, data interface{}) bool {
+		if ts >= earliest {
+			vtd, _ := data.(*valueTxData)
+			valueTotal += vtd.value
+			if !vtd.lastInBundle {
+				valueTotalNotLastInBundle += vtd.value
+			}
+		}
 		return true
 	}, earliest, true)
-	return count, value
+
+	valueBundleCache.ForEachEntry(func(entry *hashcache.CacheEntry) {
+		vbd, _ := entry.Data.(*valueBundleData)
+		if vbd.confirmed && vbd.when >= earliest {
+			confBundlesCount++
+		}
+	}, earliest, true)
+
+	return confBundlesCount, valueTotal, valueTotalNotLastInBundle
 }

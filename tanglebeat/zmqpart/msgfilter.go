@@ -21,16 +21,16 @@ const (
 )
 
 var (
-	txcache              *hashcache.HashCacheBase
-	sncache              *hashCacheSN
-	positiveValueTxCache *hashcache.HashCacheBase
-	valueBundleCache     *hashcache.HashCacheBase
-	confirmedTransfers   *ebuffer.EventTsWithDataExpiringBuffer
-	lastLMI              int
-	lastLMITimesSeen     int
-	lastLMIFirstSeen     uint64
-	lastLMILastSeen      uint64
-	lastLmiMutex         = &sync.RWMutex{}
+	txcache                  *hashcache.HashCacheBase
+	sncache                  *hashCacheSN
+	positiveValueTxCache     *hashcache.HashCacheBase
+	valueBundleCache         *hashcache.HashCacheBase
+	confirmedPositiveValueTx *ebuffer.EventTsWithDataExpiringBuffer
+	lastLMI                  int
+	lastLMITimesSeen         int
+	lastLMIFirstSeen         uint64
+	lastLMILastSeen          uint64
+	lastLmiMutex             = &sync.RWMutex{}
 )
 
 type zmqMsg struct {
@@ -62,8 +62,8 @@ func initMsgFilter() {
 		"positiveValueTxCache", useFirstHashTrytes, segmentDurationValueTXSec, retentionPeriodSec)
 	valueBundleCache = hashcache.NewHashCacheBase(
 		"valueBundleCache", useFirstHashTrytes, segmentDurationValueBundleSec, retentionPeriodSec)
-	confirmedTransfers = ebuffer.NewEventTsWithDataExpiringBuffer(
-		"confirmedTransfers", segmentDurationConfirmedTransfersSec, retentionPeriodSec)
+	confirmedPositiveValueTx = ebuffer.NewEventTsWithDataExpiringBuffer(
+		"confirmedPositiveValueTx", segmentDurationConfirmedTransfersSec, retentionPeriodSec)
 
 	startCollectingLatencyMetrics()
 	go msgFilterRoutine()

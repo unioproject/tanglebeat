@@ -103,7 +103,7 @@ func updateZmqCacheStats() {
 	zmqCacheStats.SizeValueTxCache = fmt.Sprintf("%v, %v", s, e)
 	s, e = valueBundleCache.Size()
 	zmqCacheStats.SizeValueBundleCache = fmt.Sprintf("%v, %v", s, e)
-	s, e = confirmedTransfers.Size()
+	s, e = confirmedPositiveValueTx.Size()
 	zmqCacheStats.SizeConfirmedTransfers = fmt.Sprintf("%v, %v", s, e)
 
 	// 1 hour stats
@@ -174,7 +174,7 @@ func updateZmqOutputSlowStats() {
 	if st.TXCount != 0 {
 		st.ConfRate = (st.SNCount * 100) / st.TXCount
 	}
-	st.ConfirmedTransferCount, st.ValueVolumeApprox = getValueConfirmationStats(0)
+	st.ConfirmedTransferCount, _, st.ValueVolumeApprox = getValueConfirmationStats(0)
 
 	// 10 min stats
 	const secBack10min = 10 * 60
@@ -196,7 +196,7 @@ func updateZmqOutputSlowStats() {
 	if st10.TXCount != 0 {
 		st10.ConfRate = (st10.SNCount * 100) / st10.TXCount
 	}
-	st10.ConfirmedTransferCount, st10.ValueVolumeApprox = getValueConfirmationStats(secBack10min * 1000)
+	st10.ConfirmedTransferCount, _, st10.ValueVolumeApprox = getValueConfirmationStats(secBack10min * 1000)
 
 	zmqOutputStatsMutex.Lock() //----
 	*zmqOutputStats = st
