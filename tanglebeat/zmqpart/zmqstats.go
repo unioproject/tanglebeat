@@ -96,15 +96,15 @@ func updateZmqCacheStats() {
 
 	var s, e int
 	s, e = txcache.Size()
-	zmqCacheStats.SizeTXCache = fmt.Sprintf("%v, %v", s, e)
+	zmqCacheStats.SizeTXCache = fmt.Sprintf("%v, seg=%v", e, s)
 	s, e = sncache.Size()
-	zmqCacheStats.SizeSNCache = fmt.Sprintf("%v, %v", s, e)
+	zmqCacheStats.SizeSNCache = fmt.Sprintf("%v, seg=%v", e, s)
 	s, e = positiveValueTxCache.Size()
-	zmqCacheStats.SizeValueTxCache = fmt.Sprintf("%v, %v", s, e)
+	zmqCacheStats.SizeValueTxCache = fmt.Sprintf("%v, seg=%v", e, s)
 	s, e = valueBundleCache.Size()
-	zmqCacheStats.SizeValueBundleCache = fmt.Sprintf("%v, %v", s, e)
+	zmqCacheStats.SizeValueBundleCache = fmt.Sprintf("%v, seg=%v", e, s)
 	s, e = confirmedPositiveValueTx.Size()
-	zmqCacheStats.SizeConfirmedTransfers = fmt.Sprintf("%v, %v", s, e)
+	zmqCacheStats.SizeConfirmedTransfers = fmt.Sprintf("%v, seg=%v", e, s)
 
 	// 1 hour stats
 	txcacheStats := txcache.Stats(0)
