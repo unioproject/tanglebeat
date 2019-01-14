@@ -143,6 +143,7 @@ func (cache *HashCacheBase) FindWithDelete(hash string, ret *CacheEntry) bool {
 	return cache.__findWithDelete(shash, ret)
 }
 
+// TODO if same message is coming several times from same source it is passed. It is incorrect
 func (cache *HashCacheBase) SeenHashBy(hash string, id byte, data interface{}, ret *CacheEntry) bool {
 	cache.Lock()
 	defer cache.Unlock()
