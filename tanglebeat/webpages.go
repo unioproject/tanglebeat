@@ -200,7 +200,7 @@ var loadjs = `
                     }
                 }
       	    };
-      	    req = "/api1/internal_stats";
+      	    req = "/api1/internal_stats/displayall";
             xhttp.open("GET", req, true);
             xhttp.send();
         }

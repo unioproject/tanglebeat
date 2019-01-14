@@ -3,8 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/zmqpart"
 	"math"
+	"net"
+	"net/url"
 	"runtime"
 	"sync"
 	"time"
@@ -54,19 +57,60 @@ func updateGlbStatsLoop(refreshStatsEverySec int) {
 	}
 }
 
-func getGlbStatsJSON(formatted bool) []byte {
+func getGlbStatsJSON(formatted bool, maskIP bool, hideInactive bool) []byte {
 	glbStats.mutex.RLock()
 	defer glbStats.mutex.RUnlock()
 
+	toMarshal := getMaskedGlbStats(maskIP, hideInactive)
 	var data []byte
 	var err error
 	if formatted {
-		data, err = json.MarshalIndent(glbStats, "", "   ")
+		data, err = json.MarshalIndent(toMarshal, "", "   ")
 	} else {
-		data, err = json.Marshal(glbStats)
+		data, err = json.Marshal(toMarshal)
 	}
 	if err != nil {
 		return []byte(fmt.Sprintf("marshal error: %v", err))
 	}
 	return data
+}
+
+func isActiveRoutine(r *zmqpart.ZmqRoutineStats) bool {
+	if !r.Running {
+		return false
+	}
+	if utils.SinceUnixMs(r.LastHeartbeatTs) > 10*10*1000 {
+		return false
+	}
+	return true
+}
+
+func isIpAddr(uri string) bool {
+	p, err := url.Parse(uri)
+	if err != nil {
+		return false
+	}
+	return net.ParseIP(p.Hostname()) != nil
+}
+
+func getMaskedGlbStats(maskIP bool, hideInactive bool) *GlbStats {
+	if !maskIP && !hideInactive {
+		return glbStats
+	}
+
+	maskedInputs := make([]*zmqpart.ZmqRoutineStats, 0, len(glbStats.ZmqInputStats))
+	for _, inp := range glbStats.ZmqInputStats {
+		if !hideInactive || isActiveRoutine(inp) {
+			if maskIP && isIpAddr(inp.Uri) {
+				tmp := *inp
+				tmp.Uri = "IP addr"
+				maskedInputs = append(maskedInputs, &tmp)
+			} else {
+				maskedInputs = append(maskedInputs, inp)
+			}
+		}
+	}
+	ret := *glbStats
+	ret.ZmqInputStats = maskedInputs
+	return &ret
 }
