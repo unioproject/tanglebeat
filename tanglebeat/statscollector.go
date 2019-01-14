@@ -100,8 +100,8 @@ func getMaskedGlbStats(maskIP bool, hideInactive bool) *GlbStats {
 
 	maskedInputs := make([]*zmqpart.ZmqRoutineStats, 0, len(glbStats.ZmqInputStats))
 	for _, inp := range glbStats.ZmqInputStats {
-		if isActiveRoutine(inp) {
-			if isIpAddr(inp.Uri) {
+		if !hideInactive || isActiveRoutine(inp) {
+			if maskIP && isIpAddr(inp.Uri) {
 				tmp := *inp
 				tmp.Uri = "IP addr"
 				maskedInputs = append(maskedInputs, &tmp)
