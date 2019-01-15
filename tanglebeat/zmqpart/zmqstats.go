@@ -214,8 +214,8 @@ type latencyMetrics10min struct {
 }
 
 func getLatencyStats10minForMetrics(ret *latencyMetrics10min) {
-	zmqCacheStats.mutex.Lock()
-	defer zmqCacheStats.mutex.Unlock()
+	zmqCacheStats.mutex.RLock()
+	defer zmqCacheStats.mutex.RUnlock()
 
 	ret.txAvgLatencySec = zmqCacheStats.TXLatencySecAvg10min
 	ret.snAvgLatencySec = zmqCacheStats.SNLatencySecAvg10min

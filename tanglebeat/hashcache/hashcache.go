@@ -178,10 +178,7 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 	var ok bool
 	cache.ForEachEntry(func(entry *CacheEntry) {
 		ret.TxCount++
-		if entry.Visits > 1 {
-			lat = float64(entry.LastSeen-entry.FirstSeen) / 1000
-			ret.LatencySecAvg += lat
-		} else {
+		if entry.Visits == 1 {
 			ret.SeenOnce++
 			if _, ok = ret.SeenOnceCountById[entry.FirstVisitId]; !ok {
 				ret.SeenOnceCountById[entry.FirstVisitId] = 0
@@ -189,6 +186,8 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 			ret.SeenOnceCountById[entry.FirstVisitId] += 1
 		}
 		if int(entry.Visits) >= cfg.Config.RepeatToAccept {
+			lat = float64(entry.LastSeen-entry.FirstSeen) / 1000
+			ret.LatencySecAvg += lat
 			ret.TxCountPassed++
 		}
 		if entry.LastSeen < ret.EarliestSeen {
