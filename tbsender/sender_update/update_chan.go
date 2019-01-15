@@ -46,7 +46,6 @@ func NewUpdateChan(uri string) (chan *SenderUpdate, error) {
 				}
 			}
 		}
-
 	}()
 	return chOut, nil
 }

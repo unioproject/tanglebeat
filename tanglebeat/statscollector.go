@@ -14,6 +14,7 @@ import (
 )
 
 type GlbStats struct {
+	InstanceStarted     uint64                       `json:"instanceStarted"`
 	GoRuntimeStats      memStatsStruct               `json:"goRuntimeStats"`
 	ZmqCacheStats       zmqpart.ZmqCacheStatsStruct  `json:"zmqRuntimeStats"`
 	ZmqOutputStats      zmqpart.ZmqOutputStatsStruct `json:"zmqOutputStats"`
@@ -29,9 +30,13 @@ type memStatsStruct struct {
 	mutex        *sync.Mutex
 }
 
-var glbStats = &GlbStats{mutex: &sync.RWMutex{}}
+var glbStats = &GlbStats{
+	InstanceStarted: utils.UnixMsNow(),
+	mutex:           &sync.RWMutex{},
+}
 
 func initGlobStatsCollector(refreshEverySec int) {
+
 	zmqpart.InitZmqStatsCollector(refreshEverySec)
 	go updateGlbStatsLoop(refreshEverySec)
 }
