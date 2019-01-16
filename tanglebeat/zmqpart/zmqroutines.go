@@ -104,6 +104,13 @@ func (r *zmqRoutine) uninit() {
 	r.last100SNBehindMs = nil
 }
 
+// TODO dynamically / upon user action add, delete, disable, enable input streams
+
+// TODO zmq routine to measure "health" of it and put on semi-idle mode if it is not healthy (i.e.
+// produces a lot of rubbish transactions. In the semi-idle mode monitor health with minimum resources and
+// not us as a input. Only put on normal mode if health is back
+// that would allow to handle situations, when hashcache is filled up with "seen once" rubbish
+
 func (r *zmqRoutine) Run(name string) {
 	r.init()
 	defer r.uninit()
