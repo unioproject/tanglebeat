@@ -57,29 +57,34 @@ func (seg *eventTSExpiringSegment) Size() int {
 	return len(seg.eventTs)
 }
 
-func (buf *EventTsExpiringBuffer) CountAll() int {
+func (buf *EventTsExpiringBuffer) CountAll() (int, uint64) {
 	if buf == nil {
-		return 0
+		return 0, 0
 	}
 	buf.Lock()
 	defer buf.Unlock()
 	var ret int
 	var seg *eventTSExpiringSegment
+	retEarliest := utils.UnixMsNow()
 	earliest := utils.UnixMsNow() - buf.retentionPeriodMs
 	buf.ForEachSegment__(func(s ExpiringSegment) bool {
 		seg = s.(*eventTSExpiringSegment)
-		if seg.created >= earliest {
+		if seg.created >= earliest && seg.prev != nil {
 			ret += len(seg.eventTs)
+			retEarliest = seg.created
 		} else {
 			for _, ts := range seg.eventTs {
 				if ts >= earliest {
 					ret++
+					if ts < retEarliest {
+						retEarliest = ts
+					}
 				}
 			}
 		}
 		return true
 	})
-	return ret
+	return ret, retEarliest
 }
 
 func (buf *EventTsExpiringBuffer) RecordTS() {

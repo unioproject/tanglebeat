@@ -12,9 +12,12 @@ import (
 )
 
 const (
-	tlTXCacheSegmentDurationSec = 10
-	tlSNCacheSegmentDurationSec = 60
-	routineBufferRetentionMin   = 5
+	tlTXCacheSegmentDurationSec        = 10
+	tlSNCacheSegmentDurationSec        = 60
+	routineBufferRetentionMin          = 5
+	quarantineBufferSegmentDurationSec = 15
+	quarantineBufferRetentionMin       = 3
+	quarantineHashLen                  = 12
 )
 
 type zmqRoutine struct {
@@ -29,6 +32,8 @@ type zmqRoutine struct {
 	tsLastSN10Min     *ebuffer.EventTsExpiringBuffer
 	last100TXBehindMs *utils.RingArray
 	last100SNBehindMs *utils.RingArray
+	quarantined       bool
+	quarantinedTx     *ebuffer.EventTsWithDataExpiringBuffer
 }
 
 func createZmqRoutine(uri string) {
@@ -102,6 +107,7 @@ func (r *zmqRoutine) uninit() {
 	r.last100TXBehindMs = nil
 	r.tsLastSN10Min = nil
 	r.last100SNBehindMs = nil
+	r.quarantinedTx = nil
 }
 
 // TODO dynamically / upon user action add, delete, disable, enable input streams
@@ -148,6 +154,63 @@ func (r *zmqRoutine) Run(name string) {
 	}
 }
 
+func (r *zmqRoutine) processMsg(msgData []byte, msgSplit []string) {
+	r.RLock()
+	defer r.RUnlock()
+
+	if r.quarantined {
+		r.toQuarantine(msgData, msgSplit)
+	} else {
+		toFilter(r, msgData, msgSplit)
+	}
+}
+
+func (r *zmqRoutine) setQuarantined(quarantined bool) {
+	r.Lock()
+	defer r.Unlock()
+	if r.quarantined == quarantined {
+		return // no action
+	}
+	if quarantined {
+		r.quarantinedTx = ebuffer.NewEventTsWithDataExpiringBuffer(
+			"quarantineBuffer-"+r.uri, quarantineBufferSegmentDurationSec, quarantineBufferRetentionMin*60)
+	} else {
+		r.quarantinedTx = nil // release, not needed
+	}
+	r.quarantined = quarantined
+}
+
+func (r *zmqRoutine) isQuarantined() bool {
+	r.RLock()
+	defer r.RUnlock()
+	return r.quarantined
+}
+
+func (r *zmqRoutine) toBeQuarantined() bool {
+	if r.isQuarantined() {
+		return false
+	}
+	return false
+	//stats := r.getStats()
+}
+
+func (r *zmqRoutine) toBeUnquarantined() bool {
+	return false
+}
+
+func shortHash(hash string) string {
+	ret := make([]byte, quarantineHashLen)
+	copy(ret, hash[:quarantineHashLen])
+	return string(ret)
+}
+
+func (r *zmqRoutine) toQuarantine(msgData []byte, msgSplit []string) {
+	if msgSplit[0] != "tx" || len(msgSplit) < 2 {
+		return
+	}
+	r.quarantinedTx.RecordTS(shortHash(msgSplit[1]))
+}
+
 func (r *zmqRoutine) accountTx(behind uint64) {
 	r.Lock()
 	defer r.Unlock()
@@ -182,6 +245,8 @@ type ZmqRoutineStats struct {
 	inreaders.InputReaderBaseStats
 	TxCount              uint64  `json:"txCount"`
 	CtxCount             uint64  `json:"ctxCount"`
+	TxCount10min         uint64  `json:"txCount10min"`
+	CtxCount10min        uint64  `json:"ctxCount10min"`
 	ObsoleteConfirmCount uint64  `json:"obsoleteSNCount"`
 	Tps                  float64 `json:"tps"`
 	Ctps                 float64 `json:"ctps"`
@@ -194,15 +259,26 @@ type ZmqRoutineStats struct {
 }
 
 func (r *zmqRoutine) getStats() *ZmqRoutineStats {
-	r.Lock()
-	defer r.Unlock()
+	r.RLock()
+	defer r.RUnlock()
 
-	numLastTX10Min := r.tsLastTX10Min.CountAll()
-	tps := float64(numLastTX10Min) / (routineBufferRetentionMin * 60)
-	tps = math.Round(100*tps) / 100
+	numLastTX10Min, earliestTx := r.tsLastTX10Min.CountAll()
+	numLastSN10Min, earliestSn := r.tsLastSN10Min.CountAll()
+	nowis := utils.UnixMsNow()
+	txTimeIntervalLenSec := (nowis - earliestTx) / 1000
+	snTimeIntervalLenSec := (nowis - earliestSn) / 1000
+	timeInterval := txTimeIntervalLenSec
+	if snTimeIntervalLenSec > timeInterval {
+		timeInterval = snTimeIntervalLenSec
+	}
 
-	ctps := float64(r.tsLastSN10Min.CountAll()) / (routineBufferRetentionMin * 60)
-	ctps = math.Round(100*ctps) / 100
+	var tps, ctps float64
+	if timeInterval != 0 {
+		tps = float64(numLastTX10Min) / float64(timeInterval)
+		tps = math.Round(100*tps) / 100
+		ctps = float64(numLastSN10Min) / float64(timeInterval)
+		ctps = math.Round(100*ctps) / 100
+	}
 
 	confrate := uint64(0)
 	if tps != 0 {
@@ -218,6 +294,8 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 		Tps:                  tps,
 		TxCount:              r.txCount,
 		CtxCount:             r.ctxCount,
+		TxCount10min:         uint64(numLastTX10Min),
+		CtxCount10min:        uint64(numLastSN10Min),
 		ObsoleteConfirmCount: r.obsoleteSnCount,
 		Ctps:                 ctps,
 		Confrate:             confrate,

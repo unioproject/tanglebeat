@@ -67,6 +67,14 @@ func (r *InputReaderBase) Unlock() {
 	r.mutex.Unlock()
 }
 
+func (r *InputReaderBase) RLock() {
+	r.mutex.RLock()
+}
+
+func (r *InputReaderBase) RUnlock() {
+	r.mutex.RUnlock()
+}
+
 func (r *InputReaderBase) SetId__(id byte) {
 	r.id = id
 }
