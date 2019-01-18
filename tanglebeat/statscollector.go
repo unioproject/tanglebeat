@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/lunfardo314/tanglebeat/lib/utils"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/cfg"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/zmqpart"
 	"math"
 	"net"
@@ -14,6 +15,7 @@ import (
 )
 
 type GlbStats struct {
+	InstanceVersion     string                       `json:"instanceVersion"`
 	InstanceStarted     uint64                       `json:"instanceStarted"`
 	GoRuntimeStats      memStatsStruct               `json:"goRuntimeStats"`
 	ZmqCacheStats       zmqpart.ZmqCacheStatsStruct  `json:"zmqRuntimeStats"`
@@ -31,6 +33,7 @@ type memStatsStruct struct {
 }
 
 var glbStats = &GlbStats{
+	InstanceVersion: cfg.Version,
 	InstanceStarted: utils.UnixMsNow(),
 	mutex:           &sync.RWMutex{},
 }
