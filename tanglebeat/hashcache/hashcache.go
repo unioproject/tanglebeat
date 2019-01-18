@@ -60,17 +60,27 @@ func (seg *cacheSegment) Size() int {
 	return len(seg.themap)
 }
 
-// searches for the hash, marks if found
 func (seg *cacheSegment) Find(shorthash string, ret *CacheEntry) bool {
+	return seg.findIntern(shorthash, ret, true)
+}
+
+func (seg *cacheSegment) FindNoTouch(shorthash string, ret *CacheEntry) bool {
+	return seg.findIntern(shorthash, ret, false)
+}
+
+// searches for the hash, marks if found
+func (seg *cacheSegment) findIntern(shorthash string, ret *CacheEntry, touch bool) bool {
 	entry, ok := seg.themap[shorthash]
 	if !ok {
 		return false
 	}
-	seg.themap[shorthash] = CacheEntry{
-		FirstSeen: entry.FirstSeen,
-		LastSeen:  utils.UnixMsNow(),
-		Visits:    entry.Visits + 1,
-		Data:      entry.Data,
+	if touch {
+		seg.themap[shorthash] = CacheEntry{
+			FirstSeen: entry.FirstSeen,
+			LastSeen:  utils.UnixMsNow(),
+			Visits:    entry.Visits + 1,
+			Data:      entry.Data,
+		}
 	}
 	if ret != nil {
 		*ret = seg.themap[shorthash]
@@ -104,14 +114,15 @@ func (cache *HashCacheBase) __insertNew(shorthash string, id byte, data interfac
 }
 
 // finds entry and increases visit counter if found
-func (cache *HashCacheBase) __find(shorthash string, ret *CacheEntry) bool {
+func (cache *HashCacheBase) __find(shorthash string, ret *CacheEntry, touch bool) bool {
 	var found bool
 	cache.ForEachSegment__(func(seg ebuffer.ExpiringSegment) bool {
-		if seg.(*cacheSegment).Find(shorthash, ret) {
-			found = true
-			return false // stop traversing, it was found
+		if touch {
+			found = seg.(*cacheSegment).Find(shorthash, ret)
+		} else {
+			found = seg.(*cacheSegment).FindNoTouch(shorthash, ret)
 		}
-		return true
+		return !found // stop traversing, when found
 	})
 	return found
 }
@@ -119,7 +130,13 @@ func (cache *HashCacheBase) __find(shorthash string, ret *CacheEntry) bool {
 func (cache *HashCacheBase) Find(hash string, ret *CacheEntry) bool {
 	cache.Lock()
 	defer cache.Unlock()
-	return cache.__find(cache.shortHash(hash), ret)
+	return cache.__find(cache.shortHash(hash), ret, true)
+}
+
+func (cache *HashCacheBase) FindNoTouch(hash string, ret *CacheEntry) bool {
+	cache.Lock()
+	defer cache.Unlock()
+	return cache.__find(cache.shortHash(hash), ret, false)
 }
 
 func (cache *HashCacheBase) __findWithDelete(shorthash string, ret *CacheEntry) bool {
@@ -149,7 +166,7 @@ func (cache *HashCacheBase) SeenHashBy(hash string, id byte, data interface{}, r
 	defer cache.Unlock()
 
 	shash := cache.shortHash(hash)
-	if seen := cache.__find(shash, ret); seen {
+	if seen := cache.__find(shash, ret, true); seen {
 		return true
 	}
 	cache.__insertNew(shash, id, data)
@@ -178,10 +195,7 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 	var ok bool
 	cache.ForEachEntry(func(entry *CacheEntry) {
 		ret.TxCount++
-		if entry.Visits > 1 {
-			lat = float64(entry.LastSeen-entry.FirstSeen) / 1000
-			ret.LatencySecAvg += lat
-		} else {
+		if entry.Visits == 1 {
 			ret.SeenOnce++
 			if _, ok = ret.SeenOnceCountById[entry.FirstVisitId]; !ok {
 				ret.SeenOnceCountById[entry.FirstVisitId] = 0
@@ -189,6 +203,8 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 			ret.SeenOnceCountById[entry.FirstVisitId] += 1
 		}
 		if int(entry.Visits) >= cfg.Config.RepeatToAccept {
+			lat = float64(entry.LastSeen-entry.FirstSeen) / 1000
+			ret.LatencySecAvg += lat
 			ret.TxCountPassed++
 		}
 		if entry.LastSeen < ret.EarliestSeen {

@@ -60,7 +60,7 @@ func f(id int, b *EventTsExpiringBuffer, num int, wg *sync.WaitGroup) {
 func countLoop(id int, b *EventTsExpiringBuffer, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for {
-		c := b.CountAll()
+		c, _ := b.CountAll()
 		tracef("%v. CountAll = %v", id, c)
 		if c == 0 {
 			tracef("%v. Finished CountAll", id)

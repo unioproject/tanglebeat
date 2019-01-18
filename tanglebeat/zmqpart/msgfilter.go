@@ -75,12 +75,18 @@ func msgFilterRoutine() {
 	}
 }
 
+// only start processing tx and sn messages after first two lmi messages arrived
+// the reason is to avoid (filter out) obsolete sn rubbish
 func filterMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 	switch msgSplit[0] {
 	case "tx":
-		filterTXMsg(routine, msgData, msgSplit)
+		if sncache.firstMilestoneArrived() {
+			filterTXMsg(routine, msgData, msgSplit)
+		}
 	case "sn":
-		filterSNMsg(routine, msgData, msgSplit)
+		if sncache.firstMilestoneArrived() {
+			filterSNMsg(routine, msgData, msgSplit)
+		}
 	case "lmi":
 		filterLMIMsg(routine, msgData, msgSplit)
 	}
@@ -166,6 +172,11 @@ func filterLMIMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 	if err != nil {
 		errorf("Invalid 'lmi' message: at index 1 expected to be milestone index: %v", err)
 		return
+	}
+	if !sncache.firstMilestoneArrived() {
+		uri := routine.GetUri()
+		infof("+++++++++++++++++ Milestone %v arrived from %v", index, uri)
+		sncache.checkCurrentMilestoneIndex(index, uri)
 	}
 	routine.accountLmi(index)
 

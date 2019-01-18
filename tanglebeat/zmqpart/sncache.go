@@ -42,3 +42,9 @@ func (cache *hashCacheSN) checkCurrentMilestoneIndex(index int, uri string) (boo
 	}
 	return false, cache.indexChanged
 }
+
+func (cache *hashCacheSN) firstMilestoneArrived() bool {
+	cache.Lock()
+	defer cache.Unlock()
+	return cache.largestIndex > 0
+}

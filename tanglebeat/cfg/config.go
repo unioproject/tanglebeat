@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	version   = "0.23"
+	Version   = "19.01.18-1"
 	logFormat = "%{time:2006-01-02 15:04:05.000} %{level:.4s} [%{module:.6s}|%{shortfunc:.12s}] %{message}"
 	level     = logging.DEBUG
 )
@@ -63,7 +63,7 @@ func flushMsgBeforeLog(msgBeforeLog []string) {
 
 func MustReadConfig(cfgfile string) {
 	msgBeforeLog := make([]string, 0, 10)
-	msgBeforeLog = append(msgBeforeLog, "---- Starting Tanglebeat hub module ver. "+version)
+	msgBeforeLog = append(msgBeforeLog, "---- Starting Tanglebeat hub module ver. "+Version)
 	var success bool
 	var siteDataDir string
 	msgBeforeLog, siteDataDir, success = config.ReadYAML(cfgfile, msgBeforeLog, &Config)
