@@ -5,10 +5,13 @@ import (
 	"github.com/lunfardo314/tanglebeat/lib/ebuffer"
 	"github.com/lunfardo314/tanglebeat/lib/nanomsg"
 	"github.com/lunfardo314/tanglebeat/lib/utils"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
 	"math"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 )
 
 const (
@@ -19,6 +22,7 @@ const (
 	quarantineBufferRetentionMin       = 3
 	quarantineHashLen                  = 12
 	quarantineSeenOnceRateThreashold   = 50
+	unquarantineSeenOnceRateThreashold = 40
 )
 
 type zmqRoutine struct {
@@ -113,11 +117,6 @@ func (r *zmqRoutine) uninit() {
 
 // TODO dynamically / upon user action add, delete, disable, enable input streams
 
-// TODO zmq routine to measure "health" of it and put on semi-idle mode if it is not healthy (i.e.
-// produces a lot of rubbish transactions. In the semi-idle mode monitor health with minimum resources and
-// not us as a input. Only put on normal mode if health is back
-// that would allow to handle situations, when hashcache is filled up with "seen once" rubbish
-
 func (r *zmqRoutine) Run(name string) {
 	r.init()
 	defer r.uninit()
@@ -131,6 +130,8 @@ func (r *zmqRoutine) Run(name string) {
 		return
 	}
 	r.SetReading(true)
+	cancelQuarantineRoutine := r.startQuaratineRoutine()
+	defer cancelQuarantineRoutine()
 
 	infof("Successfully started zmq routine and channel for %v", uri)
 	for {
@@ -178,6 +179,40 @@ func (r *zmqRoutine) setQuarantined(quarantined bool) {
 	r.quarantined = quarantined
 }
 
+func (r *zmqRoutine) startQuaratineRoutine() func() {
+	uri := r.GetUri()
+	infof("Started quarantine routine for %v", uri)
+	chCancel := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-chCancel:
+				return
+			case <-time.After(30 * time.Second):
+			}
+			if r.isQuarantined() {
+				if r.toBeUnquarantined() {
+					r.setQuarantined(false)
+					infof("++++++ Unquarantined %v", r.GetUri())
+				}
+			} else {
+				if r.toBeQuarantined() {
+					infof("++++++ Quarantined %v", r.GetUri())
+					r.setQuarantined(true)
+				}
+			}
+		}
+	}()
+	return func() {
+		close(chCancel)
+		wg.Wait()
+		infof("Stopped quarantine routine for %v", uri)
+	}
+}
+
 func (r *zmqRoutine) isQuarantined() bool {
 	r.RLock()
 	defer r.RUnlock()
@@ -196,8 +231,13 @@ func (r *zmqRoutine) toBeUnquarantined() bool {
 	if !r.isQuarantined() {
 		return false
 	}
-	// TODO
-	return false
+	_, numEntries := r.quarantinedTx.Size()
+	if numEntries == 0 {
+		return true // ?????
+	}
+	numSeenOnce := r.calcSeenOnceRateQuarantined()
+	seenOncePerc := (numSeenOnce * 100) / numEntries
+	return seenOncePerc < unquarantineSeenOnceRateThreashold
 }
 
 func (r *zmqRoutine) calcSeenOnceRateQuarantined() int {
@@ -206,9 +246,12 @@ func (r *zmqRoutine) calcSeenOnceRateQuarantined() int {
 	}
 	var hash string
 	var ret int
+	var entry hashcache.CacheEntry
 	r.quarantinedTx.ForEachEntry(func(ts uint64, data interface{}) bool {
 		hash = data.(string)
-
+		if txcache.FindNoTouch(hash, &entry) {
+			ret++
+		}
 		return true
 	}, 0, true)
 	return ret
@@ -279,6 +322,7 @@ type ZmqRoutineStats struct {
 	LastLmi              int     `json:"lastLmi"`
 	SeenOnceCount10Min   int     `json:"seenOnceCount10Min"`
 	SeenOnceRate         uint64  `json:"seenOnceRate"`
+	Quarantined          bool    `json:"quarantined"`
 }
 
 func (r *zmqRoutine) getStats() *ZmqRoutineStats {
@@ -334,6 +378,7 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 		LastLmi:              r.lastLmi,
 		SeenOnceCount10Min:   sc,
 		SeenOnceRate:         sor,
+		Quarantined:          r.quarantined,
 	}
 	return ret
 }
