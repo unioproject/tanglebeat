@@ -18,6 +18,7 @@ const (
 	quarantineBufferSegmentDurationSec = 15
 	quarantineBufferRetentionMin       = 3
 	quarantineHashLen                  = 12
+	quarantineSeenOnceRateThreashold   = 50
 )
 
 type zmqRoutine struct {
@@ -155,10 +156,7 @@ func (r *zmqRoutine) Run(name string) {
 }
 
 func (r *zmqRoutine) processMsg(msgData []byte, msgSplit []string) {
-	r.RLock()
-	defer r.RUnlock()
-
-	if r.quarantined {
+	if r.isQuarantined() {
 		r.toQuarantine(msgData, msgSplit)
 	} else {
 		toFilter(r, msgData, msgSplit)
@@ -190,12 +188,30 @@ func (r *zmqRoutine) toBeQuarantined() bool {
 	if r.isQuarantined() {
 		return false
 	}
-	return false
-	//stats := r.getStats()
+	stats := r.getStats()
+	return stats.timeIntervalSec10min >= 5*60 && stats.SeenOnceRate > quarantineSeenOnceRateThreashold
 }
 
 func (r *zmqRoutine) toBeUnquarantined() bool {
+	if !r.isQuarantined() {
+		return false
+	}
+	// TODO
 	return false
+}
+
+func (r *zmqRoutine) calcSeenOnceRateQuarantined() int {
+	if !r.isQuarantined() {
+		return 0
+	}
+	var hash string
+	var ret int
+	r.quarantinedTx.ForEachEntry(func(ts uint64, data interface{}) bool {
+		hash = data.(string)
+
+		return true
+	}, 0, true)
+	return ret
 }
 
 func shortHash(hash string) string {
@@ -205,6 +221,11 @@ func shortHash(hash string) string {
 }
 
 func (r *zmqRoutine) toQuarantine(msgData []byte, msgSplit []string) {
+	r.Lock()
+	defer r.Unlock()
+	if !r.quarantined {
+		return
+	}
 	if msgSplit[0] != "tx" || len(msgSplit) < 2 {
 		return
 	}
@@ -243,10 +264,11 @@ func (r *zmqRoutine) incObsoleteCount() {
 type ZmqRoutineStats struct {
 	Uri string `json:"uri"`
 	inreaders.InputReaderBaseStats
-	TxCount              uint64  `json:"txCount"`
-	CtxCount             uint64  `json:"ctxCount"`
-	TxCount10min         uint64  `json:"txCount10min"`
-	CtxCount10min        uint64  `json:"ctxCount10min"`
+	TxCount              uint64 `json:"txCount"`
+	CtxCount             uint64 `json:"ctxCount"`
+	TxCount10min         uint64 `json:"txCount10min"`
+	CtxCount10min        uint64 `json:"ctxCount10min"`
+	timeIntervalSec10min uint64
 	ObsoleteConfirmCount uint64  `json:"obsoleteSNCount"`
 	Tps                  float64 `json:"tps"`
 	Ctps                 float64 `json:"ctps"`
@@ -256,6 +278,7 @@ type ZmqRoutineStats struct {
 	LmiCount             int     `json:"lmiCount"`
 	LastLmi              int     `json:"lastLmi"`
 	SeenOnceCount10Min   int     `json:"seenOnceCount10Min"`
+	SeenOnceRate         uint64  `json:"seenOnceRate"`
 }
 
 func (r *zmqRoutine) getStats() *ZmqRoutineStats {
@@ -264,19 +287,18 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 
 	numLastTX10Min, earliestTx := r.tsLastTX10Min.CountAll()
 	numLastSN10Min, earliestSn := r.tsLastSN10Min.CountAll()
-	nowis := utils.UnixMsNow()
-	txTimeIntervalLenSec := (nowis - earliestTx) / 1000
-	snTimeIntervalLenSec := (nowis - earliestSn) / 1000
-	timeInterval := txTimeIntervalLenSec
-	if snTimeIntervalLenSec > timeInterval {
-		timeInterval = snTimeIntervalLenSec
+	earliest10Min := earliestTx
+	if earliestSn < earliest10Min {
+		earliest10Min = earliestSn
 	}
 
+	timeIntervalSec := (utils.UnixMsNow() - earliest10Min) / 1000
+
 	var tps, ctps float64
-	if timeInterval != 0 {
-		tps = float64(numLastTX10Min) / float64(timeInterval)
+	if timeIntervalSec != 0 {
+		tps = float64(numLastTX10Min) / float64(timeIntervalSec)
 		tps = math.Round(100*tps) / 100
-		ctps = float64(numLastSN10Min) / float64(timeInterval)
+		ctps = float64(numLastSN10Min) / float64(timeIntervalSec)
 		ctps = math.Round(100*ctps) / 100
 	}
 
@@ -288,6 +310,12 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 	behindTX := r.last100TXBehindMs.AvgGT(0)
 	behindSN := r.last100SNBehindMs.AvgGT(0)
 
+	sor := uint64(0)
+	sc := getSeenOnceCount10Min(r.GetId__())
+	if numLastTX10Min != 0 {
+		sor = (uint64(sc) * 100) / uint64(numLastTX10Min)
+	}
+
 	ret := &ZmqRoutineStats{
 		Uri:                  r.uri,
 		InputReaderBaseStats: *r.GetReaderBaseStats__(),
@@ -296,6 +324,7 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 		CtxCount:             r.ctxCount,
 		TxCount10min:         uint64(numLastTX10Min),
 		CtxCount10min:        uint64(numLastSN10Min),
+		timeIntervalSec10min: timeIntervalSec,
 		ObsoleteConfirmCount: r.obsoleteSnCount,
 		Ctps:                 ctps,
 		Confrate:             confrate,
@@ -303,7 +332,8 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 		BehindSN:             behindSN,
 		LmiCount:             r.lmiCount,
 		LastLmi:              r.lastLmi,
-		SeenOnceCount10Min:   getSeenOnceCount10Min(r.GetId__()),
+		SeenOnceCount10Min:   sc,
+		SeenOnceRate:         sor,
 	}
 	return ret
 }
