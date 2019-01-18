@@ -22,7 +22,7 @@ func runWebServer(port int) {
 func internalStatsHandler(w http.ResponseWriter, r *http.Request) {
 	req := r.URL.Path[len("/api1/internal_stats/"):]
 	maskIt := !strings.HasPrefix(req, "displayall")
-	_, _ = fmt.Fprintf(w, string(getGlbStatsJSON(true, maskIt, maskIt)))
+	_, _ = fmt.Fprintf(w, string(getGlbStatsJSON(true, maskIt, false)))
 }
 
 func dashboardHandler(w http.ResponseWriter, r *http.Request) {

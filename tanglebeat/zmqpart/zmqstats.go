@@ -165,11 +165,13 @@ func updateZmqOutputSlowStats() {
 
 	secPassed := float64((utils.UnixMsNow() - txs.EarliestSeen) / 1000)
 
-	st.TPS = float64(st.TXCount) / secPassed
-	st.TPS = math.Round(st.TPS*100) / 100
-	st.CTPS = float64(st.SNCount) / secPassed
-	st.CTPS = math.Round(st.CTPS*100) / 100
-	//debugf("+++++++++++++ secPassed = %v st = %+v", secPassed, st)
+	if secPassed != 0 {
+		st.TPS = float64(st.TXCount) / secPassed
+		st.TPS = math.Round(st.TPS*100) / 100
+		st.CTPS = float64(st.SNCount) / secPassed
+		st.CTPS = math.Round(st.CTPS*100) / 100
+		//debugf("+++++++++++++ secPassed = %v st = %+v", secPassed, st)
+	}
 
 	if st.TXCount != 0 {
 		st.ConfRate = (st.SNCount * 100) / st.TXCount
@@ -187,11 +189,13 @@ func updateZmqOutputSlowStats() {
 
 	secPassed10 := float64((utils.UnixMsNow() - txs10.EarliestSeen) / 1000)
 
-	st10.TPS = float64(st10.TXCount) / secPassed10
-	st10.TPS = math.Round(st10.TPS*100) / 100
-	st10.CTPS = float64(st10.SNCount) / secPassed10
-	st10.CTPS = math.Round(st10.CTPS*100) / 100
-	//debugf("+++++++++++++ secPassed10 = %v st = %+v", secPassed10, st10)
+	if secPassed10 != 0 {
+		st10.TPS = float64(st10.TXCount) / secPassed10
+		st10.TPS = math.Round(st10.TPS*100) / 100
+		st10.CTPS = float64(st10.SNCount) / secPassed10
+		st10.CTPS = math.Round(st10.CTPS*100) / 100
+		//debugf("+++++++++++++ secPassed10 = %v st = %+v", secPassed10, st10)
+	}
 
 	if st10.TXCount != 0 {
 		st10.ConfRate = (st10.SNCount * 100) / st10.TXCount
