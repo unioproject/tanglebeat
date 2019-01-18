@@ -100,8 +100,8 @@ func (seg *cacheSegment) FindWithDelete(shorthash string, ret *CacheEntry) bool 
 	return true
 }
 
-func (cache *HashCacheBase) shortHash(hash string) string {
-	if cache.hashLen == 0 {
+func (cache *HashCacheBase) ShortHash(hash string) string {
+	if cache.hashLen < len(hash) {
 		return hash
 	}
 	ret := make([]byte, cache.hashLen)
@@ -130,13 +130,13 @@ func (cache *HashCacheBase) __find(shorthash string, ret *CacheEntry, touch bool
 func (cache *HashCacheBase) Find(hash string, ret *CacheEntry) bool {
 	cache.Lock()
 	defer cache.Unlock()
-	return cache.__find(cache.shortHash(hash), ret, true)
+	return cache.__find(cache.ShortHash(hash), ret, true)
 }
 
 func (cache *HashCacheBase) FindNoTouch(hash string, ret *CacheEntry) bool {
 	cache.Lock()
 	defer cache.Unlock()
-	return cache.__find(cache.shortHash(hash), ret, false)
+	return cache.__find(cache.ShortHash(hash), ret, false)
 }
 
 func (cache *HashCacheBase) __findWithDelete(shorthash string, ret *CacheEntry) bool {
@@ -156,7 +156,7 @@ func (cache *HashCacheBase) FindWithDelete(hash string, ret *CacheEntry) bool {
 	cache.Lock()
 	defer cache.Unlock()
 
-	shash := cache.shortHash(hash)
+	shash := cache.ShortHash(hash)
 	return cache.__findWithDelete(shash, ret)
 }
 
@@ -165,7 +165,7 @@ func (cache *HashCacheBase) SeenHashBy(hash string, id byte, data interface{}, r
 	cache.Lock()
 	defer cache.Unlock()
 
-	shash := cache.shortHash(hash)
+	shash := cache.ShortHash(hash)
 	if seen := cache.__find(shash, ret, true); seen {
 		return true
 	}

@@ -5,24 +5,17 @@ import (
 	"github.com/lunfardo314/tanglebeat/lib/ebuffer"
 	"github.com/lunfardo314/tanglebeat/lib/nanomsg"
 	"github.com/lunfardo314/tanglebeat/lib/utils"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/cfg"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
 	"math"
 	"sort"
 	"strings"
-	"sync"
-	"time"
 )
 
 const (
-	tlTXCacheSegmentDurationSec        = 10
-	tlSNCacheSegmentDurationSec        = 60
-	routineBufferRetentionMin          = 5
-	quarantineBufferSegmentDurationSec = 15
-	quarantineBufferRetentionMin       = 3
-	quarantineHashLen                  = 12
-	quarantineSeenOnceRateThreashold   = 50
-	unquarantineSeenOnceRateThreashold = 40
+	tlTXCacheSegmentDurationSec = 10
+	tlSNCacheSegmentDurationSec = 60
+	routineBufferRetentionMin   = 5
 )
 
 type zmqRoutine struct {
@@ -130,8 +123,10 @@ func (r *zmqRoutine) Run(name string) {
 		return
 	}
 	r.SetReading(true)
-	cancelQuarantineRoutine := r.startQuaratineRoutine()
-	defer cancelQuarantineRoutine()
+	if !cfg.Config.QuarantineDisable {
+		cancelQuarantineRoutine := r.startQuaratineRoutine()
+		defer cancelQuarantineRoutine()
+	}
 
 	infof("Successfully started zmq routine and channel for %v", uri)
 	for {
@@ -151,7 +146,7 @@ func (r *zmqRoutine) Run(name string) {
 
 		// send to filter's channel
 		if expectedTopic(msgSplit[0]) {
-			toFilter(r, msg.Frames[0], msgSplit)
+			r.processMsg(msg.Frames[0], msgSplit)
 		}
 	}
 }
@@ -162,117 +157,6 @@ func (r *zmqRoutine) processMsg(msgData []byte, msgSplit []string) {
 	} else {
 		toFilter(r, msgData, msgSplit)
 	}
-}
-
-func (r *zmqRoutine) setQuarantined(quarantined bool) {
-	r.Lock()
-	defer r.Unlock()
-	if r.quarantined == quarantined {
-		return // no action
-	}
-	if quarantined {
-		r.quarantinedTx = ebuffer.NewEventTsWithDataExpiringBuffer(
-			"quarantineBuffer-"+r.uri, quarantineBufferSegmentDurationSec, quarantineBufferRetentionMin*60)
-	} else {
-		r.quarantinedTx = nil // release, not needed
-	}
-	r.quarantined = quarantined
-}
-
-func (r *zmqRoutine) startQuaratineRoutine() func() {
-	uri := r.GetUri()
-	infof("Started quarantine routine for %v", uri)
-	chCancel := make(chan struct{})
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for {
-			select {
-			case <-chCancel:
-				return
-			case <-time.After(30 * time.Second):
-			}
-			if r.isQuarantined() {
-				if r.toBeUnquarantined() {
-					r.setQuarantined(false)
-					infof("++++++ Unquarantined %v", r.GetUri())
-				}
-			} else {
-				if r.toBeQuarantined() {
-					infof("++++++ Quarantined %v", r.GetUri())
-					r.setQuarantined(true)
-				}
-			}
-		}
-	}()
-	return func() {
-		close(chCancel)
-		wg.Wait()
-		infof("Stopped quarantine routine for %v", uri)
-	}
-}
-
-func (r *zmqRoutine) isQuarantined() bool {
-	r.RLock()
-	defer r.RUnlock()
-	return r.quarantined
-}
-
-func (r *zmqRoutine) toBeQuarantined() bool {
-	if r.isQuarantined() {
-		return false
-	}
-	stats := r.getStats()
-	return stats.timeIntervalSec10min >= 5*60 && stats.SeenOnceRate > quarantineSeenOnceRateThreashold
-}
-
-func (r *zmqRoutine) toBeUnquarantined() bool {
-	if !r.isQuarantined() {
-		return false
-	}
-	_, numEntries := r.quarantinedTx.Size()
-	if numEntries == 0 {
-		return true // ?????
-	}
-	numSeenOnce := r.calcSeenOnceRateQuarantined()
-	seenOncePerc := (numSeenOnce * 100) / numEntries
-	return seenOncePerc < unquarantineSeenOnceRateThreashold
-}
-
-func (r *zmqRoutine) calcSeenOnceRateQuarantined() int {
-	if !r.isQuarantined() {
-		return 0
-	}
-	var hash string
-	var ret int
-	var entry hashcache.CacheEntry
-	r.quarantinedTx.ForEachEntry(func(ts uint64, data interface{}) bool {
-		hash = data.(string)
-		if txcache.FindNoTouch(hash, &entry) {
-			ret++
-		}
-		return true
-	}, 0, true)
-	return ret
-}
-
-func shortHash(hash string) string {
-	ret := make([]byte, quarantineHashLen)
-	copy(ret, hash[:quarantineHashLen])
-	return string(ret)
-}
-
-func (r *zmqRoutine) toQuarantine(msgData []byte, msgSplit []string) {
-	r.Lock()
-	defer r.Unlock()
-	if !r.quarantined {
-		return
-	}
-	if msgSplit[0] != "tx" || len(msgSplit) < 2 {
-		return
-	}
-	r.quarantinedTx.RecordTS(shortHash(msgSplit[1]))
 }
 
 func (r *zmqRoutine) accountTx(behind uint64) {
@@ -320,15 +204,13 @@ type ZmqRoutineStats struct {
 	BehindSN             uint64  `json:"behindSN"`
 	LmiCount             int     `json:"lmiCount"`
 	LastLmi              int     `json:"lastLmi"`
-	SeenOnceCount10Min   int     `json:"seenOnceCount10Min"`
 	SeenOnceRate         uint64  `json:"seenOnceRate"`
-	Quarantined          bool    `json:"quarantined"`
+	State                string  `json:"state"`
 }
 
 func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 	r.RLock()
 	defer r.RUnlock()
-
 	numLastTX10Min, earliestTx := r.tsLastTX10Min.CountAll()
 	numLastSN10Min, earliestSn := r.tsLastSN10Min.CountAll()
 	earliest10Min := earliestTx
@@ -354,12 +236,19 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 	behindTX := r.last100TXBehindMs.AvgGT(0)
 	behindSN := r.last100SNBehindMs.AvgGT(0)
 
-	sor := uint64(0)
-	sc := getSeenOnceCount10Min(r.GetId__())
-	if numLastTX10Min != 0 {
-		sor = (uint64(sc) * 100) / uint64(numLastTX10Min)
+	var seenOnceRate uint64
+	if r.quarantined {
+		_, num := r.quarantinedTx.Size()
+		if num != 0 {
+			soc, _ := r.calcSeenOnceCountQuarantined()
+			seenOnceRate = uint64(soc * 100 / num)
+		}
+	} else {
+		sc := getSeenOnceCount10Min(r.GetId__())
+		if numLastTX10Min != 0 {
+			seenOnceRate = (uint64(sc) * 100) / uint64(numLastTX10Min)
+		}
 	}
-
 	ret := &ZmqRoutineStats{
 		Uri:                  r.uri,
 		InputReaderBaseStats: *r.GetReaderBaseStats__(),
@@ -376,9 +265,28 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 		BehindSN:             behindSN,
 		LmiCount:             r.lmiCount,
 		LastLmi:              r.lastLmi,
-		SeenOnceCount10Min:   sc,
-		SeenOnceRate:         sor,
-		Quarantined:          r.quarantined,
+		SeenOnceRate:         seenOnceRate,
+	}
+	if ret.Running {
+		if r.quarantined {
+			ret.State = "quarantined"
+		} else {
+			lastHBSec := utils.SinceUnixMs(ret.LastHeartbeatTs) / 1000
+			switch {
+			case lastHBSec < 60:
+				if sncache.firstMilestoneArrived() {
+					ret.State = "running"
+				} else {
+					ret.State = "wait_milestone"
+				}
+			case lastHBSec < 300:
+				ret.State = "silent"
+			default:
+				ret.State = "inactive"
+			}
+		}
+	} else {
+		ret.State = "error"
 	}
 	return ret
 }

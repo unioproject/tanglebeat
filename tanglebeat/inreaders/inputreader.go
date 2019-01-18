@@ -125,6 +125,7 @@ func (r *InputReaderBase) setRunning__() {
 
 func (r *InputReaderBase) setIdle__(restartAfter time.Duration) {
 	r.running = false
+	r.lastErr = ""
 	r.restartAt = time.Now().Add(restartAfter)
 }
 
