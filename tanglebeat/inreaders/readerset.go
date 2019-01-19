@@ -62,7 +62,7 @@ func (irs *InputReaderSet) runStarter() {
 					case REASON_NORUN_ONHOLD_1H:
 						restartAfter = 1 * time.Hour
 					case REASON_NORUN_ERROR:
-						restartAfter = 10 * time.Minute
+						restartAfter = 15 * time.Second
 					default:
 						restartAfter = 1 * time.Minute
 					}
