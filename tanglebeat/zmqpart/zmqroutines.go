@@ -123,6 +123,9 @@ func (r *zmqRoutine) uninit() {
 	tracef("++++++++++++ UNINIT zmqRoutine uri = '%v'", r.GetUri())
 	r.Lock()
 	defer r.Unlock()
+	r.txCount = 0
+	r.ctxCount = 0
+	r.obsoleteSnCount = 0
 	r.tsLastTX10Min = nil
 	r.last100TXBehindMs = nil
 	r.tsLastSN10Min = nil
