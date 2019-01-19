@@ -102,7 +102,7 @@ func (seg *cacheSegment) FindWithDelete(shorthash string, ret *CacheEntry) bool 
 
 // returns prefix of the hash with a given length, a parameter of the HashCacheBase buffer
 func (cache *HashCacheBase) ShortHash(hash string) string {
-	if cache.hashLen <= len(hash) {
+	if len(hash) <= cache.hashLen {
 		return hash
 	}
 	ret := make([]byte, cache.hashLen)
