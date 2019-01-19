@@ -73,7 +73,7 @@ func (irs *InputReaderSet) runStarter() {
 				}()
 			}
 			inputRoutine.Unlock()
-			//-----------------
+			//---------------
 		}
 		irs.unlock()
 		time.Sleep(10 * time.Second)
