@@ -28,8 +28,8 @@ type zmqRoutine struct {
 	lastLmi           int
 	obsoleteSnCount   uint64
 	lastSeenOnceRate  uint64
-	tsLastTX10Min     *ebuffer.EventTsExpiringBuffer
-	tsLastSN10Min     *ebuffer.EventTsExpiringBuffer
+	tsLastTXSomeMin   *ebuffer.EventTsExpiringBuffer
+	tsLastSNSomeMin   *ebuffer.EventTsExpiringBuffer
 	last100TXBehindMs *utils.RingArray
 	last100SNBehindMs *utils.RingArray
 }
@@ -111,10 +111,10 @@ func (r *zmqRoutine) init() {
 	tracef("++++++++++++ INIT zmqRoutine uri = '%v'", uri)
 	r.Lock()
 	defer r.Unlock()
-	r.tsLastTX10Min = ebuffer.NewEventTsExpiringBuffer(
-		"tsLastTX10Min: "+uri, tlTXCacheSegmentDurationSec, routineBufferRetentionMin*60)
-	r.tsLastSN10Min = ebuffer.NewEventTsExpiringBuffer(
-		"tsLastSN10Min: "+uri, tlSNCacheSegmentDurationSec, routineBufferRetentionMin*60)
+	r.tsLastTXSomeMin = ebuffer.NewEventTsExpiringBuffer(
+		"tsLastTXSomeMin: "+uri, tlTXCacheSegmentDurationSec, routineBufferRetentionMin*60)
+	r.tsLastSNSomeMin = ebuffer.NewEventTsExpiringBuffer(
+		"tsLastSNSomeMin: "+uri, tlSNCacheSegmentDurationSec, routineBufferRetentionMin*60)
 	r.last100TXBehindMs = utils.NewRingArray(100)
 	r.last100SNBehindMs = utils.NewRingArray(100)
 }
@@ -123,9 +123,12 @@ func (r *zmqRoutine) uninit() {
 	tracef("++++++++++++ UNINIT zmqRoutine uri = '%v'", r.GetUri())
 	r.Lock()
 	defer r.Unlock()
-	r.tsLastTX10Min = nil
+	r.txCount = 0
+	r.ctxCount = 0
+	r.obsoleteSnCount = 0
+	r.tsLastTXSomeMin = nil
 	r.last100TXBehindMs = nil
-	r.tsLastSN10Min = nil
+	r.tsLastSNSomeMin = nil
 	r.last100SNBehindMs = nil
 }
 
@@ -181,7 +184,7 @@ func (r *zmqRoutine) accountTx(behind uint64) {
 	r.Lock()
 	defer r.Unlock()
 	r.txCount++
-	r.tsLastTX10Min.RecordTS()
+	r.tsLastTXSomeMin.RecordTS()
 	r.last100TXBehindMs.Push(behind)
 }
 
@@ -189,7 +192,7 @@ func (r *zmqRoutine) accountSn(behind uint64) {
 	r.Lock()
 	defer r.Unlock()
 	r.ctxCount++
-	r.tsLastSN10Min.RecordTS()
+	r.tsLastSNSomeMin.RecordTS()
 	r.last100SNBehindMs.Push(behind)
 }
 
@@ -231,20 +234,20 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 	r.Lock()
 	defer r.Unlock()
 
-	numLastTX10Min, earliestTx := r.tsLastTX10Min.CountAll()
-	numLastSN10Min, earliestSn := r.tsLastSN10Min.CountAll()
-	earliest10Min := earliestTx
-	if earliestSn < earliest10Min {
-		earliest10Min = earliestSn
+	numLastTX5Min, earliestTx := r.tsLastTXSomeMin.CountAll()
+	numLastSN5Min, earliestSn := r.tsLastSNSomeMin.CountAll()
+	earliest5Min := earliestTx
+	if earliestSn < earliest5Min {
+		earliest5Min = earliestSn
 	}
 
-	timeIntervalSec := (utils.UnixMsNow() - earliest10Min) / 1000
+	timeIntervalSec := (utils.UnixMsNow() - earliest5Min) / 1000
 
 	var tps, ctps float64
 	if timeIntervalSec != 0 {
-		tps = float64(numLastTX10Min) / float64(timeIntervalSec)
+		tps = float64(numLastTX5Min) / float64(timeIntervalSec)
 		tps = math.Round(100*tps) / 100
-		ctps = float64(numLastSN10Min) / float64(timeIntervalSec)
+		ctps = float64(numLastSN5Min) / float64(timeIntervalSec)
 		ctps = math.Round(100*ctps) / 100
 	}
 
@@ -256,9 +259,9 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 	behindTX := r.last100TXBehindMs.AvgGT(0)
 	behindSN := r.last100SNBehindMs.AvgGT(0)
 
-	sc := getSeenOnceCount10Min(r.GetId__())
-	if numLastTX10Min != 0 {
-		r.lastSeenOnceRate = (uint64(sc) * 100) / uint64(numLastTX10Min)
+	sc := getSeenOnceCount5Min(r.GetId__())
+	if numLastTX5Min != 0 {
+		r.lastSeenOnceRate = (uint64(sc) * 100) / uint64(numLastTX5Min)
 	} else {
 		r.lastSeenOnceRate = 0
 	}
@@ -268,8 +271,8 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 		Tps:                  tps,
 		TxCount:              r.txCount,
 		CtxCount:             r.ctxCount,
-		TxCount10min:         uint64(numLastTX10Min),
-		CtxCount10min:        uint64(numLastSN10Min),
+		TxCount10min:         uint64(numLastTX5Min),
+		CtxCount10min:        uint64(numLastSN5Min),
 		timeIntervalSec10min: timeIntervalSec,
 		ObsoleteConfirmCount: r.obsoleteSnCount,
 		Ctps:                 ctps,
