@@ -8,11 +8,10 @@ import (
 )
 
 const (
-	Version                         = "19.01.18-2"
-	logFormat                       = "%{time:2006-01-02 15:04:05.000} %{level:.4s} [%{module:.6s}|%{shortfunc:.12s}] %{message}"
-	level                           = logging.DEBUG
-	quarantineStartThresholdDefault = 50
-	quarantineStopThresholdDefault  = 40
+	Version                = "19.01.19-1"
+	logFormat              = "%{time:2006-01-02 15:04:05.000} %{level:.4s} [%{module:.6s}|%{shortfunc:.12s}] %{message}"
+	level                  = logging.DEBUG
+	onHoldThresholdDefault = 50
 )
 
 var (
@@ -31,15 +30,13 @@ type inputsOutput struct {
 }
 
 type ConfigStructYAML struct {
-	siteDataDir              string
-	WebServerPort            int          `yaml:"webServerPort"`
-	IriMsgStream             inputsOutput `yaml:"iriMsgStream"`
-	SenderMsgStream          inputsOutput `yaml:"senderMsgStream"`
-	RepeatToAccept           int          `yaml:"repeatToAccept"`
-	RetentionPeriodMin       int          `yaml:"retentionPeriodMin"`
-	QuarantineDisable        bool         `yaml:"quarantineDisable"`
-	QuarantineStartThreshold uint64       `yaml:"quarantineStartThreshold"`
-	QuarantineStopThreshold  uint64       `yaml:"quarantineStopThreshold"`
+	siteDataDir        string
+	WebServerPort      int          `yaml:"webServerPort"`
+	IriMsgStream       inputsOutput `yaml:"iriMsgStream"`
+	SenderMsgStream    inputsOutput `yaml:"senderMsgStream"`
+	RepeatToAccept     int          `yaml:"repeatToAccept"`
+	RetentionPeriodMin int          `yaml:"retentionPeriodMin"`
+	OnHoldThreshold    uint64       `yaml:"onHoldThreshold"`
 }
 
 var Config = ConfigStructYAML{}
@@ -89,19 +86,10 @@ func MustReadConfig(cfgfile string) {
 	if Config.RetentionPeriodMin == 0 {
 		Config.RetentionPeriodMin = 60
 	}
-
-	if !Config.QuarantineDisable {
-		if Config.QuarantineStartThreshold == 0 {
-			Config.QuarantineStartThreshold = quarantineStartThresholdDefault
-		}
-		if Config.QuarantineStopThreshold == 0 {
-			Config.QuarantineStopThreshold = quarantineStopThresholdDefault
-		}
-		infof("Quarantine thresholds for zmq routines start / stop = %v%% / %v%%",
-			Config.QuarantineStartThreshold, Config.QuarantineStopThreshold)
-	} else {
-		infof("Quarantine logic disabled")
+	if Config.OnHoldThreshold == 0 {
+		Config.OnHoldThreshold = onHoldThresholdDefault
 	}
+	infof("OnHold threshold for zmq routines is %v%%", Config.OnHoldThreshold)
 	infof("TX message will be accepted after received %v times from different sources ('repeatToAcceptTX' parameter, default is 2)",
 		Config.RepeatToAccept)
 }

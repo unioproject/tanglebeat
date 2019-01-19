@@ -14,7 +14,7 @@ type InputReader interface {
 	Lock()
 	Unlock()
 	setRunning__()
-	setIdle__(time.Duration)
+	setIdle__(time.Duration, ReasonNotRunning)
 	isTimeToRestart__() bool
 
 	SetId__(byte)
@@ -29,19 +29,31 @@ type InputReader interface {
 
 	SetLastHeartbeatNow()
 	GetLastHeartbeat() time.Time
-	Run(string)
+	Run(string) ReasonNotRunning
 	GetReaderBaseStats__() *InputReaderBaseStats
 }
 
+type ReasonNotRunning string
+
+const (
+	REASON_NORUN_NONE         = "undef"
+	REASON_NORUN_ERROR        = "error"
+	REASON_NORUN_ONHOLD_10MIN = "onHold10min"
+	REASON_NORUN_ONHOLD_30MIN = "onHold30min"
+	REASON_NORUN_ONHOLD_1H    = "onHold1h"
+)
+
 type InputReaderBase struct {
-	id            byte
-	running       bool
-	reading       bool
-	lastErr       string
-	restartAt     time.Time
-	readingSince  time.Time
-	lastHeartbeat time.Time
-	mutex         *sync.RWMutex
+	id               byte
+	running          bool
+	reading          bool
+	reasonNotRunning ReasonNotRunning
+	onHoldCount      int
+	lastErr          string
+	restartAt        time.Time
+	ReadingSince     time.Time
+	lastHeartbeat    time.Time
+	mutex            *sync.RWMutex
 }
 
 type InputReaderBaseStats struct {
@@ -53,9 +65,10 @@ type InputReaderBaseStats struct {
 
 func NewInputReaderBase() *InputReaderBase {
 	return &InputReaderBase{
-		restartAt:     time.Now(),
-		lastHeartbeat: time.Now(),
-		mutex:         &sync.RWMutex{},
+		restartAt:        time.Now(),
+		lastHeartbeat:    time.Now(),
+		reasonNotRunning: REASON_NORUN_NONE,
+		mutex:            &sync.RWMutex{},
 	}
 }
 
@@ -88,7 +101,7 @@ func (r *InputReaderBase) SetReading(reading bool) {
 	defer r.Unlock()
 
 	if reading && !r.reading {
-		r.readingSince = time.Now()
+		r.ReadingSince = time.Now()
 	}
 	r.reading = reading
 }
@@ -123,10 +136,22 @@ func (r *InputReaderBase) setRunning__() {
 	r.running = true
 }
 
-func (r *InputReaderBase) setIdle__(restartAfter time.Duration) {
+func (r *InputReaderBase) setIdle__(restartAfter time.Duration, reason ReasonNotRunning) {
 	r.running = false
-	r.lastErr = ""
+	r.reasonNotRunning = reason
+	r.onHoldCount++
 	r.restartAt = time.Now().Add(restartAfter)
+}
+
+func (r *InputReaderBase) GetOnHoldInfo__() (int, ReasonNotRunning) {
+	return r.onHoldCount, r.reasonNotRunning
+}
+
+func (r *InputReaderBase) ResetOnHoldInfo() {
+	r.Lock()
+	defer r.Unlock()
+	r.onHoldCount = 0
+	r.reasonNotRunning = REASON_NORUN_NONE
 }
 
 func (r *InputReaderBase) isTimeToRestart__() bool {
@@ -137,7 +162,7 @@ func (r *InputReaderBase) GetReaderBaseStats__() *InputReaderBaseStats {
 	return &InputReaderBaseStats{
 		Running:         r.running && r.reading,
 		LastErr:         r.lastErr,
-		RunningSinceTs:  utils.UnixMs(r.readingSince),
+		RunningSinceTs:  utils.UnixMs(r.ReadingSince),
 		LastHeartbeatTs: utils.UnixMs(r.lastHeartbeat),
 	}
 }

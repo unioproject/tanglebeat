@@ -55,7 +55,7 @@ func (r *updateSource) GetUri() string {
 	return r.uri
 }
 
-func (r *updateSource) Run(name string) {
+func (r *updateSource) Run(name string) inreaders.ReasonNotRunning {
 	uri := r.GetUri()
 	infof("Starting sender update source '%v' at '%v'", name, uri)
 	defer errorf("Leaving sender update source '%v' at '%v'", name, uri)
@@ -63,7 +63,7 @@ func (r *updateSource) Run(name string) {
 	chIn, err := sender_update.NewUpdateChan(uri)
 	if err != nil {
 		errorf("failed to initialize sender update source for %v: %v", uri, err)
-		return
+		return inreaders.REASON_NORUN_ERROR
 	}
 	r.SetReading(true)
 	infof("Successfully started sender update source at %v", uri)
@@ -72,9 +72,10 @@ func (r *updateSource) Run(name string) {
 		err = r.processUpdate(upd)
 		if err != nil {
 			r.SetLastErr(fmt.Sprintf("Error while processing update: %v", err))
-			return
+			return inreaders.REASON_NORUN_ONHOLD_10MIN
 		}
 	}
+	return inreaders.REASON_NORUN_ONHOLD_10MIN
 }
 
 func (r *updateSource) processUpdate(upd *sender_update.SenderUpdate) error {
