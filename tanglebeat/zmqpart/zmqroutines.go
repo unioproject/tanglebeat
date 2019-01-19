@@ -10,6 +10,7 @@ import (
 	"math"
 	"sort"
 	"strings"
+	"time"
 )
 
 const (
@@ -26,12 +27,11 @@ type zmqRoutine struct {
 	lmiCount          int
 	lastLmi           int
 	obsoleteSnCount   uint64
+	lastSeenOnceRate  uint64
 	tsLastTX10Min     *ebuffer.EventTsExpiringBuffer
 	tsLastSN10Min     *ebuffer.EventTsExpiringBuffer
 	last100TXBehindMs *utils.RingArray
 	last100SNBehindMs *utils.RingArray
-	quarantined       bool
-	quarantinedTx     *ebuffer.EventTsWithDataExpiringBuffer
 }
 
 func createZmqRoutine(uri string) {
@@ -68,9 +68,31 @@ func MustInitZmqRoutines(outEnabled bool, outPort int, inputs []string) {
 }
 
 func (r *zmqRoutine) GetUri() string {
-	r.Lock()
-	defer r.Unlock()
+	r.RLock()
+	defer r.RUnlock()
 	return r.uri
+}
+
+func (r *zmqRoutine) checkOnHoldCondition() inreaders.ReasonNotRunning {
+	if time.Since(r.GetLastHeartbeat()) > 30*time.Minute {
+		r.ResetOnHoldInfo()
+	}
+
+	r.RLock()
+	defer r.RUnlock()
+	onHoldCounter, _ := r.GetOnHoldInfo__()
+
+	if time.Since(r.ReadingSince) > 5*time.Minute && r.lastSeenOnceRate > cfg.Config.OnHoldThreshold {
+		switch onHoldCounter {
+		case 0:
+			return inreaders.REASON_NORUN_ONHOLD_10MIN
+		case 1:
+			return inreaders.REASON_NORUN_ONHOLD_30MIN
+		default:
+			return inreaders.REASON_NORUN_ONHOLD_1H
+		}
+	}
+	return inreaders.REASON_NORUN_NONE
 }
 
 var topics = []string{"tx", "sn", "lmi"}
@@ -105,12 +127,11 @@ func (r *zmqRoutine) uninit() {
 	r.last100TXBehindMs = nil
 	r.tsLastSN10Min = nil
 	r.last100SNBehindMs = nil
-	r.quarantinedTx = nil
 }
 
 // TODO dynamically / upon user action add, delete, disable, enable input streams
 
-func (r *zmqRoutine) Run(name string) {
+func (r *zmqRoutine) Run(name string) inreaders.ReasonNotRunning {
 	r.init()
 	defer r.uninit()
 
@@ -120,42 +141,39 @@ func (r *zmqRoutine) Run(name string) {
 	if err != nil {
 		errorf("Error while starting zmq channel for %v", uri)
 		r.SetLastErr(fmt.Sprintf("%v", err))
-		return
+		return inreaders.REASON_NORUN_ERROR
 	}
 	r.SetReading(true)
-	if !cfg.Config.QuarantineDisable {
-		cancelQuarantineRoutine := r.startQuaratineRoutine()
-		defer cancelQuarantineRoutine()
-	}
 
 	infof("Successfully started zmq routine and channel for %v", uri)
+	var reasonNoRun inreaders.ReasonNotRunning
 	for {
 		msg, err := socket.Recv()
+
+		// find out if there are any reasons to exit the loop
 		if err != nil {
 			errorf("reading ZMQ socket for '%v': socket.Recv() returned %v", uri, err)
 			r.SetLastErr(fmt.Sprintf("%v", err))
-			return // exit routine
+			return inreaders.REASON_NORUN_ERROR
 		}
 		if len(msg.Frames) == 0 {
 			errorf("+++++++++ empty zmq msgSplit for '%v': %+v", uri, msg)
 			r.SetLastErr(fmt.Sprintf("empty msgSplit from zmq"))
-			return // exit routine
+			return inreaders.REASON_NORUN_ERROR
 		}
 		r.SetLastHeartbeatNow()
+		reasonNoRun = r.checkOnHoldCondition()
+		if reasonNoRun != inreaders.REASON_NORUN_NONE {
+			errorf("+++++++++ onHold for '%v'. Reason no run: '%v'", uri, reasonNoRun)
+			return reasonNoRun
+		}
+
 		msgSplit := strings.Split(string(msg.Frames[0]), " ")
 
 		// send to filter's channel
 		if expectedTopic(msgSplit[0]) {
-			r.processMsg(msg.Frames[0], msgSplit)
+			toFilter(r, msg.Frames[0], msgSplit)
 		}
-	}
-}
-
-func (r *zmqRoutine) processMsg(msgData []byte, msgSplit []string) {
-	if r.isQuarantined() {
-		r.toQuarantine(msgData, msgSplit)
-	} else {
-		toFilter(r, msgData, msgSplit)
 	}
 }
 
@@ -209,8 +227,10 @@ type ZmqRoutineStats struct {
 }
 
 func (r *zmqRoutine) getStats() *ZmqRoutineStats {
-	r.RLock()
-	defer r.RUnlock()
+	// lock for writing due to seenOnceRate update
+	r.Lock()
+	defer r.Unlock()
+
 	numLastTX10Min, earliestTx := r.tsLastTX10Min.CountAll()
 	numLastSN10Min, earliestSn := r.tsLastSN10Min.CountAll()
 	earliest10Min := earliestTx
@@ -236,18 +256,11 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 	behindTX := r.last100TXBehindMs.AvgGT(0)
 	behindSN := r.last100SNBehindMs.AvgGT(0)
 
-	var seenOnceRate uint64
-	if r.quarantined {
-		_, num := r.quarantinedTx.Size()
-		if num != 0 {
-			soc, _ := r.calcSeenOnceCountQuarantined()
-			seenOnceRate = uint64(soc * 100 / num)
-		}
+	sc := getSeenOnceCount10Min(r.GetId__())
+	if numLastTX10Min != 0 {
+		r.lastSeenOnceRate = (uint64(sc) * 100) / uint64(numLastTX10Min)
 	} else {
-		sc := getSeenOnceCount10Min(r.GetId__())
-		if numLastTX10Min != 0 {
-			seenOnceRate = (uint64(sc) * 100) / uint64(numLastTX10Min)
-		}
+		r.lastSeenOnceRate = 0
 	}
 	ret := &ZmqRoutineStats{
 		Uri:                  r.uri,
@@ -265,28 +278,25 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 		BehindSN:             behindSN,
 		LmiCount:             r.lmiCount,
 		LastLmi:              r.lastLmi,
-		SeenOnceRate:         seenOnceRate,
+		SeenOnceRate:         r.lastSeenOnceRate,
 	}
 	if ret.Running {
-		if r.quarantined {
-			ret.State = "quarantined"
-		} else {
-			lastHBSec := utils.SinceUnixMs(ret.LastHeartbeatTs) / 1000
-			switch {
-			case lastHBSec < 60:
-				if sncache.firstMilestoneArrived() {
-					ret.State = "running"
-				} else {
-					ret.State = "wait_milestone"
-				}
-			case lastHBSec < 300:
-				ret.State = "silent"
-			default:
-				ret.State = "inactive"
+		lastHBSec := utils.SinceUnixMs(ret.LastHeartbeatTs) / 1000
+		switch {
+		case lastHBSec < 60:
+			if sncache.firstMilestoneArrived() {
+				ret.State = "running"
+			} else {
+				ret.State = "wait_milestone"
 			}
+		case lastHBSec < 300:
+			ret.State = "slow"
+		default:
+			ret.State = "inactive"
 		}
 	} else {
-		ret.State = "error"
+		_, reason := r.GetOnHoldInfo__()
+		ret.State = string(reason)
 	}
 	return ret
 }

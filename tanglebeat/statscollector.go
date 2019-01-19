@@ -111,7 +111,7 @@ func getMaskedGlbStats(maskIP bool, hideInactive bool) *GlbStats {
 		if !hideInactive || isActiveRoutine(inp) {
 			if maskIP && isIpAddr(inp.Uri) {
 				tmp := *inp
-				tmp.Uri = "IP addr"
+				tmp.Uri = "IP addr (masked)"
 				maskedInputs = append(maskedInputs, &tmp)
 			} else {
 				maskedInputs = append(maskedInputs, inp)
