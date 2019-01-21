@@ -87,9 +87,9 @@ func (r *zmqRoutine) checkOnHoldCondition() inreaders.ReasonNotRunning {
 		case 0:
 			return inreaders.REASON_NORUN_ONHOLD_10MIN
 		case 1:
-			return inreaders.REASON_NORUN_ONHOLD_30MIN
+			return inreaders.REASON_NORUN_ONHOLD_10MIN
 		default:
-			return inreaders.REASON_NORUN_ONHOLD_1H
+			return inreaders.REASON_NORUN_ONHOLD_10MIN
 		}
 	}
 	return inreaders.REASON_NORUN_NONE
