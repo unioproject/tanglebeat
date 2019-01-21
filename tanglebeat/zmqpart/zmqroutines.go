@@ -21,6 +21,7 @@ const (
 
 type zmqRoutine struct {
 	inreaders.InputReaderBase
+	initialized       bool
 	uri               string
 	txCount           uint64
 	ctxCount          uint64
@@ -117,6 +118,7 @@ func (r *zmqRoutine) init() {
 		"tsLastSNSomeMin: "+uri, tlSNCacheSegmentDurationSec, routineBufferRetentionMin*60)
 	r.last100TXBehindMs = utils.NewRingArray(100)
 	r.last100SNBehindMs = utils.NewRingArray(100)
+	r.initialized = true
 }
 
 func (r *zmqRoutine) uninit() {
@@ -130,6 +132,7 @@ func (r *zmqRoutine) uninit() {
 	r.last100TXBehindMs = nil
 	r.tsLastSNSomeMin = nil
 	r.last100SNBehindMs = nil
+	r.initialized = false
 }
 
 // TODO dynamically / upon user action add, delete, disable, enable input streams
@@ -183,6 +186,9 @@ func (r *zmqRoutine) Run(name string) inreaders.ReasonNotRunning {
 func (r *zmqRoutine) accountTx(behind uint64) {
 	r.Lock()
 	defer r.Unlock()
+	if !r.initialized {
+		return
+	}
 	r.txCount++
 	r.tsLastTXSomeMin.RecordTS()
 	r.last100TXBehindMs.Push(behind)
@@ -191,6 +197,9 @@ func (r *zmqRoutine) accountTx(behind uint64) {
 func (r *zmqRoutine) accountSn(behind uint64) {
 	r.Lock()
 	defer r.Unlock()
+	if !r.initialized {
+		return
+	}
 	r.ctxCount++
 	r.tsLastSNSomeMin.RecordTS()
 	r.last100SNBehindMs.Push(behind)
@@ -199,6 +208,9 @@ func (r *zmqRoutine) accountSn(behind uint64) {
 func (r *zmqRoutine) accountLmi(index int) {
 	r.Lock()
 	defer r.Unlock()
+	if !r.initialized {
+		return
+	}
 	r.lmiCount++
 	r.lastLmi = index
 }
@@ -206,6 +218,9 @@ func (r *zmqRoutine) accountLmi(index int) {
 func (r *zmqRoutine) incObsoleteCount() {
 	r.Lock()
 	defer r.Unlock()
+	if !r.initialized {
+		return
+	}
 	r.obsoleteSnCount++
 }
 
