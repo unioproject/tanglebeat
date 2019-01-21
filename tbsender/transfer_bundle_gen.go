@@ -173,13 +173,15 @@ func (gen *transferBundleGenerator) runGenerator() {
 			continue
 
 		case balance != 0:
-			bundleData, err = gen.findBundleToConfirm(addr)
-			if err != nil {
-				gen.log.Errorf("Transfer Bundles '%v': findBundleToConfirm returned: %v", gen.name, err)
-				time.Sleep(5 * time.Second)
-				errorCount += 1
-				continue
-			}
+			//bundleData, err = gen.findBundleToConfirm(addr)
+			//if err != nil {
+			//	gen.log.Errorf("Transfer Bundles '%v': findBundleToConfirm returned: %v", gen.name, err)
+			//	time.Sleep(5 * time.Second)
+			//	errorCount += 1
+			//	continue
+			//}
+			// TODO experiment: alwasy resend existing bundle
+			bundleData = nil
 			if bundleData == nil {
 				// didn't find any ready to confirm, initialize new transfer
 				bundleData, err = gen.sendToNext(addr) // will fill up Balance field
