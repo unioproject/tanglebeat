@@ -21,7 +21,7 @@ func (conf *Confirmer) attachToTangle(trunkHash, branchHash Hash, trytes []Tryte
 
 var all9 = Trytes(strings.Repeat("9", 81))
 
-func (conf *Confirmer) promote() error {
+func (conf *Confirmer) promote() (error, Hash) {
 	var err error
 	if conf.Log != nil {
 		var m string
@@ -45,13 +45,13 @@ func (conf *Confirmer) promote() error {
 	// TODO multi api
 	bundleTrytesPrep, err := conf.IotaMultiAPI.GetAPI().PrepareTransfers(all9, transfers, prepTransferOptions)
 	if conf.AEC.CheckError(conf.IotaMultiAPI.GetAPIEndpoint(), err) {
-		return err
+		return err, ""
 	}
 	var apiret multiapi.MultiCallRet
 	st := utils.UnixMs(time.Now())
 	gttaResp, err := conf.IotaMultiAPIgTTA.GetTransactionsToApprove(3, &apiret)
 	if conf.AEC.CheckError(apiret.Endpoint, err) {
-		return err
+		return err, ""
 	}
 	conf.totalDurationGTTAMsec += utils.UnixMs(time.Now()) - st
 
@@ -60,29 +60,29 @@ func (conf *Confirmer) promote() error {
 
 	btrytes, duration, err := conf.attachToTangle(trunkTxh, branchTxh, bundleTrytesPrep)
 	if err != nil {
-		return err
+		return err, ""
 	}
 	conf.totalDurationATTMsec += duration
 
 	// no multi args!!!
 	_, err = conf.IotaMultiAPI.StoreAndBroadcast(btrytes, &apiret)
 	if conf.AEC.CheckError(apiret.Endpoint, err) {
-		return err
+		return err, ""
 	}
 
 	nowis := time.Now()
 	conf.numPromote += 1
+	tail, err := utils.TailFromBundleTrytes(btrytes)
+	if err != nil {
+		return err, ""
+	}
 	if conf.PromoteChain {
-		tail, err := utils.TailFromBundleTrytes(btrytes)
-		if err != nil {
-			return err
-		}
 		conf.nextTailHashToPromote = tail.Hash
 	}
 	conf.Log.Debugf("CONFIRMER-PROMO: finished promoting bundle hash %v. Next tail to promote = %v",
 		conf.bundleHash, conf.nextTailHashToPromote)
 	conf.nextPromoTime = nowis.Add(time.Duration(conf.PromoteEverySec) * time.Second)
-	return nil
+	return nil, tail.Hash
 }
 
 func (conf *Confirmer) reattach() error {

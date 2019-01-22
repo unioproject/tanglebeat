@@ -17,7 +17,6 @@ func newHashCacheSN(hashLen int, segmentDurationSec int, retentionPeriodSec int)
 	ret := &hashCacheSN{
 		HashCacheBase: *hashcache.NewHashCacheBase("sncache", hashLen, segmentDurationSec, retentionPeriodSec),
 	}
-	//ret.StartPurge()
 	return ret
 }
 

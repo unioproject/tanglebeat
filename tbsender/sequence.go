@@ -215,6 +215,10 @@ func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.Confirmer
 	if !ok {
 		seq.log.Errorf("processConfirmerUpdate: No stopwatch entry for %v", bundleHash)
 	}
+	promoTail := Hash("")
+	if updConf.UpdateType == confirmer.UPD_PROMOTE {
+		promoTail = updConf.PromoteTailHash
+	}
 	_ = pubupdate.PublishSenderUpdate(updatePublisher,
 		&sender_update.SenderUpdate{
 			Version:               Version,
@@ -225,6 +229,7 @@ func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.Confirmer
 			Balance:               balance,
 			Addr:                  addr,
 			Bundle:                bundleHash,
+			PromoTail:             promoTail,
 			StartTs:               started,
 			UpdateTs:              end,
 			NumAttaches:           updConf.NumAttaches,

@@ -140,6 +140,10 @@ func (cache *HashCacheBase) FindNoTouch(hash string, ret *CacheEntry) bool {
 	return cache.__find(cache.ShortHash(hash), ret, false)
 }
 
+func (cache *HashCacheBase) FindNoTouch__(hash string, ret *CacheEntry) bool {
+	return cache.__find(cache.ShortHash(hash), ret, false)
+}
+
 func (cache *HashCacheBase) __findWithDelete(shorthash string, ret *CacheEntry) bool {
 	var found bool
 	cache.ForEachSegment__(func(seg ebuffer.ExpiringSegment) bool {
