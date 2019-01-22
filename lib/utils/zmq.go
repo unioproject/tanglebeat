@@ -23,6 +23,7 @@ func OpenSocketAndSubscribe(uri string, topics []string) (zmq4.Socket, error) {
 	for _, t := range topics {
 		err = socket.SetOption(zmq4.OptionSubscribe, t)
 		if err != nil {
+			_ = socket.Close()
 			return nil, err
 		}
 	}

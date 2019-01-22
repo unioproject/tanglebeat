@@ -1,23 +1,22 @@
 package main
 
 import (
-	"github.com/google/gops/agent"
 	"github.com/lunfardo314/tanglebeat/lib/ebuffer"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/cfg"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/senderpart"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/zmqpart"
-	"os"
 )
 
 const CONFIG_FILE = "tanglebeat.yml"
-const gopsAddr = ""
+
+//const gopsAddr = ""
 
 func main() {
-	if err := agent.Listen(agent.Options{Addr: gopsAddr}); err != nil {
-		errorf("can't start GOPS agent: %v", err)
-		os.Exit(8)
-	}
+	//if err := agent.Listen(agent.Options{Addr: gopsAddr}); err != nil {
+	//	errorf("can't start GOPS agent: %v", err)
+	//	os.Exit(8)
+	//}
 	cfg.MustReadConfig(CONFIG_FILE)
 	setLogs()
 	zmqpart.MustInitZmqRoutines(
