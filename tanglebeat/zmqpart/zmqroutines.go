@@ -149,6 +149,11 @@ func (r *zmqRoutine) Run(name string) inreaders.ReasonNotRunning {
 		r.SetLastErr(fmt.Sprintf("%v", err))
 		return inreaders.REASON_NORUN_ERROR
 	}
+	defer func() {
+		go func() {
+			_ = socket.Close() // better leak than block
+		}()
+	}()
 	r.SetReading(true)
 
 	infof("Successfully started zmq routine and channel for %v", uri)
