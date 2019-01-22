@@ -23,7 +23,8 @@ func runSender() int {
 	return ret
 }
 
-const gopsAddr = "localhost:4001"
+//const gopsAddr = "localhost:4001"
+const gopsAddr = ""
 
 func main() {
 	mustReadMasterConfig(CONFIG_FILE)
