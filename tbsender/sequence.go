@@ -210,7 +210,8 @@ func (seq *TransferSequence) processConfirmerUpdate(updConf *confirmer.Confirmer
 	if updConf.UpdateType == confirmer.UPD_CONFIRM {
 		started, end, ok = confirmer.GetAndRemoveStopwatch(bundleHash)
 	} else {
-		started, end, ok = confirmer.GetStopwatch(bundleHash)
+		started, _, ok = confirmer.GetStopwatch(bundleHash)
+		end = utils.UnixMs(updConf.UpdateTime)
 	}
 	if !ok {
 		seq.log.Errorf("processConfirmerUpdate: No stopwatch entry for %v", bundleHash)
