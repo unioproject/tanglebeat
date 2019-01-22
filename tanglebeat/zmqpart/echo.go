@@ -61,7 +61,7 @@ func checkForEcho(txhash string, ts uint64) {
 	if echoBuffer.FindNoTouch__(txhash, &entry) {
 		d := entry.Data.(*echoEntry)
 		if d.seen {
-			debugf("+++++++ Promo tx echo in %v msec. %v..", ts-d.whenSeenFirst, txhash[:12])
+			debugf("+++++++ Promo tx echo in %v msec. %v..", ts-d.whenSent, txhash[:12])
 			d.whenSeenLast = ts
 		} else {
 			d.whenSeenFirst = ts
@@ -72,7 +72,7 @@ func checkForEcho(txhash string, ts uint64) {
 }
 
 func calcAvgEchoParams() (uint64, uint64, uint64) {
-	var numAll, numSeen, avgSeenFirstMs, avgSeenLastMs uint64
+	var numAll, numSeen, avgSeenFirstLatencyMs, avgSeenLastLatencyMs uint64
 	var data *echoEntry
 	earliest := utils.UnixMsNow() - 30*60*1000 //30min
 	echoBuffer.ForEachEntry(func(entry *hashcache.CacheEntry) {
@@ -81,16 +81,16 @@ func calcAvgEchoParams() (uint64, uint64, uint64) {
 		if data.seen {
 			numSeen++
 		}
-		avgSeenFirstMs += data.whenSeenFirst - data.whenSent
-		avgSeenLastMs += data.whenSeenLast - data.whenSent
+		avgSeenFirstLatencyMs += data.whenSeenFirst - data.whenSent
+		avgSeenLastLatencyMs += data.whenSeenLast - data.whenSent
 	}, earliest, true)
 	if numSeen != 0 {
-		avgSeenFirstMs = avgSeenFirstMs / numSeen
-		avgSeenLastMs = avgSeenLastMs / numSeen
+		avgSeenFirstLatencyMs = avgSeenFirstLatencyMs / numSeen
+		avgSeenLastLatencyMs = avgSeenLastLatencyMs / numSeen
 	}
 	percNotSeen := uint64(0)
 	if numAll != 0 {
-		percNotSeen = (numSeen * 100) / numAll
+		percNotSeen = 100 - (numSeen*100)/numAll
 	}
-	return percNotSeen, avgSeenFirstMs, avgSeenLastMs
+	return percNotSeen, avgSeenFirstLatencyMs, avgSeenLastLatencyMs
 }
