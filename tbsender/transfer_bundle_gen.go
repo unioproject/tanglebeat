@@ -180,7 +180,7 @@ func (gen *transferBundleGenerator) runGenerator() {
 			//	errorCount += 1
 			//	continue
 			//}
-			// TODO experiment: alwasy resend existing bundle
+			// TODO experiment: always create brand new bundle, never look for existing one to reattach/promote
 			bundleData = nil
 			if bundleData == nil {
 				// didn't find any ready to confirm, initialize new transfer
