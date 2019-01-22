@@ -11,7 +11,7 @@ import (
 )
 
 const CONFIG_FILE = "tanglebeat.yml"
-const gopsAddr = "localhost:31415"
+const gopsAddr = "localhost:4000"
 
 func main() {
 	if err := agent.Listen(agent.Options{Addr: gopsAddr}); err != nil {
