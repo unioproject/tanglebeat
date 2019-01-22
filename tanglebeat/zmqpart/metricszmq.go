@@ -35,6 +35,9 @@ var (
 	//zmqMetricsTxCounterVec  *CounterVec
 	//zmqMetricsCtxCounterVec *CounterVec
 
+	echoNotSeenPerc         Gauge
+	echoMetricsAvgFirstSeen Gauge
+	echoMetricsAvgLastSeen  Gauge
 )
 
 func init() {
@@ -151,6 +154,24 @@ func init() {
 	})
 	MustRegister(metricsMiotaPriceUSD)
 	startCollectingMiotaPrice(nil)
+
+	echoNotSeenPerc = NewGauge(GaugeOpts{
+		Name: "tanglebeat_echo_silence",
+		Help: "Average echo silence %",
+	})
+	MustRegister(echoNotSeenPerc)
+
+	echoMetricsAvgFirstSeen = NewGauge(GaugeOpts{
+		Name: "tanglebeat_echo_first",
+		Help: "Average msec first echo",
+	})
+	MustRegister(echoMetricsAvgFirstSeen)
+
+	echoMetricsAvgLastSeen = NewGauge(GaugeOpts{
+		Name: "tanglebeat_echo_last",
+		Help: "Average msec last echo",
+	})
+	MustRegister(echoMetricsAvgLastSeen)
 }
 
 const (
@@ -190,6 +211,18 @@ func updateCompoundMetrics(msgtype string) {
 		zmqMetricsTxCounterCompound.Inc()
 	case "sn":
 		zmqMetricsCtxCounterCompound.Inc()
+	}
+}
+
+func updateEchoMetrics(percNotSeen, avgSeenFirstMs, avgSeenLastMs uint64) {
+	if percNotSeen != 0 {
+		echoNotSeenPerc.Set(float64(percNotSeen))
+	}
+	if avgSeenFirstMs != 0 {
+		echoMetricsAvgFirstSeen.Set(float64(avgSeenFirstMs))
+	}
+	if avgSeenLastMs != 0 {
+		echoMetricsAvgLastSeen.Set(float64(avgSeenLastMs))
 	}
 }
 

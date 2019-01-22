@@ -63,6 +63,7 @@ type ConfirmerUpdate struct {
 	TotalDurationGTTAMsec uint64
 	UpdateTime            time.Time
 	UpdateType            UpdateType
+	PromoteTailHash       Hash
 	Err                   error
 }
 
@@ -176,7 +177,7 @@ func (conf *Confirmer) waitForConfirmation(cancelPromoCheck, cancelPromo, cancel
 	conf.Log.Debugf("CONFIRMER-WAIT: confirmed bundle %v", bundleHash)
 
 	conf.mutex.Lock()
-	conf.sendConfirmerUpdate(UPD_CONFIRM, nil)
+	conf.sendConfirmerUpdate(UPD_CONFIRM, "", nil)
 	conf.running = false
 	conf.mutex.Unlock()
 
@@ -193,7 +194,7 @@ func (conf *Confirmer) waitForConfirmation(cancelPromoCheck, cancelPromo, cancel
 	return //>>>>>>>>>>>>>>
 }
 
-func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, err error) {
+func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, promoTailHash Hash, err error) {
 	upd := &ConfirmerUpdate{
 		NumAttaches:           conf.numAttach,
 		NumPromotions:         conf.numPromote,
@@ -201,6 +202,7 @@ func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, err error) {
 		TotalDurationGTTAMsec: conf.totalDurationATTMsec,
 		UpdateTime:            time.Now(),
 		UpdateType:            updType,
+		PromoteTailHash:       promoTailHash,
 		Err:                   err,
 	}
 	conf.chanUpdate <- upd
@@ -262,11 +264,11 @@ func (conf *Confirmer) promoteIfNeeded() error {
 		// if not promotable, routine will be idle until reattached
 		return nil
 	}
-	err := conf.promote()
+	err, tailh := conf.promote()
 	if err != nil {
-		conf.sendConfirmerUpdate(UPD_NO_ACTION, err)
+		conf.sendConfirmerUpdate(UPD_NO_ACTION, "", err)
 	} else {
-		conf.sendConfirmerUpdate(UPD_PROMOTE, nil)
+		conf.sendConfirmerUpdate(UPD_PROMOTE, tailh, nil)
 	}
 	return err
 }
@@ -310,9 +312,9 @@ func (conf *Confirmer) reattachIfNeeded() error {
 	if conf.isNotPromotable || time.Now().After(conf.nextForceReattachTime) {
 		err = conf.reattach()
 		if err != nil {
-			conf.sendConfirmerUpdate(UPD_NO_ACTION, err)
+			conf.sendConfirmerUpdate(UPD_NO_ACTION, "", err)
 		} else {
-			conf.sendConfirmerUpdate(UPD_REATTACH, nil)
+			conf.sendConfirmerUpdate(UPD_REATTACH, "", nil)
 		}
 	}
 	return err
@@ -330,7 +332,7 @@ func (conf *Confirmer) goReattach() func() {
 
 		for {
 			if err := conf.reattachIfNeeded(); err != nil {
-				conf.sendConfirmerUpdate(UPD_NO_ACTION, err)
+				conf.sendConfirmerUpdate(UPD_NO_ACTION, "", err)
 				conf.errorf("reattach function returned: %v. Bundle hash = %v", err, conf.bundleHash)
 				time.Sleep(sleepAfterError)
 			}

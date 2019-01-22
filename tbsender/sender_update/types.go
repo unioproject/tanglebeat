@@ -4,7 +4,7 @@ package sender_update
 // It is published as JSON
 
 import (
-	"github.com/iotaledger/iota.go/trinary"
+	. "github.com/iotaledger/iota.go/trinary"
 )
 
 type SenderUpdateType string
@@ -20,15 +20,16 @@ const (
 )
 
 type SenderUpdate struct {
-	Version string           `json:"ver"`     // version of the originator
-	SeqUID  string           `json:"seqid"`   // unique id of the sequences. Parte of seed's hash
-	SeqName string           `json:"seqname"` // name of the sequence as specified in the config
-	UpdType SenderUpdateType `json:"updtype"` // update type
-	Index   uint64           `json:"addridx"` // address index
-	Balance uint64           `json:"balance"` // balance is being sent
-	Addr    trinary.Hash     `json:"addr"`    // address
-	Bundle  trinary.Hash     `json:"bundle"`  // bundle hash
-	StartTs uint64           `json:"start"`   // unix time miliseconds when first bundle was creates.
+	Version   string           `json:"ver"`       // version of the originator
+	SeqUID    string           `json:"seqid"`     // unique id of the sequences. Parte of seed's hash
+	SeqName   string           `json:"seqname"`   // name of the sequence as specified in the config
+	UpdType   SenderUpdateType `json:"updtype"`   // update type
+	Index     uint64           `json:"addridx"`   // address index
+	Balance   uint64           `json:"balance"`   // balance is being sent
+	Addr      Hash             `json:"addr"`      // address
+	Bundle    Hash             `json:"bundle"`    // bundle hash
+	PromoTail Hash             `json:"promoTail"` // tail hash
+	StartTs   uint64           `json:"start"`     // unix time miliseconds when first bundle was creates.
 	// If bundle was already in the tangle (after restart)
 	// it is equal to timestamp of the tail
 	UpdateTs uint64 `json:"ts"` // unix time miliseconds when update was created. Based on the
