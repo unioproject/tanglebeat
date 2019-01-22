@@ -23,7 +23,7 @@ func runSender() int {
 	return ret
 }
 
-const gopsAddr = "node.iotalt.com:4001"
+const gopsAddr = "localhost:4001"
 
 func main() {
 	mustReadMasterConfig(CONFIG_FILE)
