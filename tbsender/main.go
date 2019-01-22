@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/google/gops/agent"
 	"os"
 	"time"
 )
@@ -22,8 +23,14 @@ func runSender() int {
 	return ret
 }
 
+const gopsAddr = "localhost:31415"
+
 func main() {
 	mustReadMasterConfig(CONFIG_FILE)
+	if err := agent.Listen(agent.Options{Addr: gopsAddr}); err != nil {
+		log.Errorf("can't start GOPS agent: %v", err)
+		os.Exit(8)
+	}
 	var enabled bool
 
 	mustInitAndRunPublisher()

@@ -11,9 +11,10 @@ import (
 )
 
 const CONFIG_FILE = "tanglebeat.yml"
+const gopsAddr = "localhost:31415"
 
 func main() {
-	if err := agent.Listen(agent.Options{}); err != nil {
+	if err := agent.Listen(agent.Options{Addr: gopsAddr}); err != nil {
 		errorf("can't start GOPS agent: %v", err)
 		os.Exit(8)
 	}
