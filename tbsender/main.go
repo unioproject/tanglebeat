@@ -31,6 +31,7 @@ func main() {
 		log.Errorf("can't start GOPS agent: %v", err)
 		os.Exit(8)
 	}
+	log.Infof("GOPS agent started on %v", gopsAddr)
 	var enabled bool
 
 	mustInitAndRunPublisher()
