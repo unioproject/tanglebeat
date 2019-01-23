@@ -84,13 +84,16 @@ func calcAvgEchoParams() (uint64, uint64, uint64) {
 			avgSeenLastLatencyMs += data.whenSeenLast - data.whenSent
 		}
 	}, earliest, true)
-	if numSeen != 0 {
+	var percNotSeen uint64
+	// averages are calculated only if enough data
+	if numSeen > 5 {
 		avgSeenFirstLatencyMs = avgSeenFirstLatencyMs / numSeen
 		avgSeenLastLatencyMs = avgSeenLastLatencyMs / numSeen
-	}
-	percNotSeen := uint64(0)
-	if numAll != 0 {
 		percNotSeen = 100 - (numSeen*100)/numAll
+	} else {
+		avgSeenFirstLatencyMs = 0
+		avgSeenLastLatencyMs = 0
+		percNotSeen = 0
 	}
 	debugf("percNotSeen = %v avgSeenFirstLatencyMs = %v avgSeenLastLatencyMs = %v",
 		percNotSeen, avgSeenFirstLatencyMs, avgSeenLastLatencyMs)
