@@ -117,14 +117,17 @@ func (cache *HashCacheBase) __insertNew(shorthash string, id byte, data interfac
 // finds entry and increases visit counter if found
 func (cache *HashCacheBase) __find(shorthash string, ret *CacheEntry, touch bool) bool {
 	var found bool
-	cache.ForEachSegment__(func(seg ebuffer.ExpiringSegment) bool {
-		if touch {
+	if touch {
+		cache.ForEachSegment__(func(seg ebuffer.ExpiringSegment) bool {
 			found = seg.(*cacheSegment).Find(shorthash, ret)
-		} else {
+			return !found // stop traversing when found
+		})
+	} else {
+		cache.ForEachSegment__(func(seg ebuffer.ExpiringSegment) bool {
 			found = seg.(*cacheSegment).FindNoTouch(shorthash, ret)
-		}
-		return !found // stop traversing, when found
-	})
+			return !found // stop traversing when found
+		})
+	}
 	return found
 }
 
