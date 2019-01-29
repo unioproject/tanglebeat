@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	Version                = "19.01.29-3"
+	Version                = "19.01.29-4"
 	logFormat              = "%{time:2006-01-02 15:04:05.000} %{level:.4s} [%{module:.6s}|%{shortfunc:.12s}] %{message}"
 	level                  = logging.DEBUG
 	onHoldThresholdDefault = 50
