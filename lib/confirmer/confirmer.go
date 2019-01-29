@@ -41,7 +41,7 @@ type ConfirmerParams struct {
 
 type Confirmer struct {
 	ConfirmerParams
-	mutex *sync.Mutex    //task state access sync
+	mutex *sync.RWMutex  //task state access sync
 	wg    sync.WaitGroup // wait until both promote and reattach are finished
 	// confirmer task state
 	running               bool
@@ -91,8 +91,17 @@ func (ut UpdateType) ToString() string {
 func NewConfirmer(params ConfirmerParams) *Confirmer {
 	return &Confirmer{
 		ConfirmerParams: params,
-		mutex:           &sync.Mutex{},
+		mutex:           &sync.RWMutex{},
 	}
+}
+
+func (conf *Confirmer) IsConfirming() (bool, Hash) {
+	conf.mutex.RLock()
+	defer conf.mutex.RUnlock()
+	if conf.running {
+		return true, conf.bundleHash
+	}
+	return false, ""
 }
 
 func (conf *Confirmer) debugf(f string, p ...interface{}) {

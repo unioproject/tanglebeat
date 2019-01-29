@@ -58,6 +58,8 @@ func updateGlbStatsLoop(refreshStatsEverySec int) {
 		glbStats.ZmqOutputStats, glbStats.ZmqOutputStats10min = *t1, *t2
 
 		glbStats.GoRuntimeStats.MemAllocMB = math.Round(100*(float64(mem.Alloc/1024)/1024)) / 100
+		updateRuntimeMetrics(glbStats.GoRuntimeStats.MemAllocMB)
+
 		glbStats.GoRuntimeStats.NumGoroutine = runtime.NumGoroutine()
 		glbStats.mutex.Unlock()
 
