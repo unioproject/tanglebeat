@@ -171,14 +171,16 @@ func (gen *transferBundleGenerator) runGenerator() {
 			continue
 
 		case balance != 0:
-			//bundleData, err = gen.findBundleToConfirm(addr)
-			//if err != nil {
-			//	gen.log.Errorf("Transfer Bundles '%v': findBundleToConfirm returned: %v", gen.name, err)
-			//	time.Sleep(5 * time.Second)
-			//	errorCount += 1
-			//	continue
-			//}
-			// TODO experiment: always create brand new bundle, never look for existing one to reattach/promote
+			bundleData, err = gen.findBundleToConfirm(addr)
+			if err != nil {
+				gen.log.Errorf("Transfer Bundles '%v': findBundleToConfirm returned: %v", gen.name, err)
+				time.Sleep(5 * time.Second)
+				errorCount += 1
+				continue
+			}
+			//TODO sometimes bundles are VERY inconsistent and reattach doesn't help
+			// only resend helps.
+			// How to recognize such a bundle? - that is a question
 			bundleData = nil
 			if bundleData == nil {
 				// didn't find any ready to confirm, initialize new transfer
