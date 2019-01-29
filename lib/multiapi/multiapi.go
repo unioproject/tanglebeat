@@ -10,6 +10,7 @@ import (
 var log *logging.Logger
 
 //  TODO host statistics
+//  TODO several invocation strategies: parallel/first, sequential static, sequential rating based
 
 func SetLog(logger *logging.Logger) {
 	log = logger

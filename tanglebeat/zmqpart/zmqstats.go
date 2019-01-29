@@ -48,7 +48,7 @@ type ZmqCacheStatsStruct struct {
 	LastLmi       int     `json:"lastLmi"`
 	LmiLatencySec float64 `json:"lmiLatencySec"`
 
-	seenOnceCountById5Min map[byte]int
+	seenOnceRateById5Min map[byte]int
 
 	mutex *sync.RWMutex
 }
@@ -112,11 +112,11 @@ func updateZmqCacheStats() {
 	zmqCacheStats.TXSeenOnceCount = txcacheStats.SeenOnce
 	zmqCacheStats.SNSeenOnceCount = sncacheStats.SeenOnce
 
-	if txcacheStats.TxCount != 0 {
-		zmqCacheStats.TXNonPropagationRate = (txcacheStats.SeenOnce * 100) / txcacheStats.TxCount
+	if txcacheStats.TxCountOlder1Min != 0 {
+		zmqCacheStats.TXNonPropagationRate = (txcacheStats.SeenOnce * 100) / txcacheStats.TxCountOlder1Min
 	}
-	if sncacheStats.TxCount != 0 {
-		zmqCacheStats.SNNonPropagationRate = (sncacheStats.SeenOnce * 100) / sncacheStats.TxCount
+	if sncacheStats.TxCountOlder1Min != 0 {
+		zmqCacheStats.SNNonPropagationRate = (sncacheStats.SeenOnce * 100) / sncacheStats.TxCountOlder1Min
 	}
 
 	zmqCacheStats.TXLatencySecAvg = math.Round(txcacheStats.LatencySecAvg*100) / 100
@@ -127,15 +127,15 @@ func updateZmqCacheStats() {
 	zmqCacheStats.TXSeenOnceCount10min = txcacheStats10min.SeenOnce
 	zmqCacheStats.SNSeenOnceCount10min = sncacheStats10min.SeenOnce
 
-	if txcacheStats10min.TxCount != 0 {
-		zmqCacheStats.TXNonPropagationRate10min = (txcacheStats10min.SeenOnce * 100) / txcacheStats10min.TxCount
+	if txcacheStats10min.TxCountOlder1Min != 0 {
+		zmqCacheStats.TXNonPropagationRate10min = (txcacheStats10min.SeenOnce * 100) / txcacheStats10min.TxCountOlder1Min
 	}
-	if sncacheStats10min.TxCount != 0 {
-		zmqCacheStats.SNNonPropagationRate10min = (sncacheStats10min.SeenOnce * 100) / sncacheStats10min.TxCount
+	if sncacheStats10min.TxCountOlder1Min != 0 {
+		zmqCacheStats.SNNonPropagationRate10min = (sncacheStats10min.SeenOnce * 100) / sncacheStats10min.TxCountOlder1Min
 	}
 
 	txcacheStats5min := txcache.Stats(5 * 60 * 1000)
-	zmqCacheStats.seenOnceCountById5Min = txcacheStats5min.SeenOnceCountById
+	zmqCacheStats.seenOnceRateById5Min = txcacheStats5min.SeenOnceRateById
 
 	zmqCacheStats.TXLatencySecAvg10min = math.Round(txcacheStats10min.LatencySecAvg*100) / 100
 	zmqCacheStats.SNLatencySecAvg10min = math.Round(sncacheStats10min.LatencySecAvg*100) / 100
@@ -143,10 +143,10 @@ func updateZmqCacheStats() {
 	zmqCacheStats.LastLmi, zmqCacheStats.LmiLatencySec = getLmiStats()
 }
 
-func getSeenOnceCount5Min(id byte) int {
+func getSeenOnceRate5to1Min(id byte) int {
 	zmqCacheStats.mutex.RLock()
 	defer zmqCacheStats.mutex.RUnlock()
-	ret, ok := zmqCacheStats.seenOnceCountById5Min[id]
+	ret, ok := zmqCacheStats.seenOnceRateById5Min[id]
 	if !ok {
 		ret = 0
 	}

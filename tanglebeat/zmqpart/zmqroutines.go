@@ -279,12 +279,8 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 	behindTX := r.last100TXBehindMs.AvgGT(0)
 	behindSN := r.last100SNBehindMs.AvgGT(0)
 
-	sc := getSeenOnceCount5Min(r.GetId__())
-	if numLastTX5Min != 0 {
-		r.lastSeenOnceRate = (uint64(sc) * 100) / uint64(numLastTX5Min)
-	} else {
-		r.lastSeenOnceRate = 0
-	}
+	r.lastSeenOnceRate = uint64(getSeenOnceRate5to1Min(r.GetId__()))
+
 	ret := &ZmqRoutineStats{
 		Uri:                  r.uri,
 		InputReaderBaseStats: *r.GetReaderBaseStats__(),
