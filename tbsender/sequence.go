@@ -114,7 +114,7 @@ func (seq *TransferSequence) Run() {
 	for {
 		bundleData = seq.bundleSource.GetNextBundleToConfirm()
 		if bundleData == nil {
-			break // exiting loop, bundle source just closed. Jis is error
+			break // exiting loop, bundle source just closed. It's an error
 		}
 		bundleHash = bundleData.BundleHash
 
