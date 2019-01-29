@@ -24,11 +24,10 @@ const (
 
 // TODO confirmer task timeout (result 'failed')
 
-type Confirmer struct {
-	IotaMultiAPI     multiapi.MultiAPI
-	IotaMultiAPIgTTA multiapi.MultiAPI
-	IotaMultiAPIaTT  multiapi.MultiAPI
-
+type ConfirmerParams struct {
+	IotaMultiAPI          multiapi.MultiAPI
+	IotaMultiAPIgTTA      multiapi.MultiAPI
+	IotaMultiAPIaTT       multiapi.MultiAPI
 	TxTagPromote          Trytes
 	AddressPromote        Hash
 	ForceReattachAfterMin uint64
@@ -38,7 +37,10 @@ type Confirmer struct {
 	Log                   *logging.Logger
 	AEC                   utils.ErrorCounter
 	SlowDownThreshold     int
-	// internal
+}
+
+type Confirmer struct {
+	ConfirmerParams
 	mutex *sync.Mutex    //task state access sync
 	wg    sync.WaitGroup // wait until both promote and reattach are finished
 	// confirmer task state
@@ -86,6 +88,13 @@ func (ut UpdateType) ToString() string {
 	return r
 }
 
+func NewConfirmer(params ConfirmerParams) *Confirmer {
+	return &Confirmer{
+		ConfirmerParams: params,
+		mutex:           &sync.Mutex{},
+	}
+}
+
 func (conf *Confirmer) debugf(f string, p ...interface{}) {
 	if conf.Log != nil {
 		conf.Log.Debugf(f, p...)
@@ -105,9 +114,9 @@ func (conf *Confirmer) warningf(f string, p ...interface{}) {
 }
 
 const (
-	loopSleepPeriod                     = 5 * time.Second
-	sleepAfterError                     = 5 * time.Second
-	defaultSlowDownThesholdNumGoroutine = 100
+	loopSleepPeriod                      = 5 * time.Second
+	sleepAfterError                      = 5 * time.Second
+	defaultSlowDownThresholdNumGoroutine = 100
 )
 
 func (conf *Confirmer) getSleepLoopPeriod() time.Duration {
@@ -119,11 +128,6 @@ func (conf *Confirmer) getSleepLoopPeriod() time.Duration {
 }
 
 func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *ConfirmerUpdate, error) {
-	// not very nice
-	if conf.mutex == nil {
-		conf.mutex = &sync.Mutex{}
-	}
-
 	tail, err := utils.TailFromBundleTrytes(bundleTrytes)
 	if err != nil {
 		return nil, err
@@ -153,7 +157,7 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 		conf.AEC = &utils.DummyAEC{}
 	}
 	if conf.SlowDownThreshold == 0 {
-		conf.SlowDownThreshold = defaultSlowDownThesholdNumGoroutine
+		conf.SlowDownThreshold = defaultSlowDownThresholdNumGoroutine
 	}
 
 	// starting 4 routines

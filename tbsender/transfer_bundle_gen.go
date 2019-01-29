@@ -38,19 +38,19 @@ type transferBundleGenerator struct {
 	iotaMultiAPIgTTA multiapi.MultiAPI
 	iotaMultiAPIaTT  multiapi.MultiAPI
 
-	log     *logging.Logger
-	chanOut bundle_source.BundleSourceChan
+	log          *logging.Logger
+	bundleSource *bundle_source.BundleSource
 }
 
 const UID_LEN = 12
 
-func NewTransferBundleGenerator(name string, params *senderParamsYAML, logger *logging.Logger) (*bundle_source.BundleSourceChan, error) {
+func NewTransferBundleGenerator(name string, params *senderParamsYAML, logger *logging.Logger) (*bundle_source.BundleSource, error) {
 	genState, err := initTransferBundleGenerator(name, params, logger)
 	if err != nil {
 		return nil, err
 	}
 	go genState.runGenerator()
-	return &genState.chanOut, nil
+	return genState.bundleSource, nil
 }
 
 func initTransferBundleGenerator(name string, params *senderParamsYAML, logger *logging.Logger) (*transferBundleGenerator, error) {
@@ -60,7 +60,7 @@ func initTransferBundleGenerator(name string, params *senderParamsYAML, logger *
 		params:        params,
 		securityLevel: 2,
 		log:           logger,
-		chanOut:       make(bundle_source.BundleSourceChan),
+		bundleSource:  bundle_source.NewBundleSource(),
 	}
 	// default multi API
 	ret.iotaMultiAPI, err = multiapi.New(params.IOTANode, params.TimeoutAPI)
@@ -91,11 +91,8 @@ func initTransferBundleGenerator(name string, params *senderParamsYAML, logger *
 	var idx uint64
 	var _idx int
 	b, _ := ioutil.ReadFile(fname)
-	_idx, err = strconv.Atoi(string(b))
-	if err != nil {
-		idx = 0
-		ret.log.Infof("%v: Starting from index = 0", name)
-	} else {
+
+	if _idx, err = strconv.Atoi(string(b)); err == nil {
 		idx = uint64(_idx)
 		ret.log.Infof("%v: last idx %v have been read from %v", name, idx, fname)
 	}
@@ -105,6 +102,7 @@ func initTransferBundleGenerator(name string, params *senderParamsYAML, logger *
 	} else {
 		ret.index = params.Index0
 	}
+	ret.log.Infof("%v: Starting from index = %v", name, ret.index)
 
 	ret.log.Infof("%v: created transfer bundle generator ('traveling iota')", name)
 	return &ret, nil
@@ -225,37 +223,27 @@ func (gen *transferBundleGenerator) runGenerator() {
 			bundleData.Addr = addr
 			bundleData.Index = gen.index
 			bundleData.IsNew = isNew
-			gen.chanOut <- bundleData /// here blocks until picked up in the sequence
-			// ---------------------- send bundle to confirm
-			gen.log.Debugf("Transfer Bundles: '%v'[%v] just sent bundle hash = %v to confirmer and wait until transfer confirmed",
-				gen.name, gen.index, bundleHash)
+			bundleData.BundleHash = bundleHash
 
-			errorCount = 0 // so far everything seems to be ok --> reset error count
+			success, _ := gen.bundleSource.PutAndWaitForResult(bundleData)
 
-			// wait until any transaction with the bundle hash becomes confirmed
-			// note, that during rettach transaction can change but the bundle hash remains the same
-			// returns 0 if error count didn't exceed limit
-			gen.waitUntilBundleConfirmed(bundleHash)
-
-			gen.log.Debugf("Transfer Bundles: '%v'[%v] bundle %v confirmed", gen.name, gen.index, bundleHash)
-			gen.saveIndex()
-			// moving to next even if balance is still not zero (sometimes happens)
-			// in latter case iotas will be left behind
-			gen.index += 1
-			addr = ""
-			gen.log.Debugf("Transfer Bundles: moving '%v' to the next index -> %v", gen.name, gen.index)
+			if success {
+				gen.log.Debugf("Transfer Bundles: '%v'[%v] bundle %v confirmed", gen.name, gen.index, bundleHash)
+				gen.saveIndex()
+				// moving to next even if balance is still not zero (sometimes happens)
+				// in latter case iotas will be left behind
+				gen.index += 1
+				addr = ""
+				gen.log.Debugf("Transfer Bundles: moving '%v' to the next index -> %v", gen.name, gen.index)
+			} else {
+				gen.log.Errorf("Transfer Bundles: '%v'[%v] failed to confirm bundle. Will be resending..",
+					gen.name, gen.index, bundleHash)
+			}
 		}
 	}
 }
 
 // returns 0 if error count doesn't reach limit
-
-func (gen *transferBundleGenerator) waitUntilBundleConfirmed(bundleHash Hash) {
-	gen.log.Debugf("waitUntilBundleConfirmed: '%v' start waiting for the bundle to be confirmed", gen.name)
-	defer gen.log.Debugf("waitUntilBundleConfirmed: '%v' %v left", gen.name, bundleHash)
-
-	confirmer.WaitfForConfirmation(bundleHash, gen.iotaMultiAPI, gen.log, AEC)
-}
 
 func (gen *transferBundleGenerator) isSpentAddr(address Hash) (bool, error) {
 	var apiret multiapi.MultiCallRet

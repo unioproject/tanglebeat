@@ -13,12 +13,11 @@ import (
 	"github.com/lunfardo314/tanglebeat/tbsender/sender_update"
 	"github.com/op/go-logging"
 	"os"
-	"time"
 )
 
 type TransferSequence struct {
 	// common for all sequences
-	bundleSource *bundle_source.BundleSourceChan
+	bundleSource *bundle_source.BundleSource
 	confirmer    *confirmer.Confirmer
 	log          *logging.Logger
 	name         string
@@ -92,7 +91,7 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 	if err != nil {
 		return nil, err
 	}
-	ret := confirmer.Confirmer{
+	return confirmer.NewConfirmer(confirmer.ConfirmerParams{
 		IotaMultiAPI:          iotaMultiAPI,
 		IotaMultiAPIaTT:       iotaMultiAPIaTT,
 		IotaMultiAPIgTTA:      iotaMultiAPIgTTA,
@@ -104,25 +103,20 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 		PromoteDisable:        params.PromoteDisable,
 		Log:                   logger,
 		AEC:                   AEC,
-	}
-	return &ret, nil
+	}), nil
 }
-
-// TODO galimybė cancel siuntima iš generatoriaus pusės arba iš konfirmerio puses (resend)
-// to reikia tais atvejais, kai seka užstringa: dėl inconsistent bundle
 
 func (seq *TransferSequence) Run() {
 	seq.log.Infof("Start running sequence '%v'", seq.name)
 	var bundleHash Trytes
-
-	for bundleData := range *seq.bundleSource {
-		tail, err := utils.TailFromBundleTrytes(bundleData.BundleTrytes)
-		if err != nil {
-			seq.log.Errorf("RunConfirm for '%v' returned: %v", seq.GetLongName(), err)
-			time.Sleep(5 * time.Second)
-			continue
+	var bundleData *bundle_source.FirstBundleData
+	var success bool
+	for {
+		bundleData = seq.bundleSource.GetNextBundleToConfirm()
+		if bundleData == nil {
+			break // exiting loop, bundle source just closed. It's an error
 		}
-		bundleHash = tail.Bundle
+		bundleHash = bundleData.BundleHash
 
 		seq.log.Debugf("Run sequence '%v': start confirming bundle %v", seq.name, bundleHash)
 		seq.processStartUpdate(bundleData, bundleHash)
@@ -134,8 +128,8 @@ func (seq *TransferSequence) Run() {
 			continue
 		}
 		// read and process updated from confirmer until task is closed
+		success = false
 		for updConf := range chUpdate {
-			// summing up with stats collected during findOrCreateBundleToConfirm
 			if updConf.Err != nil {
 				seq.log.Errorf("TransferSequence '%v': confirmer reported an error: %v", seq.GetLongName(), updConf.Err)
 			} else {
@@ -144,9 +138,16 @@ func (seq *TransferSequence) Run() {
 				updConf.TotalDurationGTTAMsec += bundleData.TotalDurationTipselMs
 
 				seq.processConfirmerUpdate(updConf, bundleData.Addr, bundleData.Index, bundleData.Balance, bundleHash)
+				if updConf.UpdateType == confirmer.UPD_CONFIRM {
+					success = true
+				}
 			}
 		}
-		seq.log.Debugf("TransferSequence '%v': finished processing updates for bundle %v", seq.GetLongName(), bundleHash)
+		seq.log.Debugf("TransferSequence '%v': finished processing updates for bundle %v. Success = %v",
+			seq.GetLongName(), bundleHash, success)
+
+		// returning result to the bundle source
+		seq.bundleSource.PutConfirmationResult(bundleHash, success)
 	}
 	// at this point *seq.bundleSource is closed. It can happen when generator closes channel due to API errors
 	// The strategy at the moment is to exit the program with errors altogether. It will be restarted by systemd
