@@ -171,7 +171,8 @@ func (gen *transferBundleGenerator) runGenerator() {
 			continue
 
 		case balance != 0:
-			bundleData, err = gen.findBundleToConfirm(addr)
+			var createNew bool
+			bundleData, createNew, err = gen.findBundleToConfirm(addr)
 			if err != nil {
 				gen.log.Errorf("Transfer Bundles '%v': findBundleToConfirm returned: %v", gen.name, err)
 				time.Sleep(5 * time.Second)
@@ -181,8 +182,12 @@ func (gen *transferBundleGenerator) runGenerator() {
 			//TODO sometimes bundles are VERY inconsistent and reattach doesn't help
 			// only resend helps.
 			// How to recognize such a bundle? - that is a question
-			bundleData = nil
-			if bundleData == nil {
+			switch {
+			case bundleData == nil && !createNew:
+				gen.log.Errorf("Transfer Bundles '%v': something changed, repeat cycle", gen.name)
+				continue
+
+			case bundleData == nil && createNew:
 				// didn't find any ready to confirm, initialize new transfer
 				bundleData, err = gen.sendToNext(addr) // will fill up Balance field
 				if err != nil {
@@ -194,19 +199,20 @@ func (gen *transferBundleGenerator) runGenerator() {
 				isNew = true
 				gen.log.Debugf("Transfer Bundles: '%v' Initialized new transfer idx=%v->%v, %v->",
 					gen.name, gen.index, gen.index+1, addr)
-			} else {
+
+			default:
+				if bundleData == nil {
+					gen.log.Panicf("Internal inconsistency I")
+				}
 				bundleData.Balance = balance
 				isNew = false
 				gen.log.Debugf("Transfer Bundles '%v': Found existing transfer to confirm idx=%v->%v, %v->",
 					gen.name, gen.index, gen.index+1, addr)
 			}
 			if bundleData == nil {
-				gen.log.Errorf("Transfer Bundles '%v': internal inconsistency. Wait 5 sec. idx = %v",
-					gen.name, gen.index)
-				time.Sleep(5 * time.Second)
-				errorCount += 1
-				continue
+				gen.log.Panicf("Internal inconsistency II")
 			}
+
 			// have to parse first transaction to get the bundle hash
 			tail, err := utils.TailFromBundleTrytes(bundleData.BundleTrytes)
 			if err != nil {
@@ -395,7 +401,11 @@ func (gen *transferBundleGenerator) sendToNext(addr Hash) (*bundle_source.FirstB
 	return ret, err
 }
 
-func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_source.FirstBundleData, error) {
+// returns
+// firstBundleHash (found) or nil (not found)
+// true (create new/send) or false (repeat cycle, probably something changed)
+// err or nil
+func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_source.FirstBundleData, bool, error) {
 	// find all transactions of the address
 	txs, err := gen.findTransactionObjects(
 		FindTransactionsQuery{
@@ -403,7 +413,7 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_sour
 		},
 	)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	// filter out spending transactions, collect set of bundles of those transactions
 	// note that bundle hashes can be more than one in rare cases
@@ -414,7 +424,7 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_sour
 		}
 	}
 	if len(spendingBundleHashes) == 0 {
-		return nil, nil // no error, empty bundle
+		return nil, true, nil // no error, empty bundle. Create new from scratch
 	}
 
 	//find all transactions, belonging to spending bundles
@@ -434,7 +444,7 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_sour
 	}
 	if len(tails) == 0 {
 		gen.log.Errorf("findBundleToConfirm: there are transaction but no tails found. No consistent bundle for address%v", addr)
-		return nil, nil // empty bundle, i.e. no bundle found
+		return nil, true, nil // empty bundle, i.e. no bundle found, create new
 	}
 	// collect hashes of tails
 	var tailHashes Hashes
@@ -445,10 +455,10 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_sour
 	var confirmed bool
 	confirmed, err = gen.isAnyConfirmed(tailHashes)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if confirmed {
-		return nil, nil // already confirmed
+		return nil, false, nil // already confirmed, repeat cycle
 	}
 
 	// none is confirmed hence no matter which one
@@ -464,7 +474,7 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_sour
 	// collect the bundle by maxTail
 	txSet := utils.ExtractBundleTransactionsByTail(maxTail, txs)
 	if txSet == nil {
-		return nil, errors.New(fmt.Sprintf("Can't get bundle from tail hash = %v in addr = %v: %v",
+		return nil, false, errors.New(fmt.Sprintf("Can't get bundle from tail hash = %v in addr = %v: %v",
 			maxTail.Hash, addr, err))
 	}
 	txSet, err = utils.CheckAndSortTxSetAsBundle(txSet)
@@ -472,18 +482,18 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_sour
 	if err != nil {
 		// report error but not return, return no consistent bundle was found. To be created new one
 		gen.log.Errorf("Inconsistency of spending bundle in addr = %v: %v", addr, err)
-		return nil, nil
+		return nil, true, nil
 	}
 	var bundleTrytes []Trytes
 	bundleTrytes, err = utils.TransactionSetToBundleTrytes(txSet)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	ret := &bundle_source.FirstBundleData{
 		BundleTrytes: bundleTrytes,
 		NumAttach:    uint64(len(tails)),
 	}
-	return ret, nil
+	return ret, false, nil
 }
 
 func (gen *transferBundleGenerator) isAnyConfirmed(txHashes Hashes) (bool, error) {
