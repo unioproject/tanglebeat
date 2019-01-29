@@ -114,9 +114,9 @@ func (conf *Confirmer) warningf(f string, p ...interface{}) {
 }
 
 const (
-	loopSleepPeriod                     = 5 * time.Second
-	sleepAfterError                     = 5 * time.Second
-	defaultSlowDownThesholdNumGoroutine = 100
+	loopSleepPeriod                      = 5 * time.Second
+	sleepAfterError                      = 5 * time.Second
+	defaultSlowDownThresholdNumGoroutine = 100
 )
 
 func (conf *Confirmer) getSleepLoopPeriod() time.Duration {
@@ -157,7 +157,7 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 		conf.AEC = &utils.DummyAEC{}
 	}
 	if conf.SlowDownThreshold == 0 {
-		conf.SlowDownThreshold = defaultSlowDownThesholdNumGoroutine
+		conf.SlowDownThreshold = defaultSlowDownThresholdNumGoroutine
 	}
 
 	// starting 4 routines
