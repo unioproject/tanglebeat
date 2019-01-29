@@ -20,6 +20,8 @@ type bundleState struct {
 var bundles = make(map[Hash]bundleState)
 var mutexConfmon = &sync.Mutex{}
 
+const loopSleepConfmon = 5 * time.Second
+
 func errorf(log *logging.Logger, format string, args ...interface{}) {
 	if log != nil {
 		log.Errorf(format, args...)
@@ -101,9 +103,9 @@ func pollConfirmed(bundleHash Hash, mapi multiapi.MultiAPI) {
 		}
 		if checkError(bs.aec, apiret.Endpoint, err) {
 			errorf(log, "Confirmation polling for %v: '%v' from %v ", bundleHash, err, apiret.Endpoint)
-			time.Sleep(5 * time.Second)
+			time.Sleep(sleepAfterError)
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(loopSleepConfmon)
 	}
 }
 
