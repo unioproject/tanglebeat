@@ -24,11 +24,10 @@ const (
 
 // TODO confirmer task timeout (result 'failed')
 
-type Confirmer struct {
-	IotaMultiAPI     multiapi.MultiAPI
-	IotaMultiAPIgTTA multiapi.MultiAPI
-	IotaMultiAPIaTT  multiapi.MultiAPI
-
+type ConfirmerParams struct {
+	IotaMultiAPI          multiapi.MultiAPI
+	IotaMultiAPIgTTA      multiapi.MultiAPI
+	IotaMultiAPIaTT       multiapi.MultiAPI
 	TxTagPromote          Trytes
 	AddressPromote        Hash
 	ForceReattachAfterMin uint64
@@ -38,7 +37,10 @@ type Confirmer struct {
 	Log                   *logging.Logger
 	AEC                   utils.ErrorCounter
 	SlowDownThreshold     int
-	// internal
+}
+
+type Confirmer struct {
+	ConfirmerParams
 	mutex *sync.Mutex    //task state access sync
 	wg    sync.WaitGroup // wait until both promote and reattach are finished
 	// confirmer task state
@@ -86,6 +88,13 @@ func (ut UpdateType) ToString() string {
 	return r
 }
 
+func NewConfirmer(params ConfirmerParams) *Confirmer {
+	return &Confirmer{
+		ConfirmerParams: params,
+		mutex:           &sync.Mutex{},
+	}
+}
+
 func (conf *Confirmer) debugf(f string, p ...interface{}) {
 	if conf.Log != nil {
 		conf.Log.Debugf(f, p...)
@@ -119,11 +128,6 @@ func (conf *Confirmer) getSleepLoopPeriod() time.Duration {
 }
 
 func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *ConfirmerUpdate, error) {
-	// not very nice
-	if conf.mutex == nil {
-		conf.mutex = &sync.Mutex{}
-	}
-
 	tail, err := utils.TailFromBundleTrytes(bundleTrytes)
 	if err != nil {
 		return nil, err

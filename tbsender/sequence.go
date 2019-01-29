@@ -91,7 +91,7 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 	if err != nil {
 		return nil, err
 	}
-	ret := confirmer.Confirmer{
+	return confirmer.NewConfirmer(confirmer.ConfirmerParams{
 		IotaMultiAPI:          iotaMultiAPI,
 		IotaMultiAPIaTT:       iotaMultiAPIaTT,
 		IotaMultiAPIgTTA:      iotaMultiAPIgTTA,
@@ -103,8 +103,7 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 		PromoteDisable:        params.PromoteDisable,
 		Log:                   logger,
 		AEC:                   AEC,
-	}
-	return &ret, nil
+	}), nil
 }
 
 func (seq *TransferSequence) Run() {
