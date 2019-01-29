@@ -209,7 +209,7 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 	cache.ForEachEntry(func(entry *CacheEntry) {
 		ret.TxCount++
 		// counting only those seenOnce, which are older than 1 min
-		if entry.LastSeen <= ago1min {
+		if entry.FirstSeen <= ago1min {
 			ret.TxCountOlder1Min++
 
 			if _, ok = totalCount5to1MinById[entry.FirstVisitId]; !ok {
