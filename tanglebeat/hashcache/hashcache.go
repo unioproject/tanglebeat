@@ -182,33 +182,47 @@ func (cache *HashCacheBase) SeenHashBy(hash string, id byte, data interface{}, r
 }
 
 type hashcacheStats struct {
-	TxCount           int
-	TxCountPassed     int
-	SeenOnce          int
-	LatencySecAvg     float64
-	EarliestSeen      uint64
-	SeenOnceCountById map[byte]int
+	TxCount          int
+	TxCountOlder1Min int
+	TxCountPassed    int
+	SeenOnce         int
+	LatencySecAvg    float64
+	EarliestSeen     uint64
+	SeenOnceRateById map[byte]int
 }
 
 func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
-	earliest := utils.UnixMsNow() - msecBack
+	nowis := utils.UnixMsNow()
+	earliest := nowis - msecBack
+	ago1min := nowis - 10*60*1000
+
 	if msecBack == 0 {
 		earliest = 0 // count all of it
 	}
 	ret := &hashcacheStats{
-		EarliestSeen:      utils.UnixMsNow(),
-		SeenOnceCountById: make(map[byte]int),
+		EarliestSeen:     utils.UnixMsNow(),
+		SeenOnceRateById: make(map[byte]int),
 	}
+	totalCount5to1MinById := make(map[byte]int)
 	var lat float64
 	var ok bool
 	cache.ForEachEntry(func(entry *CacheEntry) {
 		ret.TxCount++
-		if entry.Visits == 1 {
-			ret.SeenOnce++
-			if _, ok = ret.SeenOnceCountById[entry.FirstVisitId]; !ok {
-				ret.SeenOnceCountById[entry.FirstVisitId] = 0
+		// counting only those seenOnce, which are older than 1 min
+		if entry.LastSeen <= ago1min {
+			ret.TxCountOlder1Min++
+
+			if _, ok = totalCount5to1MinById[entry.FirstVisitId]; !ok {
+				totalCount5to1MinById[entry.FirstVisitId] = 0
 			}
-			ret.SeenOnceCountById[entry.FirstVisitId] += 1
+			totalCount5to1MinById[entry.FirstVisitId] += 1
+			if entry.Visits == 1 {
+				ret.SeenOnce++
+				if _, ok = ret.SeenOnceRateById[entry.FirstVisitId]; !ok {
+					ret.SeenOnceRateById[entry.FirstVisitId] = 0
+				}
+				ret.SeenOnceRateById[entry.FirstVisitId] += 1
+			}
 		}
 		if int(entry.Visits) >= cfg.Config.RepeatToAccept {
 			lat = float64(entry.LastSeen-entry.FirstSeen) / 1000
@@ -219,6 +233,10 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 			ret.EarliestSeen = entry.LastSeen
 		}
 	}, earliest, true)
+
+	for id := range ret.SeenOnceRateById {
+		ret.SeenOnceRateById[id] = (ret.SeenOnceRateById[id] * 100) / totalCount5to1MinById[id]
+	}
 
 	if ret.TxCountPassed != 0 {
 		ret.LatencySecAvg = ret.LatencySecAvg / float64(ret.TxCountPassed)

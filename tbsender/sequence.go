@@ -103,6 +103,7 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 		PromoteDisable:        params.PromoteDisable,
 		Log:                   logger,
 		AEC:                   AEC,
+		SlowDownThreshold:     len(Config.Sender.Sequences) * 40,
 	}), nil
 }
 

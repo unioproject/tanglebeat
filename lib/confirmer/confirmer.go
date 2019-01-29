@@ -41,7 +41,7 @@ type ConfirmerParams struct {
 
 type Confirmer struct {
 	ConfirmerParams
-	mutex *sync.Mutex    //task state access sync
+	mutex *sync.RWMutex  //task state access sync
 	wg    sync.WaitGroup // wait until both promote and reattach are finished
 	// confirmer task state
 	running               bool
@@ -91,8 +91,17 @@ func (ut UpdateType) ToString() string {
 func NewConfirmer(params ConfirmerParams) *Confirmer {
 	return &Confirmer{
 		ConfirmerParams: params,
-		mutex:           &sync.Mutex{},
+		mutex:           &sync.RWMutex{},
 	}
+}
+
+func (conf *Confirmer) IsConfirming() (bool, Hash) {
+	conf.mutex.RLock()
+	defer conf.mutex.RUnlock()
+	if conf.running {
+		return true, conf.bundleHash
+	}
+	return false, ""
 }
 
 func (conf *Confirmer) debugf(f string, p ...interface{}) {
@@ -114,17 +123,18 @@ func (conf *Confirmer) warningf(f string, p ...interface{}) {
 }
 
 const (
-	loopSleepPeriod                      = 5 * time.Second
+	loopSleepPeriodPromoCheck            = 5 * time.Second
+	loopSleepPeriodPromote               = 1 * time.Second
+	loopSleepPeriodReattach              = 1 * time.Second
 	sleepAfterError                      = 5 * time.Second
-	defaultSlowDownThresholdNumGoroutine = 100
+	defaultSlowDownThresholdNumGoroutine = 300
 )
 
-func (conf *Confirmer) getSleepLoopPeriod() time.Duration {
-	sleepPeriod := loopSleepPeriod
+func (conf *Confirmer) getCorrectedSleepLoopPeriod(origSleepLoop time.Duration) time.Duration {
 	if runtime.NumGoroutine() > conf.SlowDownThreshold {
-		sleepPeriod = sleepPeriod * 2
+		return origSleepLoop * 2
 	}
-	return sleepPeriod
+	return origSleepLoop
 }
 
 func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *ConfirmerUpdate, error) {
@@ -242,7 +252,7 @@ func (conf *Confirmer) goPromotabilityCheck() func() {
 			select {
 			case <-chCancel:
 				return
-			case <-time.After(conf.getSleepLoopPeriod()):
+			case <-time.After(conf.getCorrectedSleepLoopPeriod(loopSleepPeriodPromoCheck)):
 				consistent, err = conf.checkConsistency(conf.nextTailHashToPromote)
 				if err != nil {
 					conf.Log.Errorf("CONFIRMER-PROMOCHECK: checkConsistency returned: %v", err)
@@ -299,7 +309,7 @@ func (conf *Confirmer) goPromote() func() {
 			select {
 			case <-chCancel:
 				return
-			case <-time.After(500 * time.Millisecond):
+			case <-time.After(loopSleepPeriodPromote):
 			}
 		}
 	}()
@@ -343,7 +353,7 @@ func (conf *Confirmer) goReattach() func() {
 			select {
 			case <-chCancel:
 				return
-			case <-time.After(100 * time.Millisecond):
+			case <-time.After(loopSleepPeriodReattach):
 			}
 		}
 	}()
