@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	Version                 = "1.3"
+	Version                 = "1.4.0"
 	PREFIX_MODULE           = "tbsender"
 	ROTATE_LOG_HOURS        = 12
 	ROTATE_LOG_RETAIN_HOURS = 12
