@@ -231,11 +231,13 @@ func (r *zmqRoutine) incObsoleteCount() {
 
 type ZmqRoutineStats struct {
 	Uri string `json:"uri"`
+	Id  uint64 `json:"id"`
 	inreaders.InputReaderBaseStats
 	TxCount              uint64 `json:"txCount"`
 	CtxCount             uint64 `json:"ctxCount"`
-	TxCount10min         uint64 `json:"txCount10min"`
-	CtxCount10min        uint64 `json:"ctxCount10min"`
+	SomeMin              uint64 `json:"someMin"`
+	TxCountSomeMin       uint64 `json:"txCountSomeMin"`
+	CtxCountSomeMin      uint64 `json:"ctxCountSomeMin"`
 	timeIntervalSec10min uint64
 	ObsoleteConfirmCount uint64  `json:"obsoleteSNCount"`
 	Tps                  float64 `json:"tps"`
@@ -283,12 +285,14 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 
 	ret := &ZmqRoutineStats{
 		Uri:                  r.uri,
+		Id:                   uint64(r.GetId__()),
 		InputReaderBaseStats: *r.GetReaderBaseStats__(),
 		Tps:                  tps,
 		TxCount:              r.txCount,
 		CtxCount:             r.ctxCount,
-		TxCount10min:         uint64(numLastTX5Min),
-		CtxCount10min:        uint64(numLastSN5Min),
+		SomeMin:              routineBufferRetentionMin,
+		TxCountSomeMin:       uint64(numLastTX5Min),
+		CtxCountSomeMin:      uint64(numLastSN5Min),
 		timeIntervalSec10min: timeIntervalSec,
 		ObsoleteConfirmCount: r.obsoleteSnCount,
 		Ctps:                 ctps,
@@ -340,5 +344,5 @@ func (a ZmqRoutineStatsSlice) Swap(i, j int) {
 }
 
 func (a ZmqRoutineStatsSlice) Less(i, j int) bool {
-	return a[i].Uri < a[j].Uri
+	return a[i].Id < a[j].Id
 }
