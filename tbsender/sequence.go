@@ -104,7 +104,7 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 		Log:                   logger,
 		AEC:                   AEC,
 		SlowDownThreshold:     len(Config.Sender.Sequences) * 40,
-	}), nil
+	}, nil), nil
 }
 
 func (seq *TransferSequence) Run() {
@@ -123,7 +123,7 @@ func (seq *TransferSequence) Run() {
 		seq.processStartUpdate(bundleData, bundleHash)
 
 		//run confirmed task and listen to updates
-		chUpdate, err := seq.confirmer.StartConfirmerTask(bundleData.BundleTrytes)
+		chUpdate, _, err := seq.confirmer.StartConfirmerTask(bundleData.BundleTrytes)
 		if err != nil {
 			seq.log.Errorf("Run sequence '%v': RunConfirm returned: %v", seq.name, err)
 			continue
