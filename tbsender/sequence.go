@@ -123,12 +123,12 @@ func (seq *TransferSequence) Run() {
 		seq.processStartUpdate(bundleData, bundleHash)
 
 		//run confirmed task and listen to updates
-		chUpdate, _, err := seq.confirmer.StartConfirmerTask(bundleData.BundleTrytes)
+		chUpdate, cancelConfirmerTask, err := seq.confirmer.StartConfirmerTask(bundleData.BundleTrytes)
 		if err != nil {
 			seq.log.Errorf("Run sequence '%v': RunConfirm returned: %v", seq.name, err)
 			continue
 		}
-		// read and process updated from confirmer until task is closed
+		// read and process updated from confirmer until UPD_CONFIRM comes or channel is closed
 		success = false
 		for updConf := range chUpdate {
 			if updConf.Err != nil {
@@ -141,6 +141,8 @@ func (seq *TransferSequence) Run() {
 				seq.processConfirmerUpdate(updConf, bundleData.Addr, bundleData.Index, bundleData.Balance, bundleHash)
 				if updConf.UpdateType == confirmer.UPD_CONFIRM {
 					success = true
+					cancelConfirmerTask()
+					break
 				}
 			}
 		}

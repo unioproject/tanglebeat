@@ -183,17 +183,21 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 	cancelPromo := conf.goPromote()
 	cancelReattach := conf.goReattach()
 
+	// confirmation monitor starts yet another routine
 	conf.confMon.OnConfirmation(bundleHash, func(nowis time.Time) {
+		conf.mutex.RLock()
+		defer conf.mutex.RUnlock()
+
 		conf.sendConfirmerUpdate(UPD_CONFIRM, "", nil)
-		conf.StopConfirmerTask(cancelPromoCheck, cancelPromo, cancelReattach)
 	})
 
 	return conf.chanUpdate, func() {
-		conf.StopConfirmerTask(cancelPromoCheck, cancelPromo, cancelReattach)
+		conf.stopConfirmerTask(cancelPromoCheck, cancelPromo, cancelReattach)
+		conf.confMon.CancelConfirmationPolling(bundleHash)
 	}, nil
 }
 
-func (conf *Confirmer) StopConfirmerTask(cancelPromoCheck, cancelPromo, cancelReattach func()) {
+func (conf *Confirmer) stopConfirmerTask(cancelPromoCheck, cancelPromo, cancelReattach func()) {
 	conf.mutex.Lock()
 	defer conf.mutex.Unlock()
 	if !conf.running {
