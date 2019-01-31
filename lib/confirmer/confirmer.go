@@ -248,6 +248,7 @@ func (conf *Confirmer) goPromotabilityCheck() func() {
 
 		conf.wgTaskEnd.Add(1)
 		defer conf.wgTaskEnd.Done()
+
 		var err error
 		var consistent bool
 		for {

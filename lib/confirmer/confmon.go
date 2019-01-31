@@ -92,52 +92,55 @@ func (cmon *ConfirmationMonitor) CancelConfirmationPolling(bundleHash Hash) {
 	delete(cmon.bundles, bundleHash)
 }
 func (cmon *ConfirmationMonitor) pollConfirmed(bundleHash Hash) {
+	count := 0
+	var exit bool
+
+	startWaiting := time.Now()
+	for !exit {
+		time.Sleep(loopSleepConfmon)
+		count++
+		if count%5 == 0 {
+			cmon.debugf("Confirmation polling for %v. Time since waiting: %v", bundleHash, time.Since(startWaiting))
+		}
+		exit = cmon.checkBundle(bundleHash)
+	}
+}
+
+func (cmon *ConfirmationMonitor) checkBundle(bundleHash Hash) bool {
 	var apiret multiapi.MultiCallRet
 	var err error
 	var confirmed bool
 	var bs *bundleState
 	var ok bool
-	count := 0
 
 	cmon.Lock()
-	mapi := cmon.mapi
-	cmon.Unlock()
+	defer cmon.Unlock()
 
-	startWaiting := time.Now()
-	for {
-		cmon.Lock()
-		if bs, ok = cmon.bundles[bundleHash]; !ok {
-			cmon.Unlock()
-			return // not in map, was cancelled or never started
-		}
-		cmon.Unlock()
-
-		count++
-		if count%5 == 0 {
-			cmon.debugf("Confirmation polling for %v. Time since waiting: %v", bundleHash, time.Since(startWaiting))
-		}
-		confirmed, err = utils.IsBundleHashConfirmedMulti(bundleHash, mapi, &apiret)
-		if err == nil && confirmed {
-			nowis := time.Now()
-			// call all callbacks synchronously
-			for _, cb := range bs.callbacks {
-				cb(nowis)
-			}
-
-			cmon.Lock()
-			delete(cmon.bundles, bundleHash) // delete from map
-			cmon.Unlock()
-
-			// stop the stopwatch for the bundle
-			StopStopwatch(bundleHash)
-			return // confirmed: stop polling
-		}
-		if cmon.checkError(apiret.Endpoint, err) {
-			cmon.errorf("Confirmation polling for %v: '%v' from %v ", bundleHash, err, apiret.Endpoint)
-			time.Sleep(sleepAfterError)
-		}
-		time.Sleep(loopSleepConfmon)
+	if bs, ok = cmon.bundles[bundleHash]; !ok {
+		return true // not in map, was cancelled or never started
 	}
+
+	confirmed, err = utils.IsBundleHashConfirmedMulti(bundleHash, cmon.mapi, &apiret)
+
+	if cmon.checkError(apiret.Endpoint, err) {
+		cmon.errorf("Confirmation polling for %v: '%v' from %v ", bundleHash, err, apiret.Endpoint)
+		time.Sleep(sleepAfterError)
+		return false
+	}
+	if confirmed {
+		nowis := time.Now()
+
+		// call all callbacks asynchronously
+		for _, cb := range bs.callbacks {
+			go cb(nowis)
+		}
+		delete(cmon.bundles, bundleHash) // delete from map
+
+		// stop the stopwatch for the bundle
+		StopStopwatch(bundleHash)
+		return true // confirmed: stop polling
+	}
+	return false
 }
 
 func (cmon *ConfirmationMonitor) CancelZeroBalancePolling(addr Hash) {
@@ -146,6 +149,7 @@ func (cmon *ConfirmationMonitor) CancelZeroBalancePolling(addr Hash) {
 	delete(cmon.addresses, addr)
 }
 
+// TODO zero balance
 func (cmon *ConfirmationMonitor) pollZeroBalance(addr Hash) {
 	var apiret multiapi.MultiCallRet
 	var err error
@@ -168,12 +172,12 @@ func (cmon *ConfirmationMonitor) pollZeroBalance(addr Hash) {
 		bal, err = mapi.GetBalances(Hashes{addr}, 100, &apiret)
 		if err == nil && bal.Balances[0] == 0 {
 			nowis := time.Now()
-			// call all callbacks synchronously
-			for _, cb := range as.callbacks {
-				cb(nowis)
-			}
 
+			// call all callbacks asynchronously
 			cmon.Lock()
+			for _, cb := range as.callbacks {
+				go cb(nowis)
+			}
 			delete(cmon.addresses, addr) // delete from map
 			cmon.Unlock()
 		}
