@@ -204,7 +204,6 @@ func (conf *Confirmer) StopConfirmerTask(cancelPromoCheck, cancelPromo, cancelRe
 	cancelReattach()
 	close(conf.chanUpdate)
 	conf.running = false
-	conf.confMon.CancelConfirmationPolling(conf.bundleHash)
 
 	conf.wgTaskEnd.Wait()
 	conf.Log.Debugf("CONFIRMER: task for %v has ended", conf.bundleHash)
@@ -248,6 +247,7 @@ func (conf *Confirmer) goPromotabilityCheck() func() {
 
 		conf.wgTaskEnd.Add(1)
 		defer conf.wgTaskEnd.Done()
+
 		var err error
 		var consistent bool
 		for {
