@@ -1,6 +1,7 @@
 package confirmer
 
 import (
+	"github.com/iotaledger/iota.go/api"
 	. "github.com/iotaledger/iota.go/trinary"
 	"github.com/lunfardo314/tanglebeat/lib/multiapi"
 	"github.com/lunfardo314/tanglebeat/lib/utils"
@@ -13,24 +14,30 @@ type bundleState struct {
 	callbacks []func(time.Time)
 }
 
+type addrState struct {
+	callbacks []func(time.Time)
+}
+
 type ConfirmationMonitor struct {
 	sync.Mutex
-	bundles map[Hash]*bundleState
-	mapi    multiapi.MultiAPI
-	log     *logging.Logger
-	aec     utils.ErrorCounter
+	bundles   map[Hash]*bundleState
+	addresses map[Hash]*addrState
+	mapi      multiapi.MultiAPI
+	log       *logging.Logger
+	aec       utils.ErrorCounter
 }
 
 func NewConfirmationMonitor(mapi multiapi.MultiAPI, log *logging.Logger, aec utils.ErrorCounter) *ConfirmationMonitor {
 	return &ConfirmationMonitor{
-		bundles: make(map[Hash]*bundleState),
-		mapi:    mapi,
-		log:     log,
-		aec:     aec,
+		bundles:   make(map[Hash]*bundleState),
+		addresses: make(map[Hash]*addrState),
+		mapi:      mapi,
+		log:       log,
+		aec:       aec,
 	}
 }
 
-const loopSleepConfmon = 5 * time.Second
+const loopSleepConfmon = 10 * time.Second
 
 func (cmon *ConfirmationMonitor) errorf(format string, args ...interface{}) {
 	if cmon.log != nil {
@@ -51,7 +58,6 @@ func (cmon *ConfirmationMonitor) checkError(endpoint string, err error) bool {
 	return err != nil
 }
 
-// TODO aec and log will be used as set by the first call. This not completely correct
 func (cmon *ConfirmationMonitor) OnConfirmation(bundleHash Hash, callback func(time.Time)) {
 	cmon.Lock()
 	defer cmon.Unlock()
@@ -66,12 +72,25 @@ func (cmon *ConfirmationMonitor) OnConfirmation(bundleHash Hash, callback func(t
 	cmon.bundles[bundleHash].callbacks = append(cmon.bundles[bundleHash].callbacks, callback)
 }
 
+func (cmon *ConfirmationMonitor) OnBalanceZero(addr Hash, callback func(time.Time)) {
+	cmon.Lock()
+	defer cmon.Unlock()
+
+	_, ok := cmon.addresses[addr]
+	if !ok {
+		cmon.addresses[addr] = &addrState{
+			callbacks: make([]func(time.Time), 0, 2),
+		}
+		go cmon.pollZeroBalance(addr)
+	}
+	cmon.addresses[addr].callbacks = append(cmon.bundles[addr].callbacks, callback)
+}
+
 func (cmon *ConfirmationMonitor) CancelConfirmationPolling(bundleHash Hash) {
 	cmon.Lock()
 	defer cmon.Unlock()
 	delete(cmon.bundles, bundleHash)
 }
-
 func (cmon *ConfirmationMonitor) pollConfirmed(bundleHash Hash) {
 	var apiret multiapi.MultiCallRet
 	var err error
@@ -115,6 +134,51 @@ func (cmon *ConfirmationMonitor) pollConfirmed(bundleHash Hash) {
 		}
 		if cmon.checkError(apiret.Endpoint, err) {
 			cmon.errorf("Confirmation polling for %v: '%v' from %v ", bundleHash, err, apiret.Endpoint)
+			time.Sleep(sleepAfterError)
+		}
+		time.Sleep(loopSleepConfmon)
+	}
+}
+
+func (cmon *ConfirmationMonitor) CancelZeroBalancePolling(addr Hash) {
+	cmon.Lock()
+	defer cmon.Unlock()
+	delete(cmon.addresses, addr)
+}
+
+func (cmon *ConfirmationMonitor) pollZeroBalance(addr Hash) {
+	var apiret multiapi.MultiCallRet
+	var err error
+	var as *addrState
+	var ok bool
+	var bal *api.Balances
+
+	cmon.Lock()
+	mapi := cmon.mapi
+	cmon.Unlock()
+
+	for {
+		cmon.Lock()
+		if as, ok = cmon.addresses[addr]; !ok {
+			cmon.Unlock()
+			return // not in map, was cancelled or never started
+		}
+		cmon.Unlock()
+
+		bal, err = mapi.GetBalances(Hashes{addr}, 100, &apiret)
+		if err == nil && bal.Balances[0] == 0 {
+			nowis := time.Now()
+			// call all callbacks synchronously
+			for _, cb := range as.callbacks {
+				cb(nowis)
+			}
+
+			cmon.Lock()
+			delete(cmon.addresses, addr) // delete from map
+			cmon.Unlock()
+		}
+		if cmon.checkError(apiret.Endpoint, err) {
+			cmon.errorf("Zero balance polling for %v: '%v' from %v ", addr, err, apiret.Endpoint)
 			time.Sleep(sleepAfterError)
 		}
 		time.Sleep(loopSleepConfmon)
