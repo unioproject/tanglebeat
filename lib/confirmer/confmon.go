@@ -72,25 +72,13 @@ func (cmon *ConfirmationMonitor) OnConfirmation(bundleHash Hash, callback func(t
 	cmon.bundles[bundleHash].callbacks = append(cmon.bundles[bundleHash].callbacks, callback)
 }
 
-func (cmon *ConfirmationMonitor) OnBalanceZero(addr Hash, callback func(time.Time)) {
-	cmon.Lock()
-	defer cmon.Unlock()
-
-	_, ok := cmon.addresses[addr]
-	if !ok {
-		cmon.addresses[addr] = &addrState{
-			callbacks: make([]func(time.Time), 0, 2),
-		}
-		go cmon.pollZeroBalance(addr)
-	}
-	cmon.addresses[addr].callbacks = append(cmon.bundles[addr].callbacks, callback)
-}
-
+// can't be called from within OnConfirmation callback
 func (cmon *ConfirmationMonitor) CancelConfirmationPolling(bundleHash Hash) {
 	cmon.Lock()
 	defer cmon.Unlock()
 	delete(cmon.bundles, bundleHash)
 }
+
 func (cmon *ConfirmationMonitor) pollConfirmed(bundleHash Hash) {
 	count := 0
 	var exit bool
@@ -141,6 +129,20 @@ func (cmon *ConfirmationMonitor) checkBundle(bundleHash Hash) bool {
 		return true // confirmed: stop polling
 	}
 	return false
+}
+
+func (cmon *ConfirmationMonitor) OnBalanceZero(addr Hash, callback func(time.Time)) {
+	cmon.Lock()
+	defer cmon.Unlock()
+
+	_, ok := cmon.addresses[addr]
+	if !ok {
+		cmon.addresses[addr] = &addrState{
+			callbacks: make([]func(time.Time), 0, 2),
+		}
+		go cmon.pollZeroBalance(addr)
+	}
+	cmon.addresses[addr].callbacks = append(cmon.bundles[addr].callbacks, callback)
 }
 
 func (cmon *ConfirmationMonitor) CancelZeroBalancePolling(addr Hash) {
