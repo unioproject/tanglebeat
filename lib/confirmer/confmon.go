@@ -10,14 +10,12 @@ import (
 )
 
 type bundleState struct {
-	confirmed bool
-	when      time.Time
-	wg        *sync.WaitGroup
 	log       *logging.Logger
 	aec       utils.ErrorCounter
+	callbacks []func(time.Time)
 }
 
-var bundles = make(map[Hash]bundleState)
+var bundles = make(map[Hash]*bundleState)
 var mutexConfmon = &sync.Mutex{}
 
 const loopSleepConfmon = 5 * time.Second
@@ -41,106 +39,69 @@ func checkError(aec utils.ErrorCounter, endoint string, err error) bool {
 	return err != nil
 }
 
-func init() {
-	go cleanup()
-}
-
-func WaitfForConfirmation(bundleHash Hash, mapi multiapi.MultiAPI, log *logging.Logger, aec utils.ErrorCounter) {
-	getWG(bundleHash, mapi, log, aec).Wait()
-}
-
-func getWG(bundleHash Hash, mapi multiapi.MultiAPI, log *logging.Logger, aec utils.ErrorCounter) *sync.WaitGroup {
+func OnConfirmation(bundleHash Hash, mapi multiapi.MultiAPI, log *logging.Logger, aec utils.ErrorCounter, callback func(time.Time)) {
 	mutexConfmon.Lock()
 	defer mutexConfmon.Unlock()
 
-	bs, ok := bundles[bundleHash]
-	var wg *sync.WaitGroup
+	_, ok := bundles[bundleHash]
 	if !ok {
-		wg = &sync.WaitGroup{}
-		bundles[bundleHash] = bundleState{
-			wg:  wg,
-			log: log,
-			aec: aec,
+		bundles[bundleHash] = &bundleState{
+			log:       log,
+			aec:       aec,
+			callbacks: make([]func(time.Time), 0, 2),
 		}
-		bundles[bundleHash].wg.Add(1)
-		go pollConfirmed(bundleHash, mapi)
-	} else {
-		wg = bs.wg
 	}
-	return wg
+	bundles[bundleHash].callbacks = append(bundles[bundleHash].callbacks, callback)
+	go pollConfirmed(bundleHash, mapi)
+}
+
+func CancelConfirmationPolling(bundleHash Hash) {
+	mutexConfmon.Lock()
+	defer mutexConfmon.Unlock()
+	delete(bundles, bundleHash)
 }
 
 func pollConfirmed(bundleHash Hash, mapi multiapi.MultiAPI) {
-	mutexConfmon.Lock()
-	bs, ok := bundles[bundleHash]
-	if !ok {
-		panic("internal inconsistency")
-	}
-	log := bs.log
-	mutexConfmon.Unlock()
-
 	var apiret multiapi.MultiCallRet
 	var err error
 	var confirmed bool
-	wg := bs.wg
+	var bs *bundleState
+	var ok bool
 	count := 0
+
 	startWaiting := time.Now()
 	for {
+		mutexConfmon.Lock()
+		if bs, ok = bundles[bundleHash]; !ok {
+			mutexConfmon.Unlock()
+			return // not in map, was cancelled or never started
+		}
+		mutexConfmon.Unlock()
+
 		count++
 		if count%5 == 0 {
-			debugf(log, "Confirmation polling for %v. Time since waiting: %v", bundleHash, time.Since(startWaiting))
+			debugf(bs.log, "Confirmation polling for %v. Time since waiting: %v", bundleHash, time.Since(startWaiting))
 		}
 		confirmed, err = utils.IsBundleHashConfirmedMulti(bundleHash, mapi, &apiret)
 		if err == nil && confirmed {
-			wg.Done()
+			nowis := time.Now()
+			// call all callbacks synchronously
+			for _, cb := range bs.callbacks {
+				cb(nowis)
+			}
+
 			mutexConfmon.Lock()
-			bs.confirmed = true
-			bs.when = time.Now()
+			delete(bundles, bundleHash) // delete from map
 			mutexConfmon.Unlock()
+
 			// stop the stopwatch for the bundle
 			StopStopwatch(bundleHash)
-			return
+			return // confirmed: stop polling
 		}
 		if checkError(bs.aec, apiret.Endpoint, err) {
-			errorf(log, "Confirmation polling for %v: '%v' from %v ", bundleHash, err, apiret.Endpoint)
+			errorf(bs.log, "Confirmation polling for %v: '%v' from %v ", bundleHash, err, apiret.Endpoint)
 			time.Sleep(sleepAfterError)
 		}
 		time.Sleep(loopSleepConfmon)
-	}
-}
-
-// any confirmed hash record older that 1 min will be removed
-func removeIfObsolete(bundleHash Hash) {
-	mutexConfmon.Lock()
-	defer mutexConfmon.Unlock()
-
-	bs, ok := bundles[bundleHash]
-	if !ok {
-		return
-	}
-	log := bs.log
-	if bs.confirmed && time.Since(bs.when) > 1*time.Minute {
-		delete(bundles, bundleHash)
-		debugf(log, "Confirmation polling: removed %v", bundleHash)
-	}
-}
-
-func getHashes() []Hash {
-	ret := make([]Hash, 0, len(bundles))
-	mutexConfmon.Lock()
-	defer mutexConfmon.Unlock()
-	for k := range bundles {
-		ret = append(ret, k)
-	}
-	return ret
-}
-
-func cleanup() {
-	for {
-		time.Sleep(1 * time.Minute)
-		keys := getHashes()
-		for _, k := range keys {
-			removeIfObsolete(k)
-		}
 	}
 }

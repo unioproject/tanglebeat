@@ -137,10 +137,10 @@ func (conf *Confirmer) getCorrectedSleepLoopPeriod(origSleepLoop time.Duration) 
 	return origSleepLoop
 }
 
-func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *ConfirmerUpdate, error) {
+func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *ConfirmerUpdate, func(), error) {
 	tail, err := utils.TailFromBundleTrytes(bundleTrytes)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	bundleHash := tail.Bundle
 	nowis := time.Now()
@@ -149,7 +149,7 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 	defer conf.mutex.Unlock()
 
 	if conf.running {
-		return nil, errors.New("Confirmer task is already running")
+		return nil, nil, errors.New("Confirmer task is already running")
 	}
 	conf.running = true
 	conf.lastBundleTrytes = bundleTrytes
@@ -175,37 +175,29 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 	cancelPromo := conf.goPromote()
 	cancelReattach := conf.goReattach()
 
-	go conf.waitForConfirmation(cancelPromoCheck, cancelPromo, cancelReattach)
+	OnConfirmation(bundleHash, conf.IotaMultiAPI, conf.Log, conf.AEC, func(nowis time.Time) {
+		conf.sendConfirmerUpdate(UPD_CONFIRM, "", nil)
+		conf.StopConfirmerTask(cancelPromoCheck, cancelPromo, cancelReattach)
+	})
 
-	return conf.chanUpdate, nil
+	return conf.chanUpdate, func() {
+		conf.StopConfirmerTask(cancelPromoCheck, cancelPromo, cancelReattach)
+		CancelConfirmationPolling(bundleHash)
+	}, nil
 }
 
-// will wait confirmation of the bundle and cancel other routines when confirmed
-func (conf *Confirmer) waitForConfirmation(cancelPromoCheck, cancelPromo, cancelReattach func()) {
-	conf.debugf("CONFIRMER-WAIT: 'wait confirmation' routine started for %v", conf.bundleHash)
-	defer conf.debugf("CONFIRMER-WAIT: 'wait confirmation' routine ended for %v", conf.bundleHash)
-	bundleHash := conf.bundleHash
-
-	WaitfForConfirmation(bundleHash, conf.IotaMultiAPI, conf.Log, conf.AEC)
-
-	conf.Log.Debugf("CONFIRMER-WAIT: confirmed bundle %v", bundleHash)
-
+func (conf *Confirmer) StopConfirmerTask(cancelPromoCheck, cancelPromo, cancelReattach func()) {
 	conf.mutex.Lock()
-	conf.sendConfirmerUpdate(UPD_CONFIRM, "", nil)
-	conf.running = false
-	conf.mutex.Unlock()
-
-	conf.Log.Debugf("CONFIRMER-WAIT: canceling confirmer task for bundle %v", bundleHash)
+	defer conf.mutex.Unlock()
+	if !conf.running {
+		return
+	}
 	cancelPromoCheck()
 	cancelPromo()
 	cancelReattach()
-	conf.wg.Wait()
+	close(conf.chanUpdate)
+	conf.running = false
 
-	conf.Log.Debugf("CONFIRMER-WAIT: stopped promoter and reattacher routines for bundle %v", bundleHash)
-
-	close(conf.chanUpdate) // stop update channel
-	conf.Log.Debugf("CONFIRMER-WAIT: closed update channel for bundle %v", bundleHash)
-	return //>>>>>>>>>>>>>>
 }
 
 func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, promoTailHash Hash, err error) {

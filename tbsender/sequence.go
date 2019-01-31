@@ -123,7 +123,7 @@ func (seq *TransferSequence) Run() {
 		seq.processStartUpdate(bundleData, bundleHash)
 
 		//run confirmed task and listen to updates
-		chUpdate, err := seq.confirmer.StartConfirmerTask(bundleData.BundleTrytes)
+		chUpdate, _, err := seq.confirmer.StartConfirmerTask(bundleData.BundleTrytes)
 		if err != nil {
 			seq.log.Errorf("Run sequence '%v': RunConfirm returned: %v", seq.name, err)
 			continue
