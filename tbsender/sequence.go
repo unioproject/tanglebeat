@@ -104,7 +104,7 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 		Log:                   logger,
 		AEC:                   AEC,
 		SlowDownThreshold:     len(Config.Sender.Sequences) * 40,
-	}), nil
+	}, nil), nil
 }
 
 func (seq *TransferSequence) Run() {

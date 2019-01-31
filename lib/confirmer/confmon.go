@@ -10,58 +10,69 @@ import (
 )
 
 type bundleState struct {
-	log       *logging.Logger
-	aec       utils.ErrorCounter
 	callbacks []func(time.Time)
 }
 
-var bundles = make(map[Hash]*bundleState)
-var mutexConfmon = &sync.Mutex{}
+type ConfirmationMonitor struct {
+	sync.Mutex
+	bundles map[Hash]*bundleState
+	mapi    multiapi.MultiAPI
+	log     *logging.Logger
+	aec     utils.ErrorCounter
+}
+
+func NewConfirmationMonitor(mapi multiapi.MultiAPI, log *logging.Logger, aec utils.ErrorCounter) *ConfirmationMonitor {
+	return &ConfirmationMonitor{
+		bundles: make(map[Hash]*bundleState),
+		mapi:    mapi,
+		log:     log,
+		aec:     aec,
+	}
+}
 
 const loopSleepConfmon = 5 * time.Second
 
-func errorf(log *logging.Logger, format string, args ...interface{}) {
-	if log != nil {
-		log.Errorf(format, args...)
+func (cmon *ConfirmationMonitor) errorf(format string, args ...interface{}) {
+	if cmon.log != nil {
+		cmon.log.Errorf(format, args...)
 	}
 }
 
-func debugf(log *logging.Logger, format string, args ...interface{}) {
-	if log != nil {
-		log.Debugf(format, args...)
+func (cmon *ConfirmationMonitor) debugf(format string, args ...interface{}) {
+	if cmon.log != nil {
+		cmon.log.Debugf(format, args...)
 	}
 }
 
-func checkError(aec utils.ErrorCounter, endoint string, err error) bool {
-	if aec != nil {
-		return aec.CheckError(endoint, err)
+func (cmon *ConfirmationMonitor) checkError(endpoint string, err error) bool {
+	if cmon.aec != nil {
+		return cmon.aec.CheckError(endpoint, err)
 	}
 	return err != nil
 }
 
-func OnConfirmation(bundleHash Hash, mapi multiapi.MultiAPI, log *logging.Logger, aec utils.ErrorCounter, callback func(time.Time)) {
-	mutexConfmon.Lock()
-	defer mutexConfmon.Unlock()
+// TODO aec and log will be used as set by the first call. This not completely correct
+func (cmon *ConfirmationMonitor) OnConfirmation(bundleHash Hash, callback func(time.Time)) {
+	cmon.Lock()
+	defer cmon.Unlock()
 
-	_, ok := bundles[bundleHash]
+	_, ok := cmon.bundles[bundleHash]
 	if !ok {
-		bundles[bundleHash] = &bundleState{
-			log:       log,
-			aec:       aec,
+		cmon.bundles[bundleHash] = &bundleState{
 			callbacks: make([]func(time.Time), 0, 2),
 		}
+		go cmon.pollConfirmed(bundleHash)
 	}
-	bundles[bundleHash].callbacks = append(bundles[bundleHash].callbacks, callback)
-	go pollConfirmed(bundleHash, mapi)
+	cmon.bundles[bundleHash].callbacks = append(cmon.bundles[bundleHash].callbacks, callback)
 }
 
-func CancelConfirmationPolling(bundleHash Hash) {
-	mutexConfmon.Lock()
-	defer mutexConfmon.Unlock()
-	delete(bundles, bundleHash)
+func (cmon *ConfirmationMonitor) CancelConfirmationPolling(bundleHash Hash) {
+	cmon.Lock()
+	defer cmon.Unlock()
+	delete(cmon.bundles, bundleHash)
 }
 
-func pollConfirmed(bundleHash Hash, mapi multiapi.MultiAPI) {
+func (cmon *ConfirmationMonitor) pollConfirmed(bundleHash Hash) {
 	var apiret multiapi.MultiCallRet
 	var err error
 	var confirmed bool
@@ -69,18 +80,22 @@ func pollConfirmed(bundleHash Hash, mapi multiapi.MultiAPI) {
 	var ok bool
 	count := 0
 
+	cmon.Lock()
+	mapi := cmon.mapi
+	cmon.Unlock()
+
 	startWaiting := time.Now()
 	for {
-		mutexConfmon.Lock()
-		if bs, ok = bundles[bundleHash]; !ok {
-			mutexConfmon.Unlock()
+		cmon.Lock()
+		if bs, ok = cmon.bundles[bundleHash]; !ok {
+			cmon.Unlock()
 			return // not in map, was cancelled or never started
 		}
-		mutexConfmon.Unlock()
+		cmon.Unlock()
 
 		count++
 		if count%5 == 0 {
-			debugf(bs.log, "Confirmation polling for %v. Time since waiting: %v", bundleHash, time.Since(startWaiting))
+			cmon.debugf("Confirmation polling for %v. Time since waiting: %v", bundleHash, time.Since(startWaiting))
 		}
 		confirmed, err = utils.IsBundleHashConfirmedMulti(bundleHash, mapi, &apiret)
 		if err == nil && confirmed {
@@ -90,16 +105,16 @@ func pollConfirmed(bundleHash Hash, mapi multiapi.MultiAPI) {
 				cb(nowis)
 			}
 
-			mutexConfmon.Lock()
-			delete(bundles, bundleHash) // delete from map
-			mutexConfmon.Unlock()
+			cmon.Lock()
+			delete(cmon.bundles, bundleHash) // delete from map
+			cmon.Unlock()
 
 			// stop the stopwatch for the bundle
 			StopStopwatch(bundleHash)
 			return // confirmed: stop polling
 		}
-		if checkError(bs.aec, apiret.Endpoint, err) {
-			errorf(bs.log, "Confirmation polling for %v: '%v' from %v ", bundleHash, err, apiret.Endpoint)
+		if cmon.checkError(apiret.Endpoint, err) {
+			cmon.errorf("Confirmation polling for %v: '%v' from %v ", bundleHash, err, apiret.Endpoint)
 			time.Sleep(sleepAfterError)
 		}
 		time.Sleep(loopSleepConfmon)

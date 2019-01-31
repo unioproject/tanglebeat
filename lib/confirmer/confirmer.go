@@ -41,8 +41,10 @@ type ConfirmerParams struct {
 
 type Confirmer struct {
 	ConfirmerParams
-	mutex *sync.RWMutex  //task state access sync
-	wg    sync.WaitGroup // wait until both promote and reattach are finished
+	mutex     *sync.RWMutex  //task state access sync
+	wgTaskEnd sync.WaitGroup // wait until task routines are finished
+	confMon   *ConfirmationMonitor
+
 	// confirmer task state
 	running               bool
 	chanUpdate            chan *ConfirmerUpdate
@@ -88,9 +90,13 @@ func (ut UpdateType) ToString() string {
 	return r
 }
 
-func NewConfirmer(params ConfirmerParams) *Confirmer {
+func NewConfirmer(params ConfirmerParams, confMon *ConfirmationMonitor) *Confirmer {
+	if confMon == nil {
+		confMon = NewConfirmationMonitor(params.IotaMultiAPI, params.Log, params.AEC)
+	}
 	return &Confirmer{
 		ConfirmerParams: params,
+		confMon:         confMon,
 		mutex:           &sync.RWMutex{},
 	}
 }
@@ -137,6 +143,8 @@ func (conf *Confirmer) getCorrectedSleepLoopPeriod(origSleepLoop time.Duration) 
 	return origSleepLoop
 }
 
+// TODO remove limitation of one confirmer task per confirmer at the time
+
 func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *ConfirmerUpdate, func(), error) {
 	tail, err := utils.TailFromBundleTrytes(bundleTrytes)
 	if err != nil {
@@ -170,19 +178,18 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 		conf.SlowDownThreshold = defaultSlowDownThresholdNumGoroutine
 	}
 
-	// starting 4 routines
+	// starting 3 routines
 	cancelPromoCheck := conf.goPromotabilityCheck()
 	cancelPromo := conf.goPromote()
 	cancelReattach := conf.goReattach()
 
-	OnConfirmation(bundleHash, conf.IotaMultiAPI, conf.Log, conf.AEC, func(nowis time.Time) {
+	conf.confMon.OnConfirmation(bundleHash, func(nowis time.Time) {
 		conf.sendConfirmerUpdate(UPD_CONFIRM, "", nil)
 		conf.StopConfirmerTask(cancelPromoCheck, cancelPromo, cancelReattach)
 	})
 
 	return conf.chanUpdate, func() {
 		conf.StopConfirmerTask(cancelPromoCheck, cancelPromo, cancelReattach)
-		CancelConfirmationPolling(bundleHash)
 	}, nil
 }
 
@@ -197,7 +204,10 @@ func (conf *Confirmer) StopConfirmerTask(cancelPromoCheck, cancelPromo, cancelRe
 	cancelReattach()
 	close(conf.chanUpdate)
 	conf.running = false
+	conf.confMon.CancelConfirmationPolling(conf.bundleHash)
 
+	conf.wgTaskEnd.Wait()
+	conf.Log.Debugf("CONFIRMER: task for %v has ended", conf.bundleHash)
 }
 
 func (conf *Confirmer) sendConfirmerUpdate(updType UpdateType, promoTailHash Hash, err error) {
@@ -236,8 +246,8 @@ func (conf *Confirmer) goPromotabilityCheck() func() {
 		conf.debugf("CONFIRMER-PROMOCHECK: started promotability checker routine for bundle hash %v", conf.bundleHash)
 		defer conf.debugf("CONFIRMER-PROMOCHECK: finished promotability checker routine for bundle hash %v", conf.bundleHash)
 
-		conf.wg.Add(1)
-		defer conf.wg.Done()
+		conf.wgTaskEnd.Add(1)
+		defer conf.wgTaskEnd.Done()
 		var err error
 		var consistent bool
 		for {
@@ -290,8 +300,8 @@ func (conf *Confirmer) goPromote() func() {
 		conf.debugf("CONFIRMER-PROMO: started promoter routine  for bundle hash %v", conf.bundleHash)
 		defer conf.debugf("CONFIRMER-PROMO: finished promoter routine for bundle hash %v", conf.bundleHash)
 
-		conf.wg.Add(1)
-		defer conf.wg.Done()
+		conf.wgTaskEnd.Add(1)
+		defer conf.wgTaskEnd.Done()
 
 		for {
 			if err := conf.promoteIfNeeded(); err != nil {
@@ -333,8 +343,8 @@ func (conf *Confirmer) goReattach() func() {
 		conf.debugf("CONFIRMER-REATT: started reattacher routine. Bundle = %v", conf.bundleHash)
 		defer conf.debugf("CONFIRMER-REATT: finished reattacher routine. Bundle = %v", conf.bundleHash)
 
-		conf.wg.Add(1)
-		defer conf.wg.Done()
+		conf.wgTaskEnd.Add(1)
+		defer conf.wgTaskEnd.Done()
 
 		for {
 			if err := conf.reattachIfNeeded(); err != nil {
