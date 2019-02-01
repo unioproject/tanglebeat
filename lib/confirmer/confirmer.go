@@ -166,7 +166,7 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 	conf.nextPromoTime = nowis
 	conf.nextTailHashToPromote = tail.Hash
 	conf.isNotPromotable = false
-	conf.chanUpdate = make(chan *ConfirmerUpdate)
+	conf.chanUpdate = make(chan *ConfirmerUpdate, 1) // not to block each time
 	conf.numAttach = 0
 	conf.numPromote = 0
 	conf.totalDurationGTTAMsec = 0

@@ -111,7 +111,7 @@ func (seq *TransferSequence) Run() {
 	seq.log.Infof("Start running sequence '%v'", seq.name)
 	var bundleHash Trytes
 	var bundleData *bundle_source.FirstBundleData
-	var success bool
+	var finishedOk bool
 	for {
 		bundleData = seq.bundleSource.GetNextBundleToConfirm()
 		if bundleData == nil {
@@ -129,7 +129,7 @@ func (seq *TransferSequence) Run() {
 			continue
 		}
 		// read and process updated from confirmer until UPD_CONFIRM comes or channel is closed
-		success = false
+		finishedOk = false
 		for updConf := range chUpdate {
 			if updConf.Err != nil {
 				seq.log.Errorf("TransferSequence '%v': confirmer reported an error: %v", seq.GetLongName(), updConf.Err)
@@ -138,19 +138,21 @@ func (seq *TransferSequence) Run() {
 				updConf.TotalDurationATTMsec += bundleData.TotalDurationPoWMs
 				updConf.TotalDurationGTTAMsec += bundleData.TotalDurationTipselMs
 
-				seq.processConfirmerUpdate(updConf, bundleData.Addr, bundleData.Index, bundleData.Balance, bundleHash)
-				if updConf.UpdateType == confirmer.UPD_CONFIRM {
-					success = true
-					cancelConfirmerTask()
-					break
+				if !finishedOk {
+					// no updating after confirm
+					seq.processConfirmerUpdate(updConf, bundleData.Addr, bundleData.Index, bundleData.Balance, bundleHash)
+					if updConf.UpdateType == confirmer.UPD_CONFIRM {
+						finishedOk = true
+						cancelConfirmerTask() // confirmer will close the channel
+					}
 				}
 			}
 		}
 		seq.log.Debugf("TransferSequence '%v': finished processing updates for bundle %v. Success = %v",
-			seq.GetLongName(), bundleHash, success)
+			seq.GetLongName(), bundleHash, finishedOk)
 
 		// returning result to the bundle source
-		seq.bundleSource.PutConfirmationResult(bundleHash, success)
+		seq.bundleSource.PutConfirmationResult(bundleHash, finishedOk)
 	}
 	// at this point *seq.bundleSource is closed. It can happen when generator closes channel due to API errors
 	// The strategy at the moment is to exit the program with errors altogether. It will be restarted by systemd
