@@ -244,7 +244,7 @@ func (gen *transferBundleGenerator) runGenerator() {
 				addr = ""
 				gen.log.Debugf("Transfer Bundles: moving '%v' to the next index -> %v", gen.name, gen.index)
 			} else {
-				gen.log.Errorf("Transfer Bundles: '%v'[%v] failed to confirm bundle. Will be resending..",
+				gen.log.Errorf("Transfer Bundles: '%v'[%v] failed to confirm bundle. Will be repeating with the same index..",
 					gen.name, gen.index, bundleHash)
 			}
 		}

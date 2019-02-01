@@ -13,6 +13,7 @@ import (
 	"github.com/lunfardo314/tanglebeat/tbsender/sender_update"
 	"github.com/op/go-logging"
 	"os"
+	"time"
 )
 
 type TransferSequence struct {
@@ -21,6 +22,7 @@ type TransferSequence struct {
 	confirmer    *confirmer.Confirmer
 	log          *logging.Logger
 	name         string
+	iotaMultiAPI multiapi.MultiAPI
 	// specific for sender sequences
 	params *senderParamsYAML
 }
@@ -50,12 +52,19 @@ func NewSequence(name string) (*TransferSequence, error) {
 	if err != nil {
 		return nil, err
 	}
+	// this is needed for the sequence to check balance
+	iotaMultiAPI, err := multiapi.New(params.IOTANode, params.TimeoutAPI)
+	if err != nil {
+		return nil, err
+	}
+
 	conf, err := createConfirmer(params, logger)
 	if err != nil {
 		return nil, err
 	}
 	ret := TransferSequence{
 		name:         name,
+		iotaMultiAPI: iotaMultiAPI,
 		params:       params,
 		bundleSource: bundleSource,
 		confirmer:    conf,
@@ -107,6 +116,17 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 	}, nil), nil
 }
 
+// checks if balance in the address is enough to confirm a transfer
+func (seq *TransferSequence) EnoughBalance(addr Hash, balance uint64) bool {
+	var apiret multiapi.MultiCallRet
+	bals, err := seq.iotaMultiAPI.GetBalances([]Hash{addr}, 100, &apiret)
+
+	if AEC.CheckError(apiret.Endpoint, err) {
+		return true
+	}
+	return bals.Balances[0] >= balance
+}
+
 func (seq *TransferSequence) Run() {
 	seq.log.Infof("Start running sequence '%v'", seq.name)
 	var bundleHash Trytes
@@ -130,6 +150,7 @@ func (seq *TransferSequence) Run() {
 		}
 		// read and process updated from confirmer until channel is closed
 		finishedOk = false
+		balanceCheckedLastTime := time.Now()
 		for updConf := range chUpdate {
 			if updConf.Err != nil {
 				seq.log.Errorf("TransferSequence '%v': confirmer reported an error: %v", seq.GetLongName(), updConf.Err)
@@ -143,8 +164,23 @@ func (seq *TransferSequence) Run() {
 					seq.processConfirmerUpdate(updConf, bundleData.Addr, bundleData.Index, bundleData.Balance, bundleHash)
 					if updConf.UpdateType == confirmer.UPD_CONFIRM {
 						finishedOk = true
+						seq.log.Debugf("TransferSequence '%v': confirmation received for %v. Finish confirmer task",
+							seq.GetLongName(), bundleHash)
 						cancelConfirmerTask() // confirmer will close the channel
 					}
+				}
+			}
+			if !finishedOk {
+				// just in case checking if balances is enough.
+				// If not, canceling job and sending 'failure' back to the source
+				// Checking every 90 sec and it is not enough, canceling the task
+				if time.Since(balanceCheckedLastTime) > 90*time.Second {
+					if !seq.EnoughBalance(bundleData.Addr, bundleData.Balance) {
+						seq.log.Errorf("TransferSequence '%v': not enough balance to confirm %v. cancel confirmer task",
+							seq.GetLongName(), bundleHash)
+						cancelConfirmerTask()
+					}
+					balanceCheckedLastTime = time.Now()
 				}
 			}
 		}
