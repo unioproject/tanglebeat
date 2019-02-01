@@ -458,7 +458,7 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_sour
 		return nil, false, err
 	}
 	if confirmed {
-		return nil, false, nil // already confirmed, repeat cycle
+		return nil, true, nil // already confirmed, if balance != 0 create new
 	}
 
 	// none is confirmed hence no matter which one
