@@ -79,7 +79,6 @@ func (r *zmqRoutine) checkOnHoldCondition() inreaders.ReasonNotRunning {
 	if time.Since(r.GetLastHeartbeat()) > 30*time.Minute {
 		r.ResetOnHoldInfo()
 	}
-
 	r.RLock()
 	defer r.RUnlock()
 	onHoldCounter, _ := r.GetOnHoldInfo__()
@@ -88,6 +87,9 @@ func (r *zmqRoutine) checkOnHoldCondition() inreaders.ReasonNotRunning {
 			return inreaders.REASON_NORUN_ONHOLD_15MIN
 		}
 		if r.lastSeenOnceRate > cfg.Config.OnHoldThreshold {
+			if zmqRoutines.NumRunning() < 7 {
+				return inreaders.REASON_NORUN_NONE
+			}
 			switch onHoldCounter {
 			case 0:
 				return inreaders.REASON_NORUN_ONHOLD_10MIN
