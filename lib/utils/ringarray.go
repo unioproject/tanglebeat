@@ -8,7 +8,7 @@ type RingArray struct {
 
 func NewRingArray(len int) *RingArray {
 	if len <= 0 {
-		panic("Len must be positive")
+		panic("NumRunning must be positive")
 	}
 	return &RingArray{
 		arr: make([]uint64, len),

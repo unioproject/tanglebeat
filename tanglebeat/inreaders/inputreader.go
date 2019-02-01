@@ -11,8 +11,6 @@ import (
 // Upon i/o error routines stops running. Then starter routine restarts it again after some time
 
 type InputReader interface {
-	Lock()
-	Unlock()
 	setRunning__()
 	setIdle__(time.Duration, ReasonNotRunning)
 	isTimeToRestart__() bool
@@ -31,6 +29,7 @@ type InputReader interface {
 	GetLastHeartbeat() time.Time
 	Run(string) ReasonNotRunning
 	GetReaderBaseStats__() *InputReaderBaseStats
+	sync.Locker
 }
 
 type ReasonNotRunning string
@@ -54,7 +53,7 @@ type InputReaderBase struct {
 	restartAt        time.Time
 	ReadingSince     time.Time
 	lastHeartbeat    time.Time
-	mutex            *sync.RWMutex
+	sync.RWMutex
 }
 
 type InputReaderBaseStats struct {
@@ -69,24 +68,7 @@ func NewInputReaderBase() *InputReaderBase {
 		restartAt:        time.Now(),
 		lastHeartbeat:    time.Now(),
 		reasonNotRunning: REASON_NORUN_NONE,
-		mutex:            &sync.RWMutex{},
 	}
-}
-
-func (r *InputReaderBase) Lock() {
-	r.mutex.Lock()
-}
-
-func (r *InputReaderBase) Unlock() {
-	r.mutex.Unlock()
-}
-
-func (r *InputReaderBase) RLock() {
-	r.mutex.RLock()
-}
-
-func (r *InputReaderBase) RUnlock() {
-	r.mutex.RUnlock()
 }
 
 func (r *InputReaderBase) SetId__(id byte) {
@@ -124,8 +106,8 @@ func (r *InputReaderBase) SetLastHeartbeatNow() {
 }
 
 func (r *InputReaderBase) GetLastHeartbeat() time.Time {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
+	r.RLock()
+	defer r.RUnlock()
 	return r.lastHeartbeat
 }
 
