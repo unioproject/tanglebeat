@@ -85,7 +85,7 @@ func (r *zmqRoutine) checkOnHoldCondition() inreaders.ReasonNotRunning {
 	onHoldCounter, _ := r.GetOnHoldInfo__()
 	if time.Since(r.ReadingSince) > 5*time.Minute {
 		if r.lastSeenConfRate == 0 {
-			return inreaders.REASON_NORUN_ONHOLD_30MIN
+			return inreaders.REASON_NORUN_ONHOLD_15MIN
 		}
 		if r.lastSeenOnceRate > cfg.Config.OnHoldThreshold {
 			switch onHoldCounter {

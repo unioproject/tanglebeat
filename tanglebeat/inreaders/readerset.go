@@ -57,6 +57,8 @@ func (irs *InputReaderSet) runStarter() {
 					switch stopReason {
 					case REASON_NORUN_ONHOLD_10MIN:
 						restartAfter = 10 * time.Minute
+					case REASON_NORUN_ONHOLD_15MIN:
+						restartAfter = 15 * time.Minute
 					case REASON_NORUN_ONHOLD_30MIN:
 						restartAfter = 30 * time.Minute
 					case REASON_NORUN_ONHOLD_1H:
