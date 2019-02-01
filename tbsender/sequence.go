@@ -128,7 +128,7 @@ func (seq *TransferSequence) Run() {
 			seq.log.Errorf("Run sequence '%v': RunConfirm returned: %v", seq.name, err)
 			continue
 		}
-		// read and process updated from confirmer until UPD_CONFIRM comes or channel is closed
+		// read and process updated from confirmer until channel is closed
 		finishedOk = false
 		for updConf := range chUpdate {
 			if updConf.Err != nil {
