@@ -29,6 +29,7 @@ type zmqRoutine struct {
 	lastLmi           int
 	obsoleteSnCount   uint64
 	lastSeenOnceRate  uint64
+	lastSeenConfRate  uint64
 	tsLastTXSomeMin   *ebuffer.EventTsExpiringBuffer
 	tsLastSNSomeMin   *ebuffer.EventTsExpiringBuffer
 	last100TXBehindMs *utils.RingArray
@@ -82,15 +83,19 @@ func (r *zmqRoutine) checkOnHoldCondition() inreaders.ReasonNotRunning {
 	r.RLock()
 	defer r.RUnlock()
 	onHoldCounter, _ := r.GetOnHoldInfo__()
-
-	if time.Since(r.ReadingSince) > 5*time.Minute && r.lastSeenOnceRate > cfg.Config.OnHoldThreshold {
-		switch onHoldCounter {
-		case 0:
-			return inreaders.REASON_NORUN_ONHOLD_10MIN
-		case 1:
-			return inreaders.REASON_NORUN_ONHOLD_10MIN
-		default:
-			return inreaders.REASON_NORUN_ONHOLD_10MIN
+	if time.Since(r.ReadingSince) > 5*time.Minute {
+		if r.lastSeenConfRate == 0 {
+			return inreaders.REASON_NORUN_ONHOLD_30MIN
+		}
+		if r.lastSeenOnceRate > cfg.Config.OnHoldThreshold {
+			switch onHoldCounter {
+			case 0:
+				return inreaders.REASON_NORUN_ONHOLD_10MIN
+			case 1:
+				return inreaders.REASON_NORUN_ONHOLD_10MIN
+			default:
+				return inreaders.REASON_NORUN_ONHOLD_10MIN
+			}
 		}
 	}
 	return inreaders.REASON_NORUN_NONE
@@ -282,6 +287,7 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 	behindSN := r.last100SNBehindMs.AvgGT(0)
 
 	r.lastSeenOnceRate = uint64(getSeenOnceRate5to1Min(r.GetId__()))
+	r.lastSeenConfRate = confrate
 
 	ret := &ZmqRoutineStats{
 		Uri:                  r.uri,
