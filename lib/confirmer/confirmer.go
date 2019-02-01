@@ -1,7 +1,7 @@
 package confirmer
 
 import (
-	"errors"
+	"fmt"
 	. "github.com/iotaledger/iota.go/trinary"
 	"github.com/lunfardo314/tanglebeat/lib/multiapi"
 	"github.com/lunfardo314/tanglebeat/lib/utils"
@@ -47,6 +47,7 @@ type Confirmer struct {
 
 	// confirmer task state
 	running               bool
+	runningMutex          *sync.RWMutex
 	chanUpdate            chan *ConfirmerUpdate
 	lastBundleTrytes      []Trytes
 	bundleHash            Hash
@@ -98,16 +99,8 @@ func NewConfirmer(params ConfirmerParams, confMon *ConfirmationMonitor) *Confirm
 		ConfirmerParams: params,
 		confMon:         confMon,
 		mutex:           &sync.RWMutex{},
+		runningMutex:    &sync.RWMutex{},
 	}
-}
-
-func (conf *Confirmer) IsConfirming() (bool, Hash) {
-	conf.mutex.RLock()
-	defer conf.mutex.RUnlock()
-	if conf.running {
-		return true, conf.bundleHash
-	}
-	return false, ""
 }
 
 func (conf *Confirmer) debugf(f string, p ...interface{}) {
@@ -146,6 +139,13 @@ func (conf *Confirmer) getCorrectedSleepLoopPeriod(origSleepLoop time.Duration) 
 // TODO remove limitation of one confirmer task per confirmer at the time
 
 func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *ConfirmerUpdate, func(), error) {
+	conf.runningMutex.Lock()
+	defer conf.runningMutex.Unlock()
+
+	if conf.running {
+		return nil, nil, fmt.Errorf("Confirmer task is already running")
+	}
+
 	tail, err := utils.TailFromBundleTrytes(bundleTrytes)
 	if err != nil {
 		return nil, nil, err
@@ -153,13 +153,7 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 	bundleHash := tail.Bundle
 	nowis := time.Now()
 
-	conf.mutex.Lock()
-	defer conf.mutex.Unlock()
-
-	if conf.running {
-		return nil, nil, errors.New("Confirmer task is already running")
-	}
-	conf.running = true
+	// no need to lock state because no routine is running
 	conf.lastBundleTrytes = bundleTrytes
 	conf.bundleHash = bundleHash
 	conf.nextForceReattachTime = nowis.Add(time.Duration(conf.ForceReattachAfterMin) * time.Minute)
@@ -187,9 +181,10 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 	conf.confMon.OnConfirmation(bundleHash, func(nowis time.Time) {
 		conf.mutex.RLock()
 		defer conf.mutex.RUnlock()
-
 		conf.sendConfirmerUpdate(UPD_CONFIRM, "", nil)
 	})
+
+	conf.running = true
 
 	return conf.chanUpdate, func() {
 		conf.stopConfirmerTask(cancelPromoCheck, cancelPromo, cancelReattach)
@@ -198,18 +193,20 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 }
 
 func (conf *Confirmer) stopConfirmerTask(cancelPromoCheck, cancelPromo, cancelReattach func()) {
-	conf.mutex.Lock()
-	defer conf.mutex.Unlock()
+	conf.runningMutex.Lock()
+	defer conf.runningMutex.Unlock()
+
 	if !conf.running {
 		return
 	}
+
 	cancelPromoCheck()
 	cancelPromo()
 	cancelReattach()
 	close(conf.chanUpdate)
-	conf.running = false
-
 	conf.wgTaskEnd.Wait()
+
+	conf.running = false
 	conf.Log.Debugf("CONFIRMER: task for %v has ended", conf.bundleHash)
 }
 
