@@ -21,19 +21,19 @@ const (
 
 type zmqRoutine struct {
 	inreaders.InputReaderBase
-	initialized       bool
-	uri               string
-	txCount           uint64
-	ctxCount          uint64
-	lmiCount          int
-	lastLmi           int
-	obsoleteSnCount   uint64
-	lastSeenOnceRate  uint64
-	lastSeenConfRate  uint64
-	tsLastTXSomeMin   *ebuffer.EventTsExpiringBuffer
-	tsLastSNSomeMin   *ebuffer.EventTsExpiringBuffer
-	last100TXBehindMs *utils.RingArray
-	last100SNBehindMs *utils.RingArray
+	initialized            bool
+	uri                    string
+	txCount                uint64
+	ctxCount               uint64
+	lmiCount               int
+	lastLmi                int
+	obsoleteSnCount        uint64
+	lastSeenOnceRate       uint64
+	lastSeenSomeMinSNCount uint64
+	tsLastTXSomeMin        *ebuffer.EventTsExpiringBuffer
+	tsLastSNSomeMin        *ebuffer.EventTsExpiringBuffer
+	last100TXBehindMs      *utils.RingArray
+	last100SNBehindMs      *utils.RingArray
 }
 
 func createZmqRoutine(uri string) {
@@ -83,7 +83,7 @@ func (r *zmqRoutine) checkOnHoldCondition() inreaders.ReasonNotRunning {
 	defer r.RUnlock()
 	onHoldCounter, _ := r.GetOnHoldInfo__()
 	if time.Since(r.ReadingSince) > 5*time.Minute {
-		if r.lastSeenConfRate == 0 {
+		if r.lastSeenSomeMinSNCount == 0 {
 			return inreaders.REASON_NORUN_ONHOLD_15MIN
 		}
 		if r.lastSeenOnceRate > cfg.Config.OnHoldThreshold {
@@ -289,7 +289,7 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 	behindSN := r.last100SNBehindMs.AvgGT(0)
 
 	r.lastSeenOnceRate = uint64(getSeenOnceRate5to1Min(r.GetId__()))
-	r.lastSeenConfRate = confrate
+	r.lastSeenSomeMinSNCount = uint64(numLastSN5Min)
 
 	ret := &ZmqRoutineStats{
 		Uri:                  r.uri,
