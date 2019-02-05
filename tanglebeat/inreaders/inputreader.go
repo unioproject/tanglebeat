@@ -35,12 +35,12 @@ type InputReader interface {
 type ReasonNotRunning string
 
 const (
-	REASON_NORUN_NONE         = "undef"
-	REASON_NORUN_ERROR        = "error"
-	REASON_NORUN_ONHOLD_10MIN = "onHold10min"
-	REASON_NORUN_ONHOLD_15MIN = "onHold15min"
-	REASON_NORUN_ONHOLD_30MIN = "onHold30min"
-	REASON_NORUN_ONHOLD_1H    = "onHold1h"
+	REASON_NORUN_NONE         ReasonNotRunning = "undef"
+	REASON_NORUN_ERROR        ReasonNotRunning = "error"
+	REASON_NORUN_ONHOLD_10MIN ReasonNotRunning = "onHold10min"
+	REASON_NORUN_ONHOLD_15MIN ReasonNotRunning = "onHold15min"
+	REASON_NORUN_ONHOLD_30MIN ReasonNotRunning = "onHold30min"
+	REASON_NORUN_ONHOLD_1H    ReasonNotRunning = "onHold1h"
 )
 
 type InputReaderBase struct {
