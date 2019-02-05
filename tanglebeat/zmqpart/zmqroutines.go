@@ -158,7 +158,7 @@ func (r *zmqRoutine) Run(name string) inreaders.ReasonNotRunning {
 	r.SetReading(true)
 
 	infof("Successfully started zmq routine and channel for %v", uri)
-	var reasonNoRun inreaders.ReasonNotRunning
+	//var reasonNoRun inreaders.ReasonNotRunning
 	var counter uint64
 	for {
 		msg, err := socket.Recv()
@@ -176,15 +176,15 @@ func (r *zmqRoutine) Run(name string) inreaders.ReasonNotRunning {
 		}
 		r.SetLastHeartbeatNow()
 		counter++
-		if counter%200 == 0 {
-			reasonNoRun = r.checkOnHoldCondition()
-		} else {
-			reasonNoRun = inreaders.REASON_NORUN_NONE
-		}
-		if reasonNoRun != inreaders.REASON_NORUN_NONE {
-			errorf("+++++++++ onHold for '%v'. Reason no run: '%v'", uri, reasonNoRun)
-			return reasonNoRun
-		}
+		//if counter%200 == 0 {
+		//	reasonNoRun = r.checkOnHoldCondition()
+		//} else {
+		//	reasonNoRun = inreaders.REASON_NORUN_NONE
+		//}
+		//if reasonNoRun != inreaders.REASON_NORUN_NONE {
+		//	errorf("+++++++++ onHold for '%v'. Reason no run: '%v'", uri, reasonNoRun)
+		//	return reasonNoRun
+		//}
 
 		msgSplit := strings.Split(string(msg.Frames[0]), " ")
 
