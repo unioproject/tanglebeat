@@ -75,23 +75,26 @@ func (r *zmqRoutine) GetUri() string {
 }
 
 func (r *zmqRoutine) checkOnHoldCondition() inreaders.ReasonNotRunning {
+	if zmqRoutines.NumRunning() < 10 {
+		return inreaders.REASON_NORUN_NONE
+	}
 	r.RLock()
 	defer r.RUnlock()
-	// do not put on hold first 5 minutes of run
+	ret := inreaders.REASON_NORUN_NONE
+	// do not put on hold first 5 minutes of run and in case less than 10 readesr left
 	if time.Since(r.ReadingSince) > 5*time.Minute {
 		if r.lastSeenSomeMinSNCount == 0 {
 			// put on hold for 15 min if last 5 min no sn tx came
 			infof("Last 5 min no SN message came. Put on hold 15 min: %v", r.uri)
-			return inreaders.REASON_NORUN_ONHOLD_15MIN
+			ret = inreaders.REASON_NORUN_ONHOLD_15MIN
 		}
-		return inreaders.REASON_NORUN_NONE
 		//if r.lastSeenOnceRate > cfg.Config.OnHoldThreshold {
 		//	if zmqRoutines.NumRunning() < 7 {
 		//	}
 		//	return inreaders.REASON_NORUN_ONHOLD_10MIN
 		//}
 	}
-	return inreaders.REASON_NORUN_NONE
+	return ret
 }
 
 var topics = []string{"tx", "sn", "lmi"}
