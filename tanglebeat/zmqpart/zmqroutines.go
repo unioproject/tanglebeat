@@ -5,7 +5,6 @@ import (
 	"github.com/lunfardo314/tanglebeat/lib/ebuffer"
 	"github.com/lunfardo314/tanglebeat/lib/nanomsg"
 	"github.com/lunfardo314/tanglebeat/lib/utils"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/cfg"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
 	"math"
 	"sort"
@@ -76,29 +75,21 @@ func (r *zmqRoutine) GetUri() string {
 }
 
 func (r *zmqRoutine) checkOnHoldCondition() inreaders.ReasonNotRunning {
-	if time.Since(r.GetLastHeartbeat()) > 30*time.Minute {
-		r.ResetOnHoldInfo()
-	}
 	r.RLock()
 	defer r.RUnlock()
-	onHoldCounter, _ := r.GetOnHoldInfo__()
+	// do not put on hold first 5 minutes of run
 	if time.Since(r.ReadingSince) > 5*time.Minute {
 		if r.lastSeenSomeMinSNCount == 0 {
+			// put on hold for 15 min if last 5 min no sn tx came
+			infof("Last 5 min no SN message came. Put on hold 15 min: %v", r.uri)
 			return inreaders.REASON_NORUN_ONHOLD_15MIN
 		}
-		if r.lastSeenOnceRate > cfg.Config.OnHoldThreshold {
-			if zmqRoutines.NumRunning() < 7 {
-				return inreaders.REASON_NORUN_NONE
-			}
-			switch onHoldCounter {
-			case 0:
-				return inreaders.REASON_NORUN_ONHOLD_10MIN
-			case 1:
-				return inreaders.REASON_NORUN_ONHOLD_10MIN
-			default:
-				return inreaders.REASON_NORUN_ONHOLD_10MIN
-			}
-		}
+		return inreaders.REASON_NORUN_NONE
+		//if r.lastSeenOnceRate > cfg.Config.OnHoldThreshold {
+		//	if zmqRoutines.NumRunning() < 7 {
+		//	}
+		//	return inreaders.REASON_NORUN_ONHOLD_10MIN
+		//}
 	}
 	return inreaders.REASON_NORUN_NONE
 }
@@ -326,8 +317,7 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 			ret.State = "inactive"
 		}
 	} else {
-		_, reason := r.GetOnHoldInfo__()
-		ret.State = string(reason)
+		ret.State = string(r.GetOnHoldInfo__())
 	}
 	return ret
 }

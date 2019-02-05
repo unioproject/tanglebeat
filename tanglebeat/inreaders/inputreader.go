@@ -48,7 +48,6 @@ type InputReaderBase struct {
 	running          bool
 	reading          bool
 	reasonNotRunning ReasonNotRunning
-	onHoldCount      int
 	lastErr          string
 	restartAt        time.Time
 	ReadingSince     time.Time
@@ -122,19 +121,11 @@ func (r *InputReaderBase) setRunning__() {
 func (r *InputReaderBase) setIdle__(restartAfter time.Duration, reason ReasonNotRunning) {
 	r.running = false
 	r.reasonNotRunning = reason
-	r.onHoldCount++
 	r.restartAt = time.Now().Add(restartAfter)
 }
 
-func (r *InputReaderBase) GetOnHoldInfo__() (int, ReasonNotRunning) {
-	return r.onHoldCount, r.reasonNotRunning
-}
-
-func (r *InputReaderBase) ResetOnHoldInfo() {
-	r.Lock()
-	defer r.Unlock()
-	r.onHoldCount = 0
-	r.reasonNotRunning = REASON_NORUN_NONE
+func (r *InputReaderBase) GetOnHoldInfo__() ReasonNotRunning {
+	return r.reasonNotRunning
 }
 
 func (r *InputReaderBase) isTimeToRestart__() bool {
