@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"math"
 	"net/http"
+	"sync"
 )
 
 type jsonReadStruct struct {
@@ -13,24 +14,64 @@ type jsonReadStruct struct {
 }
 
 const endpoint1 = "http://88.99.60.78:15265"
-
-// const endpoint2 = "http://159.69.9.6:15265"
+const endpoint2 = "http://159.69.9.6:15265"
 
 var fields = []string{"avg_5", "avg_10", "avg_15", "avg_30"}
 
-func GetLMConfRate() (map[string]float64, error) {
+type respStruct struct {
+	data []byte
+	err  error
+}
+
+func callEndpoint(endp string, result chan *respStruct) {
+	response, err := http.Get(endp)
+	if err == nil {
+		defer response.Body.Close() // https://golang.org/pkg/net/http/
+	}
 	var data []byte
+	data, err = ioutil.ReadAll(response.Body)
+	result <- &respStruct{
+		data: data,
+		err:  err,
+	}
+}
+
+func callMultiEnpoints(args ...string) ([]byte, error) {
+	resultCh := make(chan *respStruct, len(args)+1)
+	var wg sync.WaitGroup
+
+	wg.Add(len(args))
+	for _, ep := range args {
+		epcopy := ep
+		go func() {
+			callEndpoint(epcopy, resultCh)
+			wg.Done()
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
+
+	var err error
+	for r := range resultCh {
+		err = r.err
+		if err == nil {
+			return r.data, nil
+		}
+	}
+	return nil, err // last error
+}
+
+func GetLMConfRate() (map[string]float64, error) {
 	var unm interface{}
 
 	ret := make(map[string]float64)
 
-	response, err := http.Get(endpoint1)
+	data, err := callMultiEnpoints(endpoint1, endpoint2)
 	if err != nil {
 		return nil, fmt.Errorf("GetLMConfRate: %v", err)
 	}
-	defer response.Body.Close() // https://golang.org/pkg/net/http/
-
-	data, _ = ioutil.ReadAll(response.Body)
 	err = json.Unmarshal(data, &unm)
 	if err != nil {
 		return nil, fmt.Errorf("GetLMConfRate: %v", err)
