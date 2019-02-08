@@ -66,6 +66,8 @@ func initMsgFilter() {
 		"confirmedPositiveValueTx", segmentDurationConfirmedTransfersSec, retentionPeriodSec)
 
 	startCollectingLatencyMetrics()
+	startCollectingLMConfRate()
+
 	go msgFilterRoutine()
 }
 

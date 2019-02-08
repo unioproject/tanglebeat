@@ -38,6 +38,11 @@ var (
 	echoNotSeenPerc         Gauge
 	echoMetricsAvgFirstSeen Gauge
 	echoMetricsAvgLastSeen  Gauge
+
+	lmConfRate5minMetrics  Gauge
+	lmConfRate10minMetrics Gauge
+	lmConfRate15minMetrics Gauge
+	lmConfRate30minMetrics Gauge
 )
 
 func init() {
@@ -172,6 +177,32 @@ func init() {
 		Help: "Average msec last echo",
 	})
 	MustRegister(echoMetricsAvgLastSeen)
+
+	//--------------------------------------------------
+	lmConfRate5minMetrics = NewGauge(GaugeOpts{
+		Name: "tanglebeat_lm_conf_rate_5min",
+		Help: "Average conf rate by Luca Moser",
+	})
+	MustRegister(lmConfRate5minMetrics)
+
+	lmConfRate10minMetrics = NewGauge(GaugeOpts{
+		Name: "tanglebeat_lm_conf_rate_10min",
+		Help: "Average conf rate by Luca Moser",
+	})
+	MustRegister(lmConfRate10minMetrics)
+
+	lmConfRate15minMetrics = NewGauge(GaugeOpts{
+		Name: "tanglebeat_lm_conf_rate_15min",
+		Help: "Average conf rate by Luca Moser",
+	})
+	MustRegister(lmConfRate15minMetrics)
+
+	lmConfRate30minMetrics = NewGauge(GaugeOpts{
+		Name: "tanglebeat_lm_conf_rate_30min",
+		Help: "Average conf rate by Luca Moser",
+	})
+	MustRegister(lmConfRate30minMetrics)
+
 }
 
 const (
@@ -270,6 +301,28 @@ func startCollectingLatencyMetrics() {
 
 			zmqMetricsLatencySNAvg.Set(lm.snAvgLatencySec)
 			zmqMetricsNotPropagatedPercSN.Set(lm.snNotPropagatedPerc)
+		}
+	}()
+}
+
+func startCollectingLMConfRate() {
+	go func() {
+		for {
+			time.Sleep(10 * time.Second)
+
+			valmap, err := GetLMConfRate()
+			if err != nil {
+				errorf("Error while collecting LM conf rate metrics: %v", err)
+				continue
+			}
+
+			lmConfRate5minMetrics.Set(valmap["avg_5"])
+			lmConfRate10minMetrics.Set(valmap["avg_10"])
+			lmConfRate15minMetrics.Set(valmap["avg_15"])
+			lmConfRate30minMetrics.Set(valmap["avg_30"])
+
+			debugf("LM conf rate: avg_5 = %v%%, avg_10 = %v%% avg_15 = %v%% avg_30 = %v%%",
+				valmap["avg_5"], valmap["avg_10"], valmap["avg_15"], valmap["avg_30"])
 		}
 	}()
 }
