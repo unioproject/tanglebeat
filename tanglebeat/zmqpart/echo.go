@@ -97,5 +97,9 @@ func calcAvgEchoParams() (uint64, uint64, uint64) {
 	}
 	debugf("percNotSeen = %v avgSeenFirstLatencyMs = %v avgSeenLastLatencyMs = %v",
 		percNotSeen, avgSeenFirstLatencyMs, avgSeenLastLatencyMs)
+
+	if avgSeenFirstLatencyMs > 100000 {
+		debugf("Anomaly avgSeenFirstLatencyMs = %v", avgSeenFirstLatencyMs)
+	}
 	return percNotSeen, avgSeenFirstLatencyMs, avgSeenLastLatencyMs
 }
