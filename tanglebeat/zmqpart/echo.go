@@ -71,6 +71,15 @@ func checkForEcho(txhash string, ts uint64) {
 	}
 }
 
+func nonNegativeDuration(whenSent, whenSeenFirst uint64) uint64 {
+	var ret int64
+	ret = int64(whenSeenFirst) - int64(whenSent)
+	if ret < 0 {
+		ret = 0
+	}
+	return uint64(ret)
+}
+
 func calcAvgEchoParams() (uint64, uint64, uint64) {
 	var numAll, numSeen, avgSeenFirstLatencyMs, avgSeenLastLatencyMs uint64
 	var data *echoEntry
@@ -80,8 +89,8 @@ func calcAvgEchoParams() (uint64, uint64, uint64) {
 		numAll++
 		if data.seen {
 			numSeen++
-			avgSeenFirstLatencyMs += data.whenSeenFirst - data.whenSent
-			avgSeenLastLatencyMs += data.whenSeenLast - data.whenSent
+			avgSeenFirstLatencyMs += nonNegativeDuration(data.whenSent, data.whenSeenFirst)
+			avgSeenLastLatencyMs += nonNegativeDuration(data.whenSent, data.whenSeenLast)
 		}
 	}, earliest, true)
 	var percNotSeen uint64
