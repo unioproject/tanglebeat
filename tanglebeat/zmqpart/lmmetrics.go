@@ -99,5 +99,10 @@ func GetLMConfRate() (map[string]float64, error) {
 			}
 		}
 	}
+	for k := range ret {
+		if ret[k] < 0 {
+			ret[k] = 0
+		}
+	}
 	return ret, nil
 }
