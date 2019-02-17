@@ -246,25 +246,10 @@ func updateCompoundMetrics(msgtype string) {
 }
 
 func updateEchoMetrics(percNotSeen, avgSeenFirstMs, avgSeenLastMs uint64) {
-	if percNotSeen != 0 {
-		echoNotSeenPerc.Set(float64(percNotSeen))
-	}
-	if avgSeenFirstMs != 0 {
-		echoMetricsAvgFirstSeen.Set(float64(avgSeenFirstMs))
-	}
-	if avgSeenLastMs != 0 {
-		echoMetricsAvgLastSeen.Set(float64(avgSeenLastMs))
-	}
+	echoNotSeenPerc.Set(float64(percNotSeen))
+	echoMetricsAvgFirstSeen.Set(float64(avgSeenFirstMs))
+	echoMetricsAvgLastSeen.Set(float64(avgSeenLastMs))
 }
-
-//func updateVecMetrics(msgtype string, host string) {
-//	switch msgtype {
-//	case "tx":
-//		zmqMetricsTxCounterVec.With(Labels{"host": host}).Inc()
-//	case "sn":
-//		zmqMetricsCtxCounterVec.With(Labels{"host": host}).Inc()
-//	}
-//}
 
 func startCollectingMiotaPrice(localLog *logging.Logger) {
 	var price float64
@@ -312,17 +297,21 @@ func startCollectingLMConfRate() {
 
 			valmap, err := GetLMConfRate()
 			if err != nil {
+				lmConfRate5minMetrics.Set(0)
+				lmConfRate10minMetrics.Set(0)
+				lmConfRate15minMetrics.Set(0)
+				lmConfRate30minMetrics.Set(0)
+
 				errorf("Error while collecting LM conf rate metrics: %v", err)
-				continue
+			} else {
+				lmConfRate5minMetrics.Set(valmap["avg_5"])
+				lmConfRate10minMetrics.Set(valmap["avg_10"])
+				lmConfRate15minMetrics.Set(valmap["avg_15"])
+				lmConfRate30minMetrics.Set(valmap["avg_30"])
+
+				debugf("LM conf rate: avg_5 = %v%%, avg_10 = %v%% avg_15 = %v%% avg_30 = %v%%",
+					valmap["avg_5"], valmap["avg_10"], valmap["avg_15"], valmap["avg_30"])
 			}
-
-			lmConfRate5minMetrics.Set(valmap["avg_5"])
-			lmConfRate10minMetrics.Set(valmap["avg_10"])
-			lmConfRate15minMetrics.Set(valmap["avg_15"])
-			lmConfRate30minMetrics.Set(valmap["avg_30"])
-
-			debugf("LM conf rate: avg_5 = %v%%, avg_10 = %v%% avg_15 = %v%% avg_30 = %v%%",
-				valmap["avg_5"], valmap["avg_10"], valmap["avg_15"], valmap["avg_30"])
 		}
 	}()
 }
