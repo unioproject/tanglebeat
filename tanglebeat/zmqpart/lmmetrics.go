@@ -9,10 +9,6 @@ import (
 	"sync"
 )
 
-type jsonReadStruct struct {
-	Data map[string]map[string]string `json:"data"`
-}
-
 const endpoint1 = "http://88.99.60.78:15265"
 const endpoint2 = "http://159.69.9.6:15265"
 

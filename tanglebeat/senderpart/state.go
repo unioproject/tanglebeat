@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sort"
 	"sync"
+	"time"
 )
 
 type senderState struct {
@@ -31,6 +32,29 @@ var (
 	senders      = make(map[string]*senderState)
 	sendersMutex = &sync.RWMutex{}
 )
+
+func init() {
+	// cleanup routine
+	go func() {
+		for {
+			time.Sleep(5 * time.Minute)
+
+			sendersMutex.Lock()
+
+			toDelete := make([]string, 0, 10)
+			for k, v := range senders {
+				if utils.SinceUnixMs(v.LastHeartbeat) > 20*60*1000 {
+					// 20 min
+					toDelete = append(toDelete, k)
+				}
+			}
+			for _, k := range toDelete {
+				delete(senders, k)
+			}
+			sendersMutex.Unlock()
+		}
+	}()
+}
 
 func updateLastState(upd *sender_update.SenderUpdate) {
 	sendersMutex.Lock()
