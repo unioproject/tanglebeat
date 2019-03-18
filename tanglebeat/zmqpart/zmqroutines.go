@@ -88,11 +88,6 @@ func (r *zmqRoutine) checkOnHoldCondition() inreaders.ReasonNotRunning {
 			infof("Last 5 min no SN message came. Put on hold 15 min: %v", r.uri)
 			ret = inreaders.REASON_NORUN_ONHOLD_15MIN
 		}
-		//if r.lastSeenOnceRate > cfg.Config.OnHoldThreshold {
-		//	if zmqRoutines.NumRunning() < 7 {
-		//	}
-		//	return inreaders.REASON_NORUN_ONHOLD_10MIN
-		//}
 	}
 	return ret
 }
@@ -137,6 +132,9 @@ func (r *zmqRoutine) uninit() {
 }
 
 // TODO dynamically / upon user action add, delete, disable, enable input streams
+// TODO nanomsg routines, zmqRoutine code reuse
+// TODO 'input gain valve' before 'master output'
+// TODO remove 'behind' calculations
 
 func (r *zmqRoutine) Run(name string) inreaders.ReasonNotRunning {
 	r.init()
@@ -158,7 +156,6 @@ func (r *zmqRoutine) Run(name string) inreaders.ReasonNotRunning {
 	r.SetReading(true)
 
 	infof("Successfully started zmq routine and channel for %v", uri)
-	//var reasonNoRun inreaders.ReasonNotRunning
 	var counter uint64
 	for {
 		msg, err := socket.Recv()
@@ -176,15 +173,6 @@ func (r *zmqRoutine) Run(name string) inreaders.ReasonNotRunning {
 		}
 		r.SetLastHeartbeatNow()
 		counter++
-		//if counter%200 == 0 {
-		//	reasonNoRun = r.checkOnHoldCondition()
-		//} else {
-		//	reasonNoRun = inreaders.REASON_NORUN_NONE
-		//}
-		//if reasonNoRun != inreaders.REASON_NORUN_NONE {
-		//	errorf("+++++++++ onHold for '%v'. Reason no run: '%v'", uri, reasonNoRun)
-		//	return reasonNoRun
-		//}
 
 		msgSplit := strings.Split(string(msg.Frames[0]), " ")
 

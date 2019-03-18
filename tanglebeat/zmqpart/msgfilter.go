@@ -112,7 +112,7 @@ func filterTXMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 	}
 	routine.accountTx(behind)
 
-	// check and account for echo to the promotion trasanctions
+	// check and account for echo to the promotion transactions
 	checkForEcho(msgSplit[1], utils.UnixMsNow())
 
 	// check if message was seen exactly number of times as configured (usually 2)
