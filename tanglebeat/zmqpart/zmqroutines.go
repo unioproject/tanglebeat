@@ -129,7 +129,6 @@ func (r *zmqRoutine) uninit() {
 
 // TODO dynamically / upon user action add, delete, disable, enable input streams
 // TODO nanomsg routines, zmqRoutine code reuse
-// TODO 'input gain valve' before 'master output'
 
 func (r *zmqRoutine) Run(name string) inreaders.ReasonNotRunning {
 	r.init()
