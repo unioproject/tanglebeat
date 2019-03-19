@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	Version                = "19.02.22-1"
+	Version                = "19.03.19"
 	logFormat              = "%{time:2006-01-02 15:04:05.000} %{level:.4s} [%{module:.6s}|%{shortfunc:.12s}] %{message}"
 	level                  = logging.DEBUG
 	onHoldThresholdDefault = 50
@@ -34,7 +34,7 @@ type ConfigStructYAML struct {
 	WebServerPort      int          `yaml:"webServerPort"`
 	IriMsgStream       inputsOutput `yaml:"iriMsgStream"`
 	SenderMsgStream    inputsOutput `yaml:"senderMsgStream"`
-	RepeatToAccept     int          `yaml:"repeatToAccept"`
+	QuorumToPass       int          `yaml:"quorumToPass"`
 	RetentionPeriodMin int          `yaml:"retentionPeriodMin"`
 	OnHoldThreshold    uint64       `yaml:"onHoldThreshold"`
 }
@@ -80,8 +80,8 @@ func MustReadConfig(cfgfile string) {
 	if !success {
 		os.Exit(1)
 	}
-	if Config.RepeatToAccept == 0 {
-		Config.RepeatToAccept = 2
+	if Config.QuorumToPass == 0 {
+		Config.QuorumToPass = 2
 	}
 	if Config.RetentionPeriodMin == 0 {
 		Config.RetentionPeriodMin = 60
@@ -90,8 +90,8 @@ func MustReadConfig(cfgfile string) {
 		Config.OnHoldThreshold = onHoldThresholdDefault
 	}
 	infof("OnHold threshold for zmq routines is %v%%", Config.OnHoldThreshold)
-	infof("TX message will be accepted after received %v times from different sources ('repeatToAcceptTX' parameter, default is 2)",
-		Config.RepeatToAccept)
+	infof("Quorum to pass a message: TX message will be accepted after received %v times from different sources ('repeatToAcceptTX' parameter, default is 2)",
+		Config.QuorumToPass)
 }
 
 func errorf(format string, args ...interface{}) {

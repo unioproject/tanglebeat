@@ -29,6 +29,8 @@ type InputReader interface {
 	GetLastHeartbeat() time.Time
 	Run(string) ReasonNotRunning
 	GetReaderBaseStats__() *InputReaderBaseStats
+	IsOutputClosed() bool
+	SetOutputClosed(bool)
 	sync.Locker
 }
 
@@ -47,6 +49,7 @@ type InputReaderBase struct {
 	id               byte
 	running          bool
 	reading          bool
+	outputClosed     bool
 	reasonNotRunning ReasonNotRunning
 	lastErr          string
 	restartAt        time.Time
@@ -60,6 +63,7 @@ type InputReaderBaseStats struct {
 	LastErr         string `json:"lastErr"`
 	RunningSinceTs  uint64 `json:"runningSince"`
 	LastHeartbeatTs uint64 `json:"lastHeartbeat"`
+	OutputClosed    bool   `json:"outputClosed"`
 }
 
 func NewInputReaderBase() *InputReaderBase {
@@ -68,6 +72,18 @@ func NewInputReaderBase() *InputReaderBase {
 		lastHeartbeat:    time.Now(),
 		reasonNotRunning: REASON_NORUN_NONE,
 	}
+}
+
+func (r *InputReaderBase) IsOutputClosed() bool {
+	r.RLock()
+	defer r.RUnlock()
+	return r.outputClosed
+}
+
+func (r *InputReaderBase) SetOutputClosed(closed bool) {
+	r.Lock()
+	defer r.Unlock()
+	r.outputClosed = closed
 }
 
 func (r *InputReaderBase) SetId__(id byte) {
@@ -138,5 +154,6 @@ func (r *InputReaderBase) GetReaderBaseStats__() *InputReaderBaseStats {
 		LastErr:         r.lastErr,
 		RunningSinceTs:  utils.UnixMs(r.ReadingSince),
 		LastHeartbeatTs: utils.UnixMs(r.lastHeartbeat),
+		OutputClosed:    r.outputClosed,
 	}
 }

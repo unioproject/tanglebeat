@@ -68,10 +68,10 @@ func initMsgFilter() {
 	startCollectingLatencyMetrics()
 	startCollectingLMConfRate()
 
-	go msgFilterRoutine()
+	go msgFilterLoop()
 }
 
-func msgFilterRoutine() {
+func msgFilterLoop() {
 	for msg := range toFilterChan {
 		filterMsg(msg.routine, msg.msgData, msg.msgSplit)
 	}
@@ -95,36 +95,31 @@ func filterMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 }
 
 func filterTXMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
-	var seen bool
-	var behind uint64
 	var entry hashcache.CacheEntry
 
 	if len(msgSplit) < 2 {
 		errorf("%v: Message %v is invalid", routine.GetUri(), string(msgData))
 		return
 	}
-	seen = txcache.SeenHashBy(msgSplit[1], routine.GetId__(), nil, &entry)
 
-	if seen {
-		behind = utils.SinceUnixMs(entry.FirstSeen)
-	} else {
-		behind = 0
+	routine.accountTx()
+	if routine.IsOutputClosed() {
+		return // not putting into the cache
 	}
-	routine.accountTx(behind)
 
-	// check and account for echo to the promotion trasanctions
+	txcache.SeenHashBy(msgSplit[1], routine.GetId__(), nil, &entry)
+
+	// check and account for echo to the promotion transactions
 	checkForEcho(msgSplit[1], utils.UnixMsNow())
 
 	// check if message was seen exactly number of times as configured (usually 2)
-	if int(entry.Visits) == cfg.Config.RepeatToAccept {
+	if int(entry.Visits) == cfg.Config.QuorumToPass {
 		toOutput(msgData, msgSplit)
 	}
 }
 
 func filterSNMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 	var hash string
-	var seen bool
-	var behind uint64
 	var err error
 	var entry hashcache.CacheEntry
 
@@ -144,18 +139,17 @@ func filterSNMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 		routine.incObsoleteCount()
 		return
 	}
+
+	routine.accountSn()
+	if routine.IsOutputClosed() {
+		return // not putting into the cache
+	}
 	hash = msgSplit[2]
 
-	seen = sncache.SeenHashBy(hash, routine.GetId__(), nil, &entry)
-	if seen {
-		behind = utils.SinceUnixMs(entry.FirstSeen)
-	} else {
-		behind = 0
-	}
-	routine.accountSn(behind)
+	sncache.SeenHashBy(hash, routine.GetId__(), nil, &entry)
 
 	// check if message was seen exactly number of times as configured (usually 2)
-	if int(entry.Visits) == cfg.Config.RepeatToAccept {
+	if int(entry.Visits) == cfg.Config.QuorumToPass {
 		toOutput(msgData, msgSplit)
 	}
 }
@@ -184,6 +178,9 @@ func filterLMIMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 		sncache.checkCurrentMilestoneIndex(index, uri)
 	}
 	routine.accountLmi(index)
+	if routine.IsOutputClosed() {
+		return // not putting into the cache
+	}
 
 	lastLmiMutex.Lock()
 	defer lastLmiMutex.Unlock()
@@ -197,7 +194,7 @@ func filterLMIMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 	case index == lastLMI:
 		lastLMITimesSeen++
 		lastLMILastSeen = utils.UnixMsNow()
-		if lastLMITimesSeen == cfg.Config.RepeatToAccept {
+		if lastLMITimesSeen == cfg.Config.QuorumToPass {
 			toOutput(msgData, msgSplit)
 		}
 	}
