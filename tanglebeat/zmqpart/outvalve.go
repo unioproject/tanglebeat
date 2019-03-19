@@ -16,11 +16,17 @@ func outputValveLoop() {
 		if len(stats) == 0 {
 			continue
 		}
-		var avgTps float64
+		var avgTps, num float64
 		for _, st := range stats {
-			avgTps += st.Tps
+			if st.Ctps > 0 {
+				avgTps += st.Tps
+				num++
+			}
 		}
-		avgTps = avgTps / float64(len(stats))
+		if num == 0 {
+			continue
+		}
+		avgTps = avgTps / num
 		var numOpen, numClosed int
 		for _, st := range stats {
 			closeValve := st.Ctps == 0 && st.Tps > 2*avgTps
@@ -31,6 +37,6 @@ func outputValveLoop() {
 				numOpen++
 			}
 		}
-		infof("Output valve open: %v closed %v", numOpen, numClosed)
+		infof("Output valve: open %v, closed %v", numOpen, numClosed)
 	}
 }
