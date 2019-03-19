@@ -68,10 +68,10 @@ func initMsgFilter() {
 	startCollectingLatencyMetrics()
 	startCollectingLMConfRate()
 
-	go msgFilterRoutine()
+	go msgFilterLoop()
 }
 
-func msgFilterRoutine() {
+func msgFilterLoop() {
 	for msg := range toFilterChan {
 		filterMsg(msg.routine, msg.msgData, msg.msgSplit)
 	}
