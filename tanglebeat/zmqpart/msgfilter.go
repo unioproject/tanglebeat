@@ -95,36 +95,27 @@ func filterMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 }
 
 func filterTXMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
-	var seen bool
-	var behind uint64
 	var entry hashcache.CacheEntry
 
 	if len(msgSplit) < 2 {
 		errorf("%v: Message %v is invalid", routine.GetUri(), string(msgData))
 		return
 	}
-	seen = txcache.SeenHashBy(msgSplit[1], routine.GetId__(), nil, &entry)
+	txcache.SeenHashBy(msgSplit[1], routine.GetId__(), nil, &entry)
 
-	if seen {
-		behind = utils.SinceUnixMs(entry.FirstSeen)
-	} else {
-		behind = 0
-	}
-	routine.accountTx(behind)
+	routine.accountTx()
 
 	// check and account for echo to the promotion transactions
 	checkForEcho(msgSplit[1], utils.UnixMsNow())
 
 	// check if message was seen exactly number of times as configured (usually 2)
-	if int(entry.Visits) == cfg.Config.RepeatToAccept {
+	if int(entry.Visits) == cfg.Config.QuorumToPass {
 		toOutput(msgData, msgSplit)
 	}
 }
 
 func filterSNMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 	var hash string
-	var seen bool
-	var behind uint64
 	var err error
 	var entry hashcache.CacheEntry
 
@@ -146,16 +137,11 @@ func filterSNMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 	}
 	hash = msgSplit[2]
 
-	seen = sncache.SeenHashBy(hash, routine.GetId__(), nil, &entry)
-	if seen {
-		behind = utils.SinceUnixMs(entry.FirstSeen)
-	} else {
-		behind = 0
-	}
-	routine.accountSn(behind)
+	sncache.SeenHashBy(hash, routine.GetId__(), nil, &entry)
+	routine.accountSn()
 
 	// check if message was seen exactly number of times as configured (usually 2)
-	if int(entry.Visits) == cfg.Config.RepeatToAccept {
+	if int(entry.Visits) == cfg.Config.QuorumToPass {
 		toOutput(msgData, msgSplit)
 	}
 }
@@ -197,7 +183,7 @@ func filterLMIMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 	case index == lastLMI:
 		lastLMITimesSeen++
 		lastLMILastSeen = utils.UnixMsNow()
-		if lastLMITimesSeen == cfg.Config.RepeatToAccept {
+		if lastLMITimesSeen == cfg.Config.QuorumToPass {
 			toOutput(msgData, msgSplit)
 		}
 	}

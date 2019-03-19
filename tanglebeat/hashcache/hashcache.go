@@ -224,7 +224,7 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 				ret.SeenOnceRateById[entry.FirstVisitId] += 1
 			}
 		}
-		if int(entry.Visits) >= cfg.Config.RepeatToAccept {
+		if int(entry.Visits) >= cfg.Config.QuorumToPass {
 			lat = float64(entry.LastSeen-entry.FirstSeen) / 1000
 			ret.LatencySecAvg += lat
 			ret.TxCountPassed++

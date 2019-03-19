@@ -31,8 +31,6 @@ type zmqRoutine struct {
 	lastSeenSomeMinSNCount uint64
 	tsLastTXSomeMin        *ebuffer.EventTsExpiringBuffer
 	tsLastSNSomeMin        *ebuffer.EventTsExpiringBuffer
-	last100TXBehindMs      *utils.RingArray
-	last100SNBehindMs      *utils.RingArray
 }
 
 func createZmqRoutine(uri string) {
@@ -112,8 +110,6 @@ func (r *zmqRoutine) init() {
 		"tsLastTXSomeMin: "+uri, tlTXCacheSegmentDurationSec, routineBufferRetentionMin*60)
 	r.tsLastSNSomeMin = ebuffer.NewEventTsExpiringBuffer(
 		"tsLastSNSomeMin: "+uri, tlSNCacheSegmentDurationSec, routineBufferRetentionMin*60)
-	r.last100TXBehindMs = utils.NewRingArray(100)
-	r.last100SNBehindMs = utils.NewRingArray(100)
 	r.initialized = true
 }
 
@@ -125,16 +121,13 @@ func (r *zmqRoutine) uninit() {
 	r.ctxCount = 0
 	r.obsoleteSnCount = 0
 	r.tsLastTXSomeMin = nil
-	r.last100TXBehindMs = nil
 	r.tsLastSNSomeMin = nil
-	r.last100SNBehindMs = nil
 	r.initialized = false
 }
 
 // TODO dynamically / upon user action add, delete, disable, enable input streams
 // TODO nanomsg routines, zmqRoutine code reuse
 // TODO 'input gain valve' before 'master output'
-// TODO remove 'behind' calculations
 
 func (r *zmqRoutine) Run(name string) inreaders.ReasonNotRunning {
 	r.init()
@@ -183,7 +176,7 @@ func (r *zmqRoutine) Run(name string) inreaders.ReasonNotRunning {
 	}
 }
 
-func (r *zmqRoutine) accountTx(behind uint64) {
+func (r *zmqRoutine) accountTx() {
 	r.Lock()
 	defer r.Unlock()
 	if !r.initialized {
@@ -191,10 +184,9 @@ func (r *zmqRoutine) accountTx(behind uint64) {
 	}
 	r.txCount++
 	r.tsLastTXSomeMin.RecordTS()
-	r.last100TXBehindMs.Push(behind)
 }
 
-func (r *zmqRoutine) accountSn(behind uint64) {
+func (r *zmqRoutine) accountSn() {
 	r.Lock()
 	defer r.Unlock()
 	if !r.initialized {
@@ -202,7 +194,6 @@ func (r *zmqRoutine) accountSn(behind uint64) {
 	}
 	r.ctxCount++
 	r.tsLastSNSomeMin.RecordTS()
-	r.last100SNBehindMs.Push(behind)
 }
 
 func (r *zmqRoutine) accountLmi(index int) {
@@ -238,8 +229,6 @@ type ZmqRoutineStats struct {
 	Tps                  float64 `json:"tps"`
 	Ctps                 float64 `json:"ctps"`
 	Confrate             uint64  `json:"confrate"`
-	BehindTX             uint64  `json:"behindTX"`
-	BehindSN             uint64  `json:"behindSN"`
 	LmiCount             int     `json:"lmiCount"`
 	LastLmi              int     `json:"lastLmi"`
 	SeenOnceRate         uint64  `json:"seenOnceRate"`
@@ -273,9 +262,6 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 		confrate = uint64(100 * ctps / tps)
 	}
 
-	behindTX := r.last100TXBehindMs.AvgGT(0)
-	behindSN := r.last100SNBehindMs.AvgGT(0)
-
 	r.lastSeenOnceRate = uint64(getSeenOnceRate5to1Min(r.GetId__()))
 	r.lastSeenSomeMinSNCount = uint64(numLastSN5Min)
 
@@ -293,8 +279,6 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 		ObsoleteConfirmCount: r.obsoleteSnCount,
 		Ctps:                 ctps,
 		Confrate:             confrate,
-		BehindTX:             behindTX,
-		BehindSN:             behindSN,
 		LmiCount:             r.lmiCount,
 		LastLmi:              r.lastLmi,
 		SeenOnceRate:         r.lastSeenOnceRate,
