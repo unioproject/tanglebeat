@@ -101,9 +101,13 @@ func filterTXMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 		errorf("%v: Message %v is invalid", routine.GetUri(), string(msgData))
 		return
 	}
-	txcache.SeenHashBy(msgSplit[1], routine.GetId__(), nil, &entry)
 
 	routine.accountTx()
+	if routine.IsOutputClosed() {
+		return // not putting into the cache
+	}
+
+	txcache.SeenHashBy(msgSplit[1], routine.GetId__(), nil, &entry)
 
 	// check and account for echo to the promotion transactions
 	checkForEcho(msgSplit[1], utils.UnixMsNow())
@@ -135,10 +139,14 @@ func filterSNMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 		routine.incObsoleteCount()
 		return
 	}
+
+	routine.accountSn()
+	if routine.IsOutputClosed() {
+		return // not putting into the cache
+	}
 	hash = msgSplit[2]
 
 	sncache.SeenHashBy(hash, routine.GetId__(), nil, &entry)
-	routine.accountSn()
 
 	// check if message was seen exactly number of times as configured (usually 2)
 	if int(entry.Visits) == cfg.Config.QuorumToPass {
@@ -170,6 +178,9 @@ func filterLMIMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 		sncache.checkCurrentMilestoneIndex(index, uri)
 	}
 	routine.accountLmi(index)
+	if routine.IsOutputClosed() {
+		return // not putting into the cache
+	}
 
 	lastLmiMutex.Lock()
 	defer lastLmiMutex.Unlock()
