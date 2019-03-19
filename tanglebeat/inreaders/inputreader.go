@@ -63,6 +63,7 @@ type InputReaderBaseStats struct {
 	LastErr         string `json:"lastErr"`
 	RunningSinceTs  uint64 `json:"runningSince"`
 	LastHeartbeatTs uint64 `json:"lastHeartbeat"`
+	OutputClosed    bool   `json:"outputClosed"`
 }
 
 func NewInputReaderBase() *InputReaderBase {
@@ -153,5 +154,6 @@ func (r *InputReaderBase) GetReaderBaseStats__() *InputReaderBaseStats {
 		LastErr:         r.lastErr,
 		RunningSinceTs:  utils.UnixMs(r.ReadingSince),
 		LastHeartbeatTs: utils.UnixMs(r.lastHeartbeat),
+		OutputClosed:    r.outputClosed,
 	}
 }

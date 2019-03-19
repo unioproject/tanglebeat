@@ -64,6 +64,8 @@ func MustInitZmqRoutines(outEnabled bool, outPort int, inputs []string) {
 	for _, uri := range inputs {
 		createZmqRoutine(uri)
 	}
+	startOutValveRoutine()
+	startEchoLatencyRoutine()
 }
 
 func (r *zmqRoutine) GetUri() string {
@@ -233,6 +235,7 @@ type ZmqRoutineStats struct {
 	LastLmi              int     `json:"lastLmi"`
 	SeenOnceRate         uint64  `json:"seenOnceRate"`
 	State                string  `json:"state"`
+	routine              *zmqRoutine
 }
 
 func (r *zmqRoutine) getStats() *ZmqRoutineStats {
@@ -300,6 +303,7 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 	} else {
 		ret.State = string(r.GetOnHoldInfo__())
 	}
+	ret.routine = r
 	return ret
 }
 

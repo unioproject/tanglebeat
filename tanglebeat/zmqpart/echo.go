@@ -23,7 +23,7 @@ var (
 	echoBuffer *hashcache.HashCacheBase
 )
 
-func init() {
+func startEchoLatencyRoutine() {
 	echoBuffer = hashcache.NewHashCacheBase(
 		"echoBuffer", echoBufferHashLen, echoBufferSegmentDurationSec, echoBufferRetentionPeriodSec)
 	go func() {
