@@ -1,4 +1,4 @@
-package zmqpart
+package inputpart
 
 func toOutput(msgData []byte, msgSplit []string) {
 	// publish message to output Nanomsg channel exactly as reaceived from ZeroMQ. For others to consume

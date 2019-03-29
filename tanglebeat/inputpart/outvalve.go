@@ -1,4 +1,4 @@
-package zmqpart
+package inputpart
 
 import "time"
 

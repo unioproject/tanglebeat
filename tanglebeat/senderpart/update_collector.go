@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"github.com/lunfardo314/tanglebeat/lib/nanomsg"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/inputpart"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/pubupdate"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/zmqpart"
 	"github.com/lunfardo314/tanglebeat/tbsender/sender_update"
 )
 
@@ -94,7 +94,7 @@ func (r *updateSource) processUpdate(upd *sender_update.SenderUpdate) error {
 
 	// sending promotes for echo tracking
 	if upd.UpdType == sender_update.SENDER_UPD_PROMOTE && len(upd.PromoTail) != 0 {
-		zmqpart.TxSentForEcho(upd.PromoTail, upd.UpdateTs)
+		inputpart.TxSentForEcho(upd.PromoTail, upd.UpdateTs)
 	}
 
 	if senderOutPublisher != nil {

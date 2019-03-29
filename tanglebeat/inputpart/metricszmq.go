@@ -1,4 +1,4 @@
-package zmqpart
+package inputpart
 
 import (
 	"github.com/lunfardo314/tanglebeat/lib/utils"

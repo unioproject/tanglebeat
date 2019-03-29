@@ -26,7 +26,8 @@ func GetLog() *logging.Logger {
 type inputsOutput struct {
 	OutputEnabled bool     `yaml:"outputEnabled"`
 	OutputPort    int      `yaml:"outputPort"`
-	Inputs        []string `yaml:"inputs"`
+	InputsZMQ     []string `yaml:"inputsZMQ"`
+	InputsNanomsg []string `yaml:"inputsNanomsg"`
 }
 
 type ConfigStructYAML struct {
