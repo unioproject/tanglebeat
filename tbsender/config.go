@@ -136,7 +136,11 @@ func mustReadMasterConfig(configFilename string) {
 		flushMsgBeforeLog(msgBeforeLog)
 		os.Exit(1)
 	}
+	if siteDataDir == "" {
+		siteDataDir = "."
+	}
 	Config.siteDataDir = siteDataDir
+
 	msgBeforeLog, success = configMasterLogging(msgBeforeLog)
 	flushMsgBeforeLog(msgBeforeLog)
 	if !success {
@@ -202,11 +206,7 @@ func configMasterLogging(msgBeforeLog []string) ([]string, bool) {
 		var fout io.Writer
 		var err error
 		var logFname string
-		if Config.siteDataDir == "" {
-			logFname = path.Join(".", Config.Logging.WorkingSubdir, PREFIX_MODULE+".log")
-		} else {
-			logFname = path.Join(Config.siteDataDir, Config.Logging.WorkingSubdir, PREFIX_MODULE+".log")
-		}
+		logFname = path.Join(Config.siteDataDir, Config.Logging.WorkingSubdir, PREFIX_MODULE+".log")
 
 		if Config.Logging.RotateLogs {
 			msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Creating rotating log: %v", logFname))
