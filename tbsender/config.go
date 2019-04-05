@@ -201,7 +201,12 @@ func configMasterLogging(msgBeforeLog []string) ([]string, bool) {
 	} else {
 		var fout io.Writer
 		var err error
-		logFname := path.Join(Config.siteDataDir, Config.Logging.WorkingSubdir, PREFIX_MODULE+".log")
+		var logFname string
+		if Config.siteDataDir == "" {
+			logFname = path.Join(".", Config.Logging.WorkingSubdir, PREFIX_MODULE+".log")
+		} else {
+			logFname = path.Join(Config.siteDataDir, Config.Logging.WorkingSubdir, PREFIX_MODULE+".log")
+		}
 
 		if Config.Logging.RotateLogs {
 			msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Creating rotating log: %v", logFname))
