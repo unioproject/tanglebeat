@@ -26,7 +26,7 @@ func main() {
 	senderpart.MustInitSenderDataCollector(
 		cfg.Config.SenderMsgStream.OutputEnabled,
 		cfg.Config.SenderMsgStream.OutputPort,
-		cfg.Config.SenderMsgStream.InputsZMQ)
+		cfg.Config.SenderMsgStream.InputsNanomsg)
 
 	initGlobStatsCollector(5)
 	runWebServer(cfg.Config.WebServerPort)
