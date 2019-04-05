@@ -20,6 +20,7 @@ func createUpdateSource(uri string) {
 		InputReaderBase: *inreaders.NewInputReaderBase(),
 		uri:             uri,
 	}
+	infof("Will be reading sender updates from %v", uri)
 	senderUpdateSources.AddInputReader(uri, ret)
 }
 
