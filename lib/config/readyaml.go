@@ -9,20 +9,24 @@ import (
 )
 
 func ReadYAML(configFilename string, outMsg []string, outStruct interface{}) ([]string, string, bool) {
-	currentDir, err := os.Getwd()
-	if err != nil {
-		outMsg = append(outMsg, fmt.Sprintf("Can't get current current dir. Error: %v", err))
-		return outMsg, "", false
-	}
-	outMsg = append(outMsg, fmt.Sprintf("Current directory is %v", currentDir))
+	var configFilePath string
+	wd, _ := os.Getwd()
+	outMsg = append(outMsg, fmt.Sprintf("Current working directory is %v", wd))
 
 	siteDataDir := os.Getenv("SITE_DATA_DIR")
-	if siteDataDir == "" {
-		siteDataDir = currentDir
+
+	if _, err := os.Stat(configFilename); err == nil {
+		configFilePath = configFilename
 	} else {
-		outMsg = append(outMsg, fmt.Sprintf("SITE_DATA_DIR = %v", siteDataDir))
+		if siteDataDir != "" {
+			outMsg = append(outMsg, fmt.Sprintf("SITE_DATA_DIR is %v", siteDataDir))
+		}
+		if siteDataDir == "" {
+			outMsg = append(outMsg, fmt.Sprintf("can't find config file %v", configFilename))
+			return outMsg, "", false
+		}
+		configFilePath = path.Join(siteDataDir, configFilename)
 	}
-	configFilePath := path.Join(siteDataDir, configFilename)
 
 	outMsg = append(outMsg, fmt.Sprintf("reading config values from %v", configFilePath))
 

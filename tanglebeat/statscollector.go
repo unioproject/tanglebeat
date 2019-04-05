@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/cfg"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/zmqpart"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/inputpart"
 	"math"
 	"net"
 	"net/url"
@@ -15,13 +15,13 @@ import (
 )
 
 type GlbStats struct {
-	InstanceVersion     string                       `json:"instanceVersion"`
-	InstanceStarted     uint64                       `json:"instanceStarted"`
-	GoRuntimeStats      memStatsStruct               `json:"goRuntimeStats"`
-	ZmqCacheStats       zmqpart.ZmqCacheStatsStruct  `json:"zmqRuntimeStats"`
-	ZmqOutputStats      zmqpart.ZmqOutputStatsStruct `json:"zmqOutputStats"`
-	ZmqOutputStats10min zmqpart.ZmqOutputStatsStruct `json:"zmqOutputStats10min"`
-	ZmqInputStats       []*zmqpart.ZmqRoutineStats   `json:"zmqInputStats"`
+	InstanceVersion     string                         `json:"instanceVersion"`
+	InstanceStarted     uint64                         `json:"instanceStarted"`
+	GoRuntimeStats      memStatsStruct                 `json:"goRuntimeStats"`
+	ZmqCacheStats       inputpart.ZmqCacheStatsStruct  `json:"zmqRuntimeStats"`
+	ZmqOutputStats      inputpart.ZmqOutputStatsStruct `json:"zmqOutputStats"`
+	ZmqOutputStats10min inputpart.ZmqOutputStatsStruct `json:"zmqOutputStats10min"`
+	ZmqInputStats       []*inputpart.ZmqRoutineStats   `json:"zmqInputStats"`
 
 	mutex *sync.RWMutex
 }
@@ -40,7 +40,7 @@ var glbStats = &GlbStats{
 
 func initGlobStatsCollector(refreshEverySec int) {
 
-	zmqpart.InitZmqStatsCollector(refreshEverySec)
+	inputpart.InitZmqStatsCollector(refreshEverySec)
 	go updateGlbStatsLoop(refreshEverySec)
 }
 
@@ -49,12 +49,12 @@ func updateGlbStatsLoop(refreshStatsEverySec int) {
 	for {
 		runtime.ReadMemStats(&mem)
 
-		inp := zmqpart.GetInputStats()
+		inp := inputpart.GetInputStats()
 
 		glbStats.mutex.Lock()
 		glbStats.ZmqInputStats = inp
-		glbStats.ZmqCacheStats = *zmqpart.GetZmqCacheStats()
-		t1, t2 := zmqpart.GetOutputStats()
+		glbStats.ZmqCacheStats = *inputpart.GetZmqCacheStats()
+		t1, t2 := inputpart.GetOutputStats()
 		glbStats.ZmqOutputStats, glbStats.ZmqOutputStats10min = *t1, *t2
 
 		glbStats.GoRuntimeStats.MemAllocMB = math.Round(100*(float64(mem.Alloc/1024)/1024)) / 100
@@ -85,7 +85,7 @@ func getGlbStatsJSON(formatted bool, maskIP bool, hideInactive bool) []byte {
 	return data
 }
 
-func isActiveRoutine(r *zmqpart.ZmqRoutineStats) bool {
+func isActiveRoutine(r *inputpart.ZmqRoutineStats) bool {
 	if !r.Running {
 		return false
 	}
@@ -108,7 +108,7 @@ func getMaskedGlbStats(maskIP bool, hideInactive bool) *GlbStats {
 		return glbStats
 	}
 
-	maskedInputs := make([]*zmqpart.ZmqRoutineStats, 0, len(glbStats.ZmqInputStats))
+	maskedInputs := make([]*inputpart.ZmqRoutineStats, 0, len(glbStats.ZmqInputStats))
 	for _, inp := range glbStats.ZmqInputStats {
 		if !hideInactive || isActiveRoutine(inp) {
 			if maskIP && isIpAddr(inp.Uri) {

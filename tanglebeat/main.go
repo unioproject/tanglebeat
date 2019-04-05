@@ -1,33 +1,32 @@
 package main
 
 import (
+	"flag"
 	"github.com/lunfardo314/tanglebeat/lib/ebuffer"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/cfg"
+	"github.com/lunfardo314/tanglebeat/tanglebeat/inputpart"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/senderpart"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/zmqpart"
 )
 
-const CONFIG_FILE = "tanglebeat.yml"
-
-//const gopsAddr = ""
+const CONFIG_FILE_DEFAULT = "tanglebeat.yml"
 
 func main() {
-	//if err := agent.Listen(agent.Options{Addr: gopsAddr}); err != nil {
-	//	errorf("can't start GOPS agent: %v", err)
-	//	os.Exit(8)
-	//}
-	cfg.MustReadConfig(CONFIG_FILE)
+	pcfgfile := flag.String("cfg", CONFIG_FILE_DEFAULT, "usage: tanglebeat [-cfg <config file name>]")
+	flag.Parse()
+
+	cfg.MustReadConfig(*pcfgfile)
 	setLogs()
-	zmqpart.MustInitZmqRoutines(
+	inputpart.MustInitInputRoutines(
 		cfg.Config.IriMsgStream.OutputEnabled,
 		cfg.Config.IriMsgStream.OutputPort,
-		cfg.Config.IriMsgStream.Inputs)
+		cfg.Config.IriMsgStream.InputsZMQ,
+		cfg.Config.IriMsgStream.InputsNanomsg)
 
 	senderpart.MustInitSenderDataCollector(
 		cfg.Config.SenderMsgStream.OutputEnabled,
 		cfg.Config.SenderMsgStream.OutputPort,
-		cfg.Config.SenderMsgStream.Inputs)
+		cfg.Config.SenderMsgStream.InputsZMQ)
 
 	initGlobStatsCollector(5)
 	runWebServer(cfg.Config.WebServerPort)
@@ -36,7 +35,7 @@ func main() {
 func setLogs() {
 	SetLog(cfg.GetLog(), false)
 	inreaders.SetLog(cfg.GetLog(), true)
-	zmqpart.SetLog(cfg.GetLog(), false)
+	inputpart.SetLog(cfg.GetLog(), false)
 	senderpart.SetLog(cfg.GetLog(), false)
 	ebuffer.SetLog(cfg.GetLog(), false)
 }

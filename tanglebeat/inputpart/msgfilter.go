@@ -1,4 +1,4 @@
-package zmqpart
+package inputpart
 
 import (
 	"fmt"
@@ -34,7 +34,7 @@ var (
 )
 
 type zmqMsg struct {
-	routine  *zmqRoutine
+	routine  *inputRoutine
 	msgData  []byte   // original data
 	msgSplit []string // same split to strings
 }
@@ -43,7 +43,7 @@ const filterChanBufSize = 100
 
 var toFilterChan = make(chan *zmqMsg, filterChanBufSize)
 
-func toFilter(routine *zmqRoutine, msgData []byte, msgSplit []string) {
+func toFilter(routine *inputRoutine, msgData []byte, msgSplit []string) {
 	toFilterChan <- &zmqMsg{
 		routine:  routine,
 		msgData:  msgData,
@@ -79,7 +79,7 @@ func msgFilterLoop() {
 
 // only start processing tx and sn messages after first two lmi messages arrived
 // the reason is to avoid (filter out) obsolete sn rubbish
-func filterMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
+func filterMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
 	switch msgSplit[0] {
 	case "tx":
 		if sncache.firstMilestoneArrived() {
@@ -94,7 +94,7 @@ func filterMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 	}
 }
 
-func filterTXMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
+func filterTXMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
 	var entry hashcache.CacheEntry
 
 	if len(msgSplit) < 2 {
@@ -118,7 +118,7 @@ func filterTXMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
 	}
 }
 
-func filterSNMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
+func filterSNMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
 	var hash string
 	var err error
 	var entry hashcache.CacheEntry
@@ -166,7 +166,7 @@ func checkObsoleteMsg(msgData []byte, msgSplit []string, uri string) (bool, erro
 	return obsolete, nil
 }
 
-func filterLMIMsg(routine *zmqRoutine, msgData []byte, msgSplit []string) {
+func filterLMIMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
 	index, err := strconv.Atoi(msgSplit[1])
 	if err != nil {
 		errorf("Invalid 'lmi' message: at index 1 expected to be milestone index: %v", err)

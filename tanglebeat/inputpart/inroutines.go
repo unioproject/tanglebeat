@@ -1,4 +1,4 @@
-package zmqpart
+package inputpart
 
 import (
 	"fmt"
@@ -8,7 +8,6 @@ import (
 	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
 	"math"
 	"sort"
-	"strings"
 	"time"
 )
 
@@ -18,9 +17,15 @@ const (
 	routineBufferRetentionMin   = 5
 )
 
-type zmqRoutine struct {
+const (
+	inputStreamZMQ     = 0
+	inputStreamNanomsg = 1
+)
+
+type inputRoutine struct {
 	inreaders.InputReaderBase
 	initialized            bool
+	inputStreamType        int
 	uri                    string
 	txCount                uint64
 	ctxCount               uint64
@@ -33,22 +38,23 @@ type zmqRoutine struct {
 	tsLastSNSomeMin        *ebuffer.EventTsExpiringBuffer
 }
 
-func createZmqRoutine(uri string) {
-	ret := &zmqRoutine{
+func createInputRoutine(uri string, inputStreamType int) {
+	ret := &inputRoutine{
 		InputReaderBase: *inreaders.NewInputReaderBase(),
+		inputStreamType: inputStreamType,
 		uri:             uri,
 	}
-	zmqRoutines.AddInputReader(uri, ret)
+	inputRoutines.AddInputReader(uri, ret)
 }
 
 var (
-	zmqRoutines          *inreaders.InputReaderSet
+	inputRoutines        *inreaders.InputReaderSet
 	compoundOutPublisher *nanomsg.Publisher
 )
 
-func MustInitZmqRoutines(outEnabled bool, outPort int, inputs []string) {
+func MustInitInputRoutines(outEnabled bool, outPort int, inputsZMQ []string, inputsNanomsg []string) {
 	initMsgFilter()
-	zmqRoutines = inreaders.NewInputReaderSet("zmq routine set")
+	inputRoutines = inreaders.NewInputReaderSet("inreader set")
 	var err error
 	compoundOutPublisher, err = nanomsg.NewPublisher(outEnabled, outPort, 0, localLog)
 	if err != nil {
@@ -61,21 +67,24 @@ func MustInitZmqRoutines(outEnabled bool, outPort int, inputs []string) {
 		infof("Publisher for zmq compound output stream is DISABLED")
 	}
 
-	for _, uri := range inputs {
-		createZmqRoutine(uri)
+	for _, uri := range inputsZMQ {
+		createInputRoutine(uri, inputStreamZMQ)
+	}
+	for _, uri := range inputsNanomsg {
+		createInputRoutine(uri, inputStreamNanomsg)
 	}
 	startOutValveRoutine()
 	startEchoLatencyRoutine()
 }
 
-func (r *zmqRoutine) GetUri() string {
+func (r *inputRoutine) GetUri() string {
 	r.RLock()
 	defer r.RUnlock()
 	return r.uri
 }
 
-func (r *zmqRoutine) checkOnHoldCondition() inreaders.ReasonNotRunning {
-	if zmqRoutines.NumRunning() < 10 {
+func (r *inputRoutine) checkOnHoldCondition() inreaders.ReasonNotRunning {
+	if inputRoutines.NumRunning() < 10 {
 		return inreaders.REASON_NORUN_NONE
 	}
 	r.RLock()
@@ -103,9 +112,9 @@ func expectedTopic(topic string) bool {
 	return false
 }
 
-func (r *zmqRoutine) init() {
+func (r *inputRoutine) init() {
 	uri := r.GetUri()
-	tracef("++++++++++++ INIT zmqRoutine uri = '%v'", uri)
+	tracef("++++++++++++ INIT inputRoutine uri = '%v'", uri)
 	r.Lock()
 	defer r.Unlock()
 	r.tsLastTXSomeMin = ebuffer.NewEventTsExpiringBuffer(
@@ -115,8 +124,8 @@ func (r *zmqRoutine) init() {
 	r.initialized = true
 }
 
-func (r *zmqRoutine) uninit() {
-	tracef("++++++++++++ UNINIT zmqRoutine uri = '%v'", r.GetUri())
+func (r *inputRoutine) uninit() {
+	tracef("++++++++++++ UNINIT inputRoutine uri = '%v'", r.GetUri())
 	r.Lock()
 	defer r.Unlock()
 	r.txCount = 0
@@ -128,56 +137,53 @@ func (r *zmqRoutine) uninit() {
 }
 
 // TODO dynamically / upon user action add, delete, disable, enable input streams
-// TODO nanomsg routines, zmqRoutine code reuse
+// TODO nanomsg routines, inputRoutine code reuse
 
-func (r *zmqRoutine) Run(name string) inreaders.ReasonNotRunning {
+func (r *inputRoutine) Run(name string) inreaders.ReasonNotRunning {
 	r.init()
 	defer r.uninit()
 
 	uri := r.GetUri()
+	var socket inSocket
+	var err error
 
-	socket, err := utils.OpenSocketAndSubscribe(uri, topics)
+	switch r.inputStreamType {
+	case inputStreamZMQ:
+		socket, err = NewZmqSocket(uri, topics)
+	case inputStreamNanomsg:
+		socket, err = NewNanomsgSocket(uri, topics)
+	default:
+		panic("wrong input stream type")
+	}
+
 	if err != nil {
-		errorf("Error while starting zmq channel for %v", uri)
+		errorf("Error while starting input channel from %v", uri)
 		r.SetLastErr(fmt.Sprintf("%v", err))
 		return inreaders.REASON_NORUN_ERROR
 	}
-	defer func() {
-		go func() {
-			_ = socket.Close() // better leak than block
-		}()
-	}()
+	defer socket.Close()
+
 	r.SetReading(true)
 
-	infof("Successfully started zmq routine and channel for %v", uri)
-	var counter uint64
+	infof("Successfully started input routine for %v", uri)
 	for {
-		msg, err := socket.Recv()
+		msg, msgSplit, err := socket.RecvMsg()
 
-		// find out if there are any reasons to exit the loop
 		if err != nil {
-			errorf("reading ZMQ socket for '%v': socket.Recv() returned %v", uri, err)
+			errorf("%v", err)
 			r.SetLastErr(fmt.Sprintf("%v", err))
 			return inreaders.REASON_NORUN_ERROR
 		}
-		if len(msg.Frames) == 0 {
-			errorf("+++++++++ empty zmq msgSplit for '%v': %+v", uri, msg)
-			r.SetLastErr(fmt.Sprintf("empty msgSplit from zmq"))
-			return inreaders.REASON_NORUN_ERROR
-		}
 		r.SetLastHeartbeatNow()
-		counter++
-
-		msgSplit := strings.Split(string(msg.Frames[0]), " ")
 
 		// send to filter's channel
 		if expectedTopic(msgSplit[0]) {
-			toFilter(r, msg.Frames[0], msgSplit)
+			toFilter(r, msg, msgSplit)
 		}
 	}
 }
 
-func (r *zmqRoutine) accountTx() {
+func (r *inputRoutine) accountTx() {
 	r.Lock()
 	defer r.Unlock()
 	if !r.initialized {
@@ -187,7 +193,7 @@ func (r *zmqRoutine) accountTx() {
 	r.tsLastTXSomeMin.RecordTS()
 }
 
-func (r *zmqRoutine) accountSn() {
+func (r *inputRoutine) accountSn() {
 	r.Lock()
 	defer r.Unlock()
 	if !r.initialized {
@@ -197,7 +203,7 @@ func (r *zmqRoutine) accountSn() {
 	r.tsLastSNSomeMin.RecordTS()
 }
 
-func (r *zmqRoutine) accountLmi(index int) {
+func (r *inputRoutine) accountLmi(index int) {
 	r.Lock()
 	defer r.Unlock()
 	if !r.initialized {
@@ -207,7 +213,7 @@ func (r *zmqRoutine) accountLmi(index int) {
 	r.lastLmi = index
 }
 
-func (r *zmqRoutine) incObsoleteCount() {
+func (r *inputRoutine) incObsoleteCount() {
 	r.Lock()
 	defer r.Unlock()
 	if !r.initialized {
@@ -217,8 +223,9 @@ func (r *zmqRoutine) incObsoleteCount() {
 }
 
 type ZmqRoutineStats struct {
-	Uri string `json:"uri"`
-	Id  uint64 `json:"id"`
+	Uri      string `json:"uri"`
+	Id       uint64 `json:"id"`
+	Protocol string `json:"protocol"`
 	inreaders.InputReaderBaseStats
 	TxCount              uint64 `json:"txCount"`
 	CtxCount             uint64 `json:"ctxCount"`
@@ -234,10 +241,10 @@ type ZmqRoutineStats struct {
 	LastLmi              int     `json:"lastLmi"`
 	SeenOnceRate         uint64  `json:"seenOnceRate"`
 	State                string  `json:"state"`
-	routine              *zmqRoutine
+	routine              *inputRoutine
 }
 
-func (r *zmqRoutine) getStats() *ZmqRoutineStats {
+func (r *inputRoutine) getStats() *ZmqRoutineStats {
 	// lock for writing due to seenOnceRate update
 	r.Lock()
 	defer r.Unlock()
@@ -267,9 +274,14 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 	r.lastSeenOnceRate = uint64(getSeenOnceRate5to1Min(r.GetId__()))
 	r.lastSeenSomeMinSNCount = uint64(numLastSN5Min)
 
+	typ := "zmq"
+	if r.inputStreamType == inputStreamNanomsg {
+		typ = "nanomsg"
+	}
 	ret := &ZmqRoutineStats{
 		Uri:                  r.uri,
 		Id:                   uint64(r.GetId__()),
+		Protocol:             typ,
 		InputReaderBaseStats: *r.GetReaderBaseStats__(),
 		Tps:                  tps,
 		TxCount:              r.txCount,
@@ -308,8 +320,8 @@ func (r *zmqRoutine) getStats() *ZmqRoutineStats {
 
 func GetInputStats() []*ZmqRoutineStats {
 	ret := make([]*ZmqRoutineStats, 0, 10)
-	zmqRoutines.ForEach(func(name string, ir inreaders.InputReader) {
-		ret = append(ret, ir.(*zmqRoutine).getStats())
+	inputRoutines.ForEach(func(name string, ir inreaders.InputReader) {
+		ret = append(ret, ir.(*inputRoutine).getStats())
 	})
 	sort.Sort(ZmqRoutineStatsSlice(ret))
 	return ret

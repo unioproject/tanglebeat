@@ -36,7 +36,7 @@ Tanglebeat also provides usual metrics derived from data of Zero MQ stream by IR
 ## Configure and run
 
 Tanglebeat is a single binary. It takes no command line arguments. Each Tanglebeat instance is configured 
-through  [tanglebeat.yml](tanglebeat.yml) file which must be located in the working 
+through  [tanglebeat.yml](cfg_example.yml) file which must be located in the working 
 directory where instance ir run. The config file contains seeds of sequences therefore should never be made public.
 
 Each Tanglebeat instance consists of the following parts. Every part can be enabled, disabled and configured
