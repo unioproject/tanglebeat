@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"github.com/lunfardo314/tanglebeat/lib/ebuffer"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/cfg"
 	"github.com/lunfardo314/tanglebeat/tanglebeat/inputpart"
@@ -8,16 +9,13 @@ import (
 	"github.com/lunfardo314/tanglebeat/tanglebeat/senderpart"
 )
 
-const CONFIG_FILE = "tanglebeat.yml"
-
-//const gopsAddr = ""
+const CONFIG_FILE_DEFAULT = "tanglebeat.yml"
 
 func main() {
-	//if err := agent.Listen(agent.Options{Addr: gopsAddr}); err != nil {
-	//	errorf("can't start GOPS agent: %v", err)
-	//	os.Exit(8)
-	//}
-	cfg.MustReadConfig(CONFIG_FILE)
+	pcfgfile := flag.String("cfg", CONFIG_FILE_DEFAULT, "usage: tanglebeat [-cfg <config file name>]")
+	flag.Parse()
+
+	cfg.MustReadConfig(*pcfgfile)
 	setLogs()
 	inputpart.MustInitInputRoutines(
 		cfg.Config.IriMsgStream.OutputEnabled,

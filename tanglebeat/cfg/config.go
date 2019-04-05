@@ -8,10 +8,9 @@ import (
 )
 
 const (
-	Version                = "19.03.19"
-	logFormat              = "%{time:2006-01-02 15:04:05.000} %{level:.4s} [%{module:.6s}|%{shortfunc:.12s}] %{message}"
-	level                  = logging.DEBUG
-	onHoldThresholdDefault = 50
+	Version   = "19.04.05"
+	logFormat = "%{time:2006-01-02 15:04:05.000} %{level:.4s} [%{module:.6s}|%{shortfunc:.12s}] %{message}"
+	level     = logging.DEBUG
 )
 
 var (
@@ -31,13 +30,11 @@ type inputsOutput struct {
 }
 
 type ConfigStructYAML struct {
-	siteDataDir        string
 	WebServerPort      int          `yaml:"webServerPort"`
 	IriMsgStream       inputsOutput `yaml:"iriMsgStream"`
 	SenderMsgStream    inputsOutput `yaml:"senderMsgStream"`
 	QuorumToPass       int          `yaml:"quorumToPass"`
 	RetentionPeriodMin int          `yaml:"retentionPeriodMin"`
-	OnHoldThreshold    uint64       `yaml:"onHoldThreshold"`
 }
 
 var Config = ConfigStructYAML{}
@@ -68,13 +65,11 @@ func MustReadConfig(cfgfile string) {
 	msgBeforeLog := make([]string, 0, 10)
 	msgBeforeLog = append(msgBeforeLog, "---- Starting Tanglebeat hub module ver. "+Version)
 	var success bool
-	var siteDataDir string
-	msgBeforeLog, siteDataDir, success = config.ReadYAML(cfgfile, msgBeforeLog, &Config)
+	msgBeforeLog, _, success = config.ReadYAML(cfgfile, msgBeforeLog, &Config)
 	if !success {
 		flushMsgBeforeLog(msgBeforeLog)
 		os.Exit(1)
 	}
-	Config.siteDataDir = siteDataDir
 	msgBeforeLog, success = initLogging(msgBeforeLog)
 	flushMsgBeforeLog(msgBeforeLog)
 
@@ -87,21 +82,17 @@ func MustReadConfig(cfgfile string) {
 	if Config.RetentionPeriodMin == 0 {
 		Config.RetentionPeriodMin = 60
 	}
-	if Config.OnHoldThreshold == 0 {
-		Config.OnHoldThreshold = onHoldThresholdDefault
-	}
-	infof("OnHold threshold for zmq routines is %v%%", Config.OnHoldThreshold)
-	infof("Quorum to pass a message: TX message will be accepted after received %v times from different sources ('repeatToAcceptTX' parameter, default is 2)",
+	infof("Quorum to pass a message: TX message will be accepted after received %v times from different sources",
 		Config.QuorumToPass)
 }
 
-func errorf(format string, args ...interface{}) {
-	log.Errorf(format, args...)
-}
-
-func debugf(format string, args ...interface{}) {
-	log.Debugf(format, args...)
-}
+//func errorf(format string, args ...interface{}) {
+//	log.Errorf(format, args...)
+//}
+//
+//func debugf(format string, args ...interface{}) {
+//	log.Debugf(format, args...)
+//}
 
 func infof(format string, args ...interface{}) {
 	log.Infof(format, args...)
