@@ -9,6 +9,8 @@ import (
 	"github.com/lunfardo314/tanglebeat/tanglebeat/senderpart"
 )
 
+// TODO clean unnecessary metrics
+
 const CONFIG_FILE_DEFAULT = "tanglebeat.yml"
 
 func main() {
