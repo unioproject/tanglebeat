@@ -13,6 +13,8 @@ import (
 
 const defaultUri = "tcp://tanglebeat.com:5550"
 
+var topics = []string{"lmi", "lmhs"}
+
 func main() {
 	pstr := flag.String("uri", defaultUri, "Nanomsg stream URI")
 	flag.Parse()
@@ -30,7 +32,9 @@ func main() {
 		fmt.Printf("can't dial sub socket at %v: %v\n", uri, err)
 		os.Exit(1)
 	}
-	err = sock.SetOption(mangos.OptionSubscribe, []byte(""))
+	for _, tpc := range topics {
+		err = sock.SetOption(mangos.OptionSubscribe, []byte(tpc))
+	}
 	if err != nil {
 		fmt.Printf("failed to subscribe to all topics at %v: %v", uri, err)
 		os.Exit(1)
