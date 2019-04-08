@@ -101,7 +101,7 @@ func (r *inputRoutine) checkOnHoldCondition() inreaders.ReasonNotRunning {
 	return ret
 }
 
-var topics = []string{"tx", "sn", "lmi"}
+var topics = []string{"tx", "sn", "lmi", "lmhs"}
 
 func expectedTopic(topic string) bool {
 	for _, t := range topics {
