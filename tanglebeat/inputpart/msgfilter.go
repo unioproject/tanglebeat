@@ -30,7 +30,8 @@ var (
 	lastLMITimesSeen         int
 	lastLMIFirstSeen         uint64
 	lastLMILastSeen          uint64
-	lastLmiMutex             = &sync.RWMutex{}
+	lmiMutex                 = &sync.RWMutex{}
+	lmhsCache                *hashcache.HashCacheBase
 )
 
 type zmqMsg struct {
@@ -65,6 +66,9 @@ func initMsgFilter() {
 	confirmedPositiveValueTx = ebuffer.NewEventTsWithDataExpiringBuffer(
 		"confirmedPositiveValueTx", segmentDurationConfirmedTransfersSec, retentionPeriodSec)
 
+	// use all trytes of milestone hash
+	lmhsCache = hashcache.NewHashCacheBase("lmhscache", 0, segmentDurationTXSec, retentionPeriodSec)
+
 	startCollectingLatencyMetrics()
 	startCollectingLMConfRate()
 
@@ -91,6 +95,9 @@ func filterMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
 		}
 	case "lmi":
 		filterLMIMsg(routine, msgData, msgSplit)
+
+	case "lmhs":
+		filterLMHSMsg(routine, msgData, msgSplit)
 	}
 }
 
@@ -182,8 +189,8 @@ func filterLMIMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
 		return // not putting into the cache
 	}
 
-	lastLmiMutex.Lock()
-	defer lastLmiMutex.Unlock()
+	lmiMutex.Lock()
+	defer lmiMutex.Unlock()
 
 	switch {
 	case index > lastLMI:
@@ -200,9 +207,27 @@ func filterLMIMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
 	}
 }
 
+func filterLMHSMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
+	if len(msgSplit) < 2 {
+		errorf("strange message %v", string(msgData))
+		return
+	}
+	if routine.IsOutputClosed() {
+		return // not even checking against the cache
+	}
+	var entry hashcache.CacheEntry
+
+	lmhsCache.SeenHashBy(msgSplit[1], routine.GetId__(), nil, &entry)
+
+	if int(entry.Visits) == cfg.Config.QuorumToPass {
+		infof("New milestone hash '%v'", string(msgData))
+		toOutput(msgData, msgSplit)
+	}
+}
+
 func getLmiStats() (int, float64) {
-	lastLmiMutex.RLock()
-	defer lastLmiMutex.RUnlock()
+	lmiMutex.RLock()
+	defer lmiMutex.RUnlock()
 	latencySec := float64(lastLMILastSeen-lastLMIFirstSeen) / 1000
 	latencySec = math.Round(latencySec*100) / 100
 	return lastLMI, latencySec
