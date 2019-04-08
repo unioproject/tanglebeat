@@ -120,7 +120,7 @@ func filterTXMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
 	checkForEcho(msgSplit[1], utils.UnixMsNow())
 
 	// check if message was seen exactly number of times as configured (usually 2)
-	if int(entry.Visits) == cfg.Config.QuorumToPass {
+	if int(entry.Visits) == cfg.Config.QuorumTxToPass {
 		toOutput(msgData, msgSplit)
 	}
 }
@@ -156,7 +156,7 @@ func filterSNMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
 	sncache.SeenHashBy(hash, routine.GetId__(), nil, &entry)
 
 	// check if message was seen exactly number of times as configured (usually 2)
-	if int(entry.Visits) == cfg.Config.QuorumToPass {
+	if int(entry.Visits) == cfg.Config.QuorumTxToPass {
 		toOutput(msgData, msgSplit)
 	}
 }
@@ -201,11 +201,13 @@ func filterLMIMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
 	case index == lastLMI:
 		lastLMITimesSeen++
 		lastLMILastSeen = utils.UnixMsNow()
-		if lastLMITimesSeen == cfg.Config.QuorumToPass {
+		if lastLMITimesSeen == cfg.Config.QuorumTxToPass {
 			toOutput(msgData, msgSplit)
 		}
 	}
 }
+
+// TODO how to find out which lmhs message corresponds to the latest milestone
 
 func filterLMHSMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
 	if len(msgSplit) < 2 {
@@ -218,10 +220,16 @@ func filterLMHSMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
 	var entry hashcache.CacheEntry
 
 	lmhsCache.SeenHashBy(msgSplit[1], routine.GetId__(), nil, &entry)
+	//infof("+++++ New lmhs '%v' #%v", string(msgData), entry.Visits)
 
-	if int(entry.Visits) == cfg.Config.QuorumToPass {
-		infof("New milestone hash '%v'", string(msgData))
-		toOutput(msgData, msgSplit)
+	// if msg is seen QuorumMilestoneHashToPass times during TimeIntervalMilestoneHashToPassMsec
+	// it is passed
+	if int(entry.Visits) == cfg.Config.QuorumMilestoneHashToPass {
+		interv := entry.LastSeen - entry.FirstSeen
+		if interv < cfg.Config.TimeIntervalMilestoneHashToPassMsec {
+			toOutput(msgData, msgSplit)
+			infof("New milestone hash '%v' pass: seen %v times within interval of %v msec", string(msgData), entry.Visits, interv)
+		}
 	}
 }
 

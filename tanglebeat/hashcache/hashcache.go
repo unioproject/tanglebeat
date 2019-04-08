@@ -168,7 +168,9 @@ func (cache *HashCacheBase) FindWithDelete(hash string, ret *CacheEntry) bool {
 	return cache.__findWithDelete(shash, ret)
 }
 
-// TODO if same message is coming several times from same source it is passed. It is incorrect
+// TODO if same message is coming several times from same source it is passed.
+//  It is incorrect but probably not important practically
+
 func (cache *HashCacheBase) SeenHashBy(hash string, id byte, data interface{}, ret *CacheEntry) bool {
 	cache.Lock()
 	defer cache.Unlock()
@@ -178,6 +180,16 @@ func (cache *HashCacheBase) SeenHashBy(hash string, id byte, data interface{}, r
 		return true
 	}
 	cache.__insertNew(shash, id, data)
+	// if new entry, ret is not touched
+	// CacheEntry is mock
+	if ret != nil {
+		nowis := utils.UnixMsNow()
+		ret.Visits = 1
+		ret.LastSeen = nowis
+		ret.FirstSeen = nowis
+		ret.Data = data
+		ret.FirstVisitId = id
+	}
 	return false
 }
 
@@ -224,7 +236,7 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 				ret.SeenOnceRateById[entry.FirstVisitId] += 1
 			}
 		}
-		if int(entry.Visits) >= cfg.Config.QuorumToPass {
+		if int(entry.Visits) >= cfg.Config.QuorumTxToPass {
 			lat = float64(entry.LastSeen-entry.FirstSeen) / 1000
 			ret.LatencySecAvg += lat
 			ret.TxCountPassed++

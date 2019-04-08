@@ -30,11 +30,13 @@ type inputsOutput struct {
 }
 
 type ConfigStructYAML struct {
-	WebServerPort      int          `yaml:"webServerPort"`
-	IriMsgStream       inputsOutput `yaml:"iriMsgStream"`
-	SenderMsgStream    inputsOutput `yaml:"senderMsgStream"`
-	QuorumToPass       int          `yaml:"quorumToPass"`
-	RetentionPeriodMin int          `yaml:"retentionPeriodMin"`
+	WebServerPort                       int          `yaml:"webServerPort"`
+	IriMsgStream                        inputsOutput `yaml:"iriMsgStream"`
+	SenderMsgStream                     inputsOutput `yaml:"senderMsgStream"`
+	RetentionPeriodMin                  int          `yaml:"retentionPeriodMin"`
+	QuorumTxToPass                      int          `yaml:"quorumToPass"`
+	QuorumMilestoneHashToPass           int          `yaml:"quorumMilestoneHashToPass"`
+	TimeIntervalMilestoneHashToPassMsec uint64       `yaml:"timeIntervalMilestoneHashToPassMsec"`
 }
 
 var Config = ConfigStructYAML{}
@@ -76,14 +78,14 @@ func MustReadConfig(cfgfile string) {
 	if !success {
 		os.Exit(1)
 	}
-	if Config.QuorumToPass == 0 {
-		Config.QuorumToPass = 2
+	if Config.QuorumTxToPass == 0 {
+		Config.QuorumTxToPass = 2
 	}
 	if Config.RetentionPeriodMin == 0 {
 		Config.RetentionPeriodMin = 60
 	}
 	infof("Quorum to pass a message: TX message will be accepted after received %v times from different sources",
-		Config.QuorumToPass)
+		Config.QuorumTxToPass)
 }
 
 //func errorf(format string, args ...interface{}) {
