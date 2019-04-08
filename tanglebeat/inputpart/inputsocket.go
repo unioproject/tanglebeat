@@ -42,9 +42,11 @@ func NewNanomsgSocket(uri string, topics []string) (inSocket, error) {
 	if err = sock.Dial(uri); err != nil {
 		return nil, fmt.Errorf("can't dial sub socket for %v: %v", uri, err)
 	}
-	err = sock.SetOption(mangos.OptionSubscribe, topics)
-	if err != nil {
-		return nil, fmt.Errorf("failed to subscribe to topics at %v: %v", uri, err)
+	for _, tpc := range topics {
+		err = sock.SetOption(mangos.OptionSubscribe, []byte(tpc))
+		if err != nil {
+			return nil, fmt.Errorf("failed to subscribe to topics %v at %v: %v", topics, uri, err)
+		}
 	}
 	return &nanomsgInSocket{uri: uri, socket: sock}, nil
 }
