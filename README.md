@@ -1,15 +1,87 @@
+# [tanglebeat.com](http://tanglebeat.com)
+
+
+### Table of contents
+- [About Tanglebeat](#about_tanglebeat)
+- [What it can be usefull for?](#what_it_can_be_useful_for)
+- [Architecture](#architecture)
+- [Contents of the repository](#contents_of_the_repository)
+- [Getting started](#getting_started)
+    * [Download and install](#download_and_install)
+    * [Configure](#configure)
+    * [Run](#run)
+- [Advanced configurations](#advanced_configurations)
+
 ## About Tanglebeat
-**Tanglebeat** is a lightweight yet highly configurable software agent with the main purpose to collect Tangle-related metrics to 
-[Prometheus TSDB](https://prometheus.io/) to be displayed with such tools
-as [Grafana](https://grafana.com). 
+**Tanglebeat** is a configurable software agent with the main purpose to 
+collect IOTA Tangle - related metrics to [Prometheus TSDB](https://prometheus.io/) to be displayed with such tools
+as [Grafana](https://grafana.com). Apart from being a metrics collector, Tanglebeat can be used for other purposes.
 
 It can be run in various standalone and distributed configurations to ensure 
-high availability and objectivity of the metrics.
+high availability and objectivity of the metrics. 
 
-Demo Grafana dashboard can be found at [tanglebeat.com](http://tanglebeat.com:3000/d/85B_28aiz/tanglebeat-demo?refresh=10s&orgId=1)
+Tanglebeat is a result of experimenting with different approaches to how to measure a Tangle in 
+objective and reliable way.
 
-Tanglebeat is a successor of [Traveling IOTA](http://traviota.iotalt.com) project, 
-scaled up and, hopefully, more practical version of the latter.
+
+### What it can be useful for?
+The functions of the Tanglebeat are:
+
+##### A hub for IRI ZMQ streams
+Tanglebeat  collects messages from many IRI ZMQ sources and produces 
+one output message stream which represents operational state of the network as a whole 
+(as opposed to the ZMQ stream from a specific node). 
+
+ZMQ sources can change on the fly, some nodes going down and/or going out of sync,
+other nodes restarting and so on. Typically Tanglebeat is listening to 50 and more IRI nodes.
+Tanglebeat combines incoming data by using some kind of quorum based algo 
+(message is passed to the output only after received from several different sources).
+
+Applications which rely on IRI ZMQ data may use Tanglebeat as ZMQ source, independent 
+from any IRI node Output message streams is exposed by using 
+[Nanomsg](https://nanomsg.org/), equivalent to ZMQ but technically 
+more advanced in many cases.
+
+
+##### Metrics collector for ZMQ-based metrics 
+These are usual metrics like *TPS*, *CTPS*, *Conf.rate*, duration between milestones. 
+Tanglebeat also collects value based metrics such as number of confirmed bundles, 
+value of confirmed transactions/bundles and similar.
+
+Tanglebeat submits all metrics to the [Prometheus](https://prometheus.io/) instance of your choice.
+*Prometheus* is times series database intended for collections time series data 
+(timed sequences of floating point numbers). *Prometheus* provides REST API and PromQL formula 
+language to access stored time series data in every imaginable way.
+
+Prometheus is often used as a data source for [Grafana](https://grafana.com), a tool to display 
+metrics in user friendly way: charts, gauges and similar.
+
+##### Metrics collector for non-ZMQ metrics 
+Some useful IOTA metrics can't be calculated from ZMQ data or it is more practical to collect it
+in in other way. These metrics are submitted to *Prometheus* as well.
+
+Tanglebeat does active sending of funds in IOTA network and calculates transfer statistics: 
+transfers per hour, average transfer time, interval of expected transfer time and others. 
+It does it by sending and confirming/promoting few iotas worth transfers from one account to 
+another in the endless loop, along addresses of the same seed. Several seeds (sequences are used). 
+
+- *Transfers Per Hour* or TfPH metrics is calculated the following way:
+    * *(number if confirmed transfers completed in last hour in all sequences* / 
+    *(average number of active sequences in the last hour)*
+    
+    Average number of active sequences is used to adjust for possible downtimes 
+   
+- *Average transfer time* is calculated from transfer statistics.
+- Transfer confirmation time is estimatad by taking 25 and 75 percentiles by real 
+transfer confirmation in last hour.
+- *Network latency*. Promotion transactions are sent to the network to promote transfers. 
+Tanglebeat records time when sent transaction returns from one of ZMQ streams back
+
+
+
+
+#-----------------------------
+
 
 ## Transfer confirmation metrics
 
@@ -138,3 +210,8 @@ independent parts:
 #### Picture
 
 ![Picture of the main parts of Tanglebeat](tanglebeat.png)
+
+
+### Introduction
+
+
