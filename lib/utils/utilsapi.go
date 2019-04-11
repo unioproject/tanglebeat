@@ -131,8 +131,10 @@ func FindTransactionObjectsMulti(query FindTransactionsQuery, mapi multiapi.Mult
 		return nil, err
 	}
 	if len(ftHashes) == 0 {
-		return nil, errors.New("no transactions found")
+		return nil, nil // empty list
+		//return nil, errors.New("no transactions found")
 	}
+
 	// need to convert to array of interfaces to pass to multi call GetTrytes
 	hashesInterfaces := hashes2interfaces(ftHashes, apiret)
 	ret := make([]Transaction, len(ftHashes))
