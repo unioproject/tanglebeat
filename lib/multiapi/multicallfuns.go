@@ -78,7 +78,11 @@ func __findTransactions__(iotaapi *API, args []interface{}) (interface{}, error)
 	if !ok {
 		return nil, fmt.Errorf("__polyCall__ '__findTransactions__': wrong argument type")
 	}
-	return iotaapi.FindTransactions(query)
+	ret, err := iotaapi.FindTransactions(query)
+	if err == nil && len(ret) == 0 {
+		err = fmt.Errorf("no transactions hashes returned")
+	}
+	return ret, err
 }
 
 func __wereAddressesSpentFrom__(iotaapi *API, args []interface{}) (interface{}, error) {

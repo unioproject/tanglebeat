@@ -135,7 +135,7 @@ func (gen *transferBundleGenerator) runGenerator() {
 	defer gen.log.Debugf("%v: leaving Transfer BundleTrytes Generator routine", gen.name)
 
 	addr = ""
-	balanceZeroWaitSec := 2
+	//balanceZeroWaitSec := 2
 
 	for {
 		if addr == "" {
@@ -164,10 +164,16 @@ func (gen *transferBundleGenerator) runGenerator() {
 		case balance == 0 && !spent:
 			// nogo
 			// will loop until balance != 0
-			gen.log.Infof("Transfer Bundles: '%v' index = %v, balance == 0, not spent. Wait %v sec for balance to become non zero",
-				gen.name, gen.index, balanceZeroWaitSec)
-			time.Sleep(time.Duration(balanceZeroWaitSec) * time.Second)
-			balanceZeroWaitSec = utils.Min(balanceZeroWaitSec+2, 15)
+			// CHANGED: always moving to the next.
+			// Not entirely correct, but sometimes stuck after iri ver change (e.g. 1.7.0)
+			gen.log.Infof("Transfer Bundles [%v]: addr '%v' index = %v, balance == 0, not spent. Moving to the next",
+				gen.name, addr, gen.index)
+
+			gen.index += 1
+			addr = ""
+
+			//time.Sleep(time.Duration(balanceZeroWaitSec) * time.Second)
+			//balanceZeroWaitSec = utils.Min(balanceZeroWaitSec+2, 15)
 			continue
 
 		case balance != 0:
