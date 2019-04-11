@@ -443,7 +443,7 @@ func (gen *transferBundleGenerator) findBundleToConfirm(addr Hash) (*bundle_sour
 		}
 	}
 	if len(tails) == 0 {
-		gen.log.Errorf("findBundleToConfirm: there are transaction but no tails found. No consistent bundle for address%v", addr)
+		gen.log.Errorf("findBundleToConfirm: there are transactions but no tails found. Cam't find consistent bundle for address %v", addr)
 		return nil, true, nil // empty bundle, i.e. no bundle found, create new
 	}
 	// collect hashes of tails

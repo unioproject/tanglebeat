@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+// TODO collecting call statistics per endpoint
+
 var disabledMultiAPI = false
 
 func DisableMultiAPI() {
@@ -69,6 +71,9 @@ func (mapi MultiAPI) __multiCall__(funName string, retEndpoint *MultiCallRet, ar
 		go func(idx int) {
 			defer wg.Done()
 			res, err := __polyCall__(mapi[idx].api, funName, args)
+
+			debugf("__polyCall__ interim results: fun = %v endp = %v err = %v", funName, mapi[idx].endpoint, err)
+
 			chInterimResult <- &multiCallInterimResult{
 				ret:      &res,
 				err:      err,
