@@ -151,10 +151,21 @@ func mustReadMasterConfig(configFilename string) {
 
 	if Config.Sender.DisableMultiCalls {
 		multiapi.DisableMultiAPI()
-		log.Infof("Multi calls to IOTA API are DISABLED")
+		log.Infof("Multi calls to IOTA API are DISABLED. Timeouts (sec) API: %v, tipsel: %v, PoW: %v",
+			Config.Sender.Globals.TimeoutAPI, Config.Sender.Globals.TimeoutTipsel, Config.Sender.Globals.TimeoutPoW)
+		log.Infof("     IOTANode: %v", Config.Sender.Globals.IOTANode[0])
+		log.Infof("     IOTANode: %v", Config.Sender.Globals.IOTANodeTipsel[0])
 	} else {
-		log.Infof("Multi calls to IOTA API are ENABLED")
+		log.Infof("Multi calls to IOTA API are ENABLED. Timeouts (sec) API: %v, tipsel: %v, PoW: %v",
+			Config.Sender.Globals.TimeoutAPI, Config.Sender.Globals.TimeoutTipsel, Config.Sender.Globals.TimeoutPoW)
+		for _, uri := range Config.Sender.Globals.IOTANode {
+			log.Infof("     IOTANode: %v", uri)
+		}
+		for _, uri := range Config.Sender.Globals.IOTANodeTipsel {
+			log.Infof("     IOTANodeTipsel: %v", uri)
+		}
 	}
+	log.Infof("     IOTANodePoW: %v, timeout: %v ", Config.Sender.Globals.IOTANodePoW, Config.Sender.Globals.TimeoutPoW)
 
 	if Config.ExitProgram.Enabled {
 		log.Infof("Program exit conditions are ENABLED")
