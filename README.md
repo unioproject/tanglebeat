@@ -11,7 +11,7 @@ Tanglebeat is a result of experimenting with different approaches to how to meas
 objective and reliable way.
 
 
-### Table of contents
+### Contents
 - [What it can be usefull for?](#what_it_can_be_useful_for)
 - [Architecture](#architecture)
 - [Contents of the repository](#contents_of_the_repository)
@@ -93,12 +93,14 @@ Tanglebeat exposes endpoint which returns states and data of all input ZMQ strea
 Thus many nodes can be monitored at once by up/down status, 
 sync status, tps, ctps and conf. rate.
 
-## Architecture
+## Picture
 
 _Tanglebeat_ consists of two programs: _tanglebeat_ itself and _tbsender_. 
 The former can be run alone. _tbsender_ is a separate program which does transfers
 to calculate non-ZMQ metrics. It sends all necessary data to _tanglebeat_ instance 
 which submits metrics to _Prometheus_.
+
+![kkk][picture.png]
 
 ## Contents of the repository
 
