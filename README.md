@@ -163,11 +163,11 @@ The above will produce three executable binaries in `GOPATH/bin` directory
 ## Configure and run
  
 ##### Configure Tanglebeat instance
-Tanglebeat instance is configured with YAML config file. 
+Tanglebeat instance is configured via YAML config file. 
 
 It must be located in current directory or in the directory specified by `SITE_DATA_DIR` 
-environments variable. Default name is `tanglebeat.yml`. It also can be specified
-with `-cfg <config file>` command line flag.
+environment variable. Default name of the configuration file is `tanglebeat.yml`. 
+It also can be specified with `-cfg <config file>` command line flag.
 
 Directory `examples/config` contains [example](examples/config/tanglebeat.yml) of the config file. 
 Please read instructions right in the file. In most cases you'll only need to adjust ports used
