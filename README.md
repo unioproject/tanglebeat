@@ -15,11 +15,9 @@ objective and reliable way.
 - [Functions](#functions) What can it be useful for?
 - [Picture](#picture)
 - [Contents of the repository](#repository)
-- [Download and install](#download_and_install)
-- [Configure Tanglebeat](#configure_tanglebeat) ZMQ-based metrics
-- [Configure Tbsender](#configure_tbsender) non-ZMQ-base metrics
-- [Run](#run)
-- [Advanced configurations](#advanced_configurations)
+- [Download and install](#download-and-install)
+- [Configure and run](#configure-and-run) 
+- [Advanced configurations](#advanced-configurations)
 - [API](#api)
 
 
