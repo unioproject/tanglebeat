@@ -12,9 +12,9 @@ objective and reliable way.
 
 
 ### Contents
-- [What it can be usefull for?](#what_it_can_be_useful_for)
-- [Architecture](#architecture)
-- [Contents of the repository](#contents_of_the_repository)
+- [Functions](#functions) What can it be useful for?
+- [Picture](#picture)
+- [Contents of the repository](#repository)
 - [Download and install](#download_and_install)
 - [Configure Tanglebeat](#configure_tanglebeat) ZMQ-based metrics
 - [Configure Tbsender](#configure_tbsender) non-ZMQ-base metrics
@@ -23,7 +23,7 @@ objective and reliable way.
 - [API](#api)
 
 
-## What it can be useful for?
+## Functions
 The functions of the Tanglebeat are:
 
 ##### A hub for IRI ZMQ streams
@@ -175,8 +175,24 @@ Directory `examples/config` contains [example](examples/config/tanglebeat.yml) o
 Please read instructions right in the file. In most cases you'll only need to adjust ports used
 by the instance and static list of URI's of IRI ZMQs.
 
-##### Configure Prometheus 
-TBD
+##### Configure Prometheus and Graphana
+Note, that Prometheus is needed for Tanglebeat only if you want to store metrics. 
+Otherwise, if it is used only as message hub, it is not mandatory.
+
+Any Prometheus instance can collect (scrape) metrics from Tanglebeat instance, so 
+you need to install one only if you don't have one yet. Otherwise you only need
+specify Tanglebeat's web server port in the config filr of the Prometheus instance.
+
+Follow instruction to download and [install Prometheus](https://prometheus.io/docs/prometheus/latest/installation/).
+
+Here we provide [tanglebeat.rules](/examples/config/tanglebeat.rules) 
+file which is necessary for the Prometheus instance if you want to use TBSender 
+for TfPH metrics.
+
+Optionally you can install Grafana server by following 
+[these instructions](https://grafana.com/docs/installation/).
+
+TBD 
 
 ##### Configure TBsender
 TBD
