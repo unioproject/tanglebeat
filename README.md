@@ -1,19 +1,5 @@
 # [tanglebeat.com](http://tanglebeat.com)
 
-
-### Table of contents
-- [About Tanglebeat](#about_tanglebeat)
-- [What it can be usefull for?](#what_it_can_be_useful_for)
-- [Architecture](#architecture)
-- [Contents of the repository](#contents_of_the_repository)
-- [Download and install](#download_and_install)
-- [Configure Tanglebeat](#configure) ZMQ-based metrics
-- [Configure Tbsender](#configure) non-ZMQ-base metrics
-- [Run](#run)
-- [Advanced configurations](#advanced_configurations)
-- [API](#api)
-
-## Summary
 **Tanglebeat** is a configurable software agent with the primary purpose of 
 collecting IOTA Tangle-related metrics to [Prometheus Time Series Database](https://prometheus.io/). 
 Metrics data later can be retrieved and displayed with such tools as [Grafana](https://grafana.com). 
@@ -23,6 +9,18 @@ high availability and objectivity of the metrics.
 
 Tanglebeat is a result of experimenting with different approaches to how to measure a Tangle in 
 objective and reliable way.
+
+
+### Table of contents
+- [What it can be usefull for?](#what_it_can_be_useful_for)
+- [Architecture](#architecture)
+- [Contents of the repository](#contents_of_the_repository)
+- [Download and install](#download_and_install)
+- [Configure Tanglebeat](#configure) ZMQ-based metrics
+- [Configure Tbsender](#configure) non-ZMQ-base metrics
+- [Run](#run)
+- [Advanced configurations](#advanced_configurations)
+- [API](#api)
 
 
 ## What it can be useful for?
