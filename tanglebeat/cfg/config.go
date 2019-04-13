@@ -78,6 +78,7 @@ func MustReadConfig(cfgfile string) {
 	if !success {
 		os.Exit(1)
 	}
+	// default values
 	if Config.QuorumTxToPass == 0 {
 		Config.QuorumTxToPass = 2
 	}
@@ -86,6 +87,13 @@ func MustReadConfig(cfgfile string) {
 	}
 	infof("Quorum to pass a message: TX message will be accepted after received %v times from different sources",
 		Config.QuorumTxToPass)
+
+	if Config.QuorumMilestoneHashToPass == 0 {
+		Config.QuorumMilestoneHashToPass = 3
+	}
+	if Config.TimeIntervalMilestoneHashToPassMsec == 0 {
+		Config.TimeIntervalMilestoneHashToPassMsec = 5000
+	}
 }
 
 //func errorf(format string, args ...interface{}) {

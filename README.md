@@ -16,8 +16,8 @@ objective and reliable way.
 - [Architecture](#architecture)
 - [Contents of the repository](#contents_of_the_repository)
 - [Download and install](#download_and_install)
-- [Configure Tanglebeat](#configure) ZMQ-based metrics
-- [Configure Tbsender](#configure) non-ZMQ-base metrics
+- [Configure Tanglebeat](#configure_tanglebeat) ZMQ-based metrics
+- [Configure Tbsender](#configure_tbsender) non-ZMQ-base metrics
 - [Run](#run)
 - [Advanced configurations](#advanced_configurations)
 - [API](#api)
@@ -102,9 +102,7 @@ which submits metrics to _Prometheus_.
 
 ![Tanglebeat](picture.png)
 
-## Contents of the repository
-
-Repository is structured as Go packages.
+## Repository
 
 - Directory `tanglebeat` contains Go package for the executable of main _tanglebeat_ program.
 - Directory `tbsender` contains Go package for the executable of the _tbsender_.
@@ -164,6 +162,35 @@ Run `go install`
  
 The above will produce three executable binaries in `GOPATH/bin` directory
   
-## Configure  
+## Configure and run
  
- 
+##### Configure Tanglebeat instance
+Tanglebeat instance is configured with YAML config file. 
+
+It must be located in current directory or in the directory specified by `SITE_DATA_DIR` 
+environments variable. Default name is `tanglebeat.yml`. It also can be specified
+with `-cfg <config file>` command line flag.
+
+Directory `examples/config` contains [example](examples/config/tanglebeat.yml) of the config file. 
+Please read instructions right in the file. In most cases you'll only need to adjust ports used
+by the instance and static list of URI's of IRI ZMQs.
+
+##### Configure Prometheus 
+TBD
+
+##### Configure TBsender
+TBD
+
+
+##### Run
+
+`tanglebeat [-cfg <config file>]`
+
+
+## Advanced configurations
+TBD
+
+## API
+TBD
+
+
