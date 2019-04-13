@@ -100,7 +100,7 @@ The former can be run alone. _tbsender_ is a separate program which does transfe
 to calculate non-ZMQ metrics. It sends all necessary data to _tanglebeat_ instance 
 which submits metrics to _Prometheus_.
 
-![kkk][picture.png]
+![Tanglebeat](picture.png)
 
 ## Contents of the repository
 
