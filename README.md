@@ -2,7 +2,7 @@
 
 **Tanglebeat** is a configurable software agent with the primary purpose of 
 collecting IOTA Tangle-related metrics to [Prometheus Time Series Database](https://prometheus.io/). 
-Metrics data later can be retrieved and displayed with such tools as [Grafana](https://grafana.com). 
+Historical metrics data later can be retrieved and displayed with such tools as [Grafana](https://grafana.com). 
 
 Tanglebeat can be run in various standalone and distributed configurations to ensure 
 high availability and objectivity of the metrics. 
