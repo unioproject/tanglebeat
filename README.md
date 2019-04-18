@@ -1,4 +1,4 @@
-# [tanglebeat.com](http://tanglebeat.com)
+# Tanglebeat 
 
 **Tanglebeat** is a configurable software agent with the primary purpose of 
 collecting IOTA Tangle-related metrics to [Prometheus Time Series Database](https://prometheus.io/). 
@@ -10,6 +10,7 @@ high availability and objectivity of the metrics.
 Tanglebeat is a result of experimenting with different approaches to how to measure a Tangle in 
 objective and reliable way.
 
+It can be found at [tanglebeat.com](http://tanglebeat.com)
 
 ### Contents
 - [Functions](#functions) What can it be useful for?
@@ -17,6 +18,7 @@ objective and reliable way.
 - [Contents of the repository](#repository)
 - [Download and install](#download-and-install)
 - [Configure and run](#configure-and-run) 
+- [List of metrics exposed to Prometheus](#list-of-metrics-exposed-to-prometheus)
 - [Advanced configurations](#advanced-configurations)
 - [API](#api)
 
@@ -44,8 +46,9 @@ Output message stream is exposed for consumption by using
 [Nanomsg](https://nanomsg.org/) as a transport, functionally equivalent to ZMQ, in [exactly the same format as received 
 from ZMQ](https://docs.iota.org/docs/iri/0.1/references/zmq-events).
 
-(*reason why not ZMQ is used for output: there's no reliable pure Go (without C dependencies) library for ZMQ who does that. 
-Nanomsg looks technically more solid than ZMQ anyway* ) 
+(*reason why not ZMQ is used for output: I failed to find a pure Go (without C dependencies) 
+library for ZMQ. 
+Nanomsg looks technically more solid than ZMQ anyway :) * ) 
 
 The following types of IRI ZMQ messages are available from the output Nanomsg stream: `tx` (transaction), `sn` (confirmation),
 `lmi` (latest milestone changed), `lmhs` (latest solid milestone hash). 
@@ -69,7 +72,7 @@ metrics in user friendly way: charts, gauges and similar.
 Some useful IOTA metrics can't be calculated from ZMQ data or it is more practical to collect it
 in other way. These metrics are submitted to *Prometheus* as well.
 
-Tanglebeat (a separate module _tbsender_) does active sending of funds in IOTA network and calculates transfer statistics: 
+A separate module of Tanglebeat called _tbsender_ does active sending of funds in IOTA network and calculates transfer statistics: 
 transfers per hour, average transfer time, interval of expected transfer time and others. 
 It does it by sending and confirming/promoting few iotas worth transfers from one account to 
 another in the endless loop, along addresses of the same seed. Several seeds (sequences) are used for that. 
@@ -88,7 +91,7 @@ Tanglebeat records time when sent transaction returns from one of ZMQ streams ba
 
 ##### A ZMQ state monitor
 Tanglebeat exposes endpoint which returns states and data of all input ZMQ streams. 
-Thus many nodes can be monitored at once by up/down status, 
+Thus many nodes can be monitored at once: by up/down status, 
 sync status, tps, ctps and conf. rate.
 
 ## Picture
@@ -104,9 +107,9 @@ which submits metrics to _Prometheus_.
 
 - Directory `tanglebeat` contains Go package for the executable of main _tanglebeat_ program.
 - Directory `tbsender` contains Go package for the executable of the _tbsender_.
-- Directory `examples\readnano` contains example how to read output of the _Tanglebeat_ in the form 
+- Directory `examples/readnano` contains example how to read output of the _Tanglebeat_ in the form 
 of _Nanomsg_ data stream.
-- Directory `lib` contains common part. Some of it can be used as independent packages 
+- Directory `lib` contains shared packages. Some of them can be used as independent packages 
 in other Go projects
     * `lib/confirmer` contains library for promotion, reattachment and confirmation of any bundle.
     * `lib/multiapi` contains library for IOTA API calls performed simultaneously to 
@@ -165,21 +168,21 @@ The above will produce three executable binaries in `GOPATH/bin` directory
 ##### Configure Tanglebeat instance
 Tanglebeat instance is configured via YAML config file. 
 
-It must be located in current directory or in the directory specified by `SITE_DATA_DIR` 
+It must be located in the current directory or in the directory specified by `SITE_DATA_DIR` 
 environment variable. Default name of the configuration file is `tanglebeat.yml`. 
 It also can be specified with `-cfg <config file>` command line flag.
 
 Directory `examples/config` contains [example](examples/config/tanglebeat.yml) of the config file. 
 Please read instructions right in the file. In most cases you'll only need to adjust ports used
-by the instance and static list of URI's of IRI ZMQs.
+by the instance and static list of URI's of IRI ZMQs you want your instance to listen to.
 
 ##### Configure Prometheus and Graphana
 Note, that Prometheus is needed for Tanglebeat only if you want to store metrics. 
 Otherwise, if it is used only as message hub, it is not mandatory.
 
-Any Prometheus instance can collect (scrape) metrics from Tanglebeat instance, so 
-you need to install one only if you don't have one yet. Otherwise you only need
-specify Tanglebeat's web server port in the config filr of the Prometheus instance.
+Any Prometheus instance can collect (scrape) metrics from Tanglebeat instance. 
+You need to install one only if you don't have one yet. Otherwise you only need
+specify Tanglebeat's web server port in the config file of the Prometheus instance.
 
 Follow instruction to download and [install Prometheus](https://prometheus.io/docs/prometheus/latest/installation/).
 
@@ -200,6 +203,8 @@ TBD
 
 `tanglebeat [-cfg <config file>]`
 
+## List of metrics exposed to Prometheus
+TBD
 
 ## Advanced configurations
 TBD
