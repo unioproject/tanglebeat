@@ -165,7 +165,7 @@ func (gen *transferBundleGenerator) runGenerator() {
 			// nogo
 			// will loop until balance != 0
 
-			// PROBLEM: always moving to the next.
+			// PROBLEM:
 			// Not entirely correct, but sometimes stuck after iri ver change (e.g. 1.7.0)
 			gen.log.Infof("Transfer Bundles [%v]: addr '%v' index = %v, balance == 0, not spent. Wait for some time ",
 				gen.name, addr, gen.index)

@@ -1,3 +1,5 @@
+# Prometheus metrics precalculation rules for Tangelbeat
+
 groups:
     - name: confirmation_metrics
       rules: 

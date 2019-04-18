@@ -1,0 +1,49 @@
+# Config file for Tanglebeat's main module
+
+# web server port for
+#   - Prometheus endpoints (used to scrape metrics).
+#   - for API endpoints
+
+webServerPort: 8082
+
+# parameter which regulates behavior of the message filter
+# Message is released exactly once: when received number of times specified by 'quorumToPass' parameter
+# Usually quorumToPass == 2. It means when received 2nd time, message is sent to output. 1st, 3rd ... Nth time it is not.
+# May be quorumToPass == 3 for bigger reliability
+# If quorumToPass == 1 it means filter is essentially down, because each received message is sent to output exactly once
+
+quorumToPass: 2
+
+# configuration of the message hub.
+
+iriMsgStream:
+     # if output is disabled, messages are not sent to the output stream and only metrics are
+     # exposed to Prometheus
+     outputEnabled: true
+
+     # output port of the output Nanomsg stream
+     outputPort: 5550
+
+     # static list of ZMQ URI's which Tanglebeat will be listening to
+     # Usually it is a list of at least 10 ZMQ URIs
+     inputsZMQ:
+         - "tcp://db.iota.partners:5556"
+         - "tcp://perma-1.iota.partners:5556"
+         - "tcp://perma-2.iota.partners:5556"
+         - "tcp://node02.iotatoken.nl:5556"
+         - "tcp://node04.iotatoken.nl:5556"
+         - "tcp://node06.iotatoken.nl:5556"
+         - "tcp://ultranode.iotatoken.nl:5556"
+         - "tcp://nodes.tangled.it:5556"
+         - "tcp://node.deviceproof.org:5556"
+         - "tcp://node06.iotamexico.com:5556"
+         - "tcp://0v0.science:5556"
+         - "tcp://trinity.iota-tangle.io:5556"
+         
+         
+# configuration of the connection with tbsender
+
+senderMsgStream:
+     inputsNanomsg:
+         - "tcp://localhost:3100"
+
