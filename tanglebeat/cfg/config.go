@@ -2,8 +2,8 @@ package cfg
 
 import (
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/lib/config"
 	"github.com/op/go-logging"
+	"github.com/unioproject/tanglebeat/lib/config"
 	"os"
 )
 

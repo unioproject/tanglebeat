@@ -1,7 +1,7 @@
 package inreaders
 
 import (
-	"github.com/lunfardo314/tanglebeat/lib/utils"
+	"github.com/unioproject/tanglebeat/lib/utils"
 	"sync"
 	"time"
 )

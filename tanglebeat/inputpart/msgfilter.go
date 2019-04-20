@@ -2,10 +2,10 @@ package inputpart
 
 import (
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/lib/ebuffer"
-	"github.com/lunfardo314/tanglebeat/lib/utils"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/cfg"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
+	"github.com/unioproject/tanglebeat/lib/ebuffer"
+	"github.com/unioproject/tanglebeat/lib/utils"
+	"github.com/unioproject/tanglebeat/tanglebeat/cfg"
+	"github.com/unioproject/tanglebeat/tanglebeat/hashcache"
 	"math"
 	"strconv"
 	"sync"

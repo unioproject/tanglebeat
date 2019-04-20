@@ -8,9 +8,13 @@ Tanglebeat can be run in various standalone and distributed configurations to en
 high availability and objectivity of the metrics. 
 
 Tanglebeat is a result of experimenting with different approaches to how to measure a Tangle in 
-objective and reliable way.
+objective and reliable way. 
 
-It can be found at [tanglebeat.com](http://tanglebeat.com)
+It was originally developed as standalone project. The site with live metrics can be found at [tanglebeat.com](http://tanglebeat.com)
+
+Currently Tanglebeat it is being developed under the umbrella of joined **UNIO Project** funded by 
+*Ecosystem Development Fund of IOTA Foundation*.
+
 
 ### Contents
 - [Functions](#functions) What can it be useful for?
@@ -137,27 +141,27 @@ Set `PATH` to your `GOPATH/bin`
 
 To download _tanglebeat_ package with dependencies run:
  
-`go get -d github.com/lunfardo314/tanglebeat/tanglebeat` 
+`go get -d github.com/unioproject/tanglebeat/tanglebeat/tanglebeat` 
 
 To download _tbsender_ package with dependencies run: 
 
-`go get -d github.com/lunfardo314/tanglebeat/tbsender` 
+`go get -d github.com/unioproject/tanglebeat/tbsender` 
  
 To download _readnano_ package run: 
 
-`go get -d github.com/lunfardo314/tanglebeat/examples/readnano` 
+`go get -d github.com/unioproject/tanglebeat/examples/readnano` 
  
 ##### Compile Tanglebeat binaries
  
-Make directory `GOPATH/src/github.com/lunfardo314/tanglebeat/tanglebeat` current.
+Make directory `GOPATH/src/github.com/unioproject/tanglebeat/tanglebeat` current.
 
 Run `go install` 
  
-Make directory `GOPATH/src/github.com/lunfardo314/tanglebeat/tbsender` current.
+Make directory `GOPATH/src/github.com/unioproject/tanglebeat/tbsender` current.
 
 Run `go install` 
 
-Make directory `GOPATH/src/github.com/lunfardo314/tanglebeat/examples/readnano` current.
+Make directory `GOPATH/src/github.com/unioproject/tanglebeat/examples/readnano` current.
 
 Run `go install` 
  
