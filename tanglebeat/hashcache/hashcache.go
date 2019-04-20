@@ -1,9 +1,9 @@
 package hashcache
 
 import (
-	"github.com/lunfardo314/tanglebeat/lib/ebuffer"
-	"github.com/lunfardo314/tanglebeat/lib/utils"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/cfg"
+	"github.com/unioproject/tanglebeat/lib/ebuffer"
+	"github.com/unioproject/tanglebeat/lib/utils"
+	"github.com/unioproject/tanglebeat/tanglebeat/cfg"
 )
 
 type CacheEntry struct {

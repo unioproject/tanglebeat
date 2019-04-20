@@ -1,9 +1,9 @@
 package inputpart
 
 import (
-	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"github.com/op/go-logging"
 	. "github.com/prometheus/client_golang/prometheus"
+	"github.com/unioproject/tanglebeat/lib/utils"
 	"time"
 )
 

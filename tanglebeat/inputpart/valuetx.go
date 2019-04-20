@@ -1,8 +1,8 @@
 package inputpart
 
 import (
-	"github.com/lunfardo314/tanglebeat/lib/utils"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
+	"github.com/unioproject/tanglebeat/lib/utils"
+	"github.com/unioproject/tanglebeat/tanglebeat/hashcache"
 	"strconv"
 )
 

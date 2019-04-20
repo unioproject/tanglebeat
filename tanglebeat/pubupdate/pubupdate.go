@@ -1,8 +1,8 @@
 package pubupdate
 
 import (
-	"github.com/lunfardo314/tanglebeat/lib/nanomsg"
-	"github.com/lunfardo314/tanglebeat/tbsender/sender_update"
+	"github.com/unioproject/tanglebeat/lib/nanomsg"
+	"github.com/unioproject/tanglebeat/tbsender/sender_update"
 )
 
 func PublishSenderUpdate(publisher *nanomsg.Publisher, upd *sender_update.SenderUpdate) error {

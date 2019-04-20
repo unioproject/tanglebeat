@@ -3,9 +3,9 @@ package confirmer
 import (
 	"fmt"
 	. "github.com/iotaledger/iota.go/trinary"
-	"github.com/lunfardo314/tanglebeat/lib/multiapi"
-	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"github.com/op/go-logging"
+	"github.com/unioproject/tanglebeat/lib/multiapi"
+	"github.com/unioproject/tanglebeat/lib/utils"
 	"runtime"
 	"strings"
 	"sync"

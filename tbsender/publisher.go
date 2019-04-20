@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/lunfardo314/tanglebeat/lib/nanomsg"
+	"github.com/unioproject/tanglebeat/lib/nanomsg"
 )
 
 var updatePublisher *nanomsg.Publisher

@@ -2,8 +2,8 @@ package inputpart
 
 import (
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/lib/utils"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/cfg"
+	"github.com/unioproject/tanglebeat/lib/utils"
+	"github.com/unioproject/tanglebeat/tanglebeat/cfg"
 	"math"
 	"sync"
 	"time"

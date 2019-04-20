@@ -2,10 +2,10 @@ package inputpart
 
 import (
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/lib/ebuffer"
-	"github.com/lunfardo314/tanglebeat/lib/nanomsg"
-	"github.com/lunfardo314/tanglebeat/lib/utils"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
+	"github.com/unioproject/tanglebeat/lib/ebuffer"
+	"github.com/unioproject/tanglebeat/lib/nanomsg"
+	"github.com/unioproject/tanglebeat/lib/utils"
+	"github.com/unioproject/tanglebeat/tanglebeat/inreaders"
 	"math"
 	"sort"
 	"time"

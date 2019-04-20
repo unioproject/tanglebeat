@@ -3,8 +3,8 @@ package senderpart
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/lib/utils"
-	"github.com/lunfardo314/tanglebeat/tbsender/sender_update"
+	"github.com/unioproject/tanglebeat/lib/utils"
+	"github.com/unioproject/tanglebeat/tbsender/sender_update"
 	"net/http"
 	"sort"
 	"sync"

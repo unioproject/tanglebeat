@@ -137,27 +137,27 @@ Set `PATH` to your `GOPATH/bin`
 
 To download _tanglebeat_ package with dependencies run:
  
-`go get -d github.com/lunfardo314/tanglebeat/tanglebeat` 
+`go get -d github.com/unioproject/tanglebeat/tanglebeat/tanglebeat` 
 
 To download _tbsender_ package with dependencies run: 
 
-`go get -d github.com/lunfardo314/tanglebeat/tbsender` 
+`go get -d github.com/unioproject/tanglebeat/tbsender` 
  
 To download _readnano_ package run: 
 
-`go get -d github.com/lunfardo314/tanglebeat/examples/readnano` 
+`go get -d github.com/unioproject/tanglebeat/examples/readnano` 
  
 ##### Compile Tanglebeat binaries
  
-Make directory `GOPATH/src/github.com/lunfardo314/tanglebeat/tanglebeat` current.
+Make directory `GOPATH/src/github.com/unioproject/tanglebeat/tanglebeat` current.
 
 Run `go install` 
  
-Make directory `GOPATH/src/github.com/lunfardo314/tanglebeat/tbsender` current.
+Make directory `GOPATH/src/github.com/unioproject/tanglebeat/tbsender` current.
 
 Run `go install` 
 
-Make directory `GOPATH/src/github.com/lunfardo314/tanglebeat/examples/readnano` current.
+Make directory `GOPATH/src/github.com/unioproject/tanglebeat/examples/readnano` current.
 
 Run `go install` 
  
