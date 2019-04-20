@@ -10,9 +10,9 @@ high availability and objectivity of the metrics.
 Tanglebeat is a result of experimenting with different approaches to how to measure a Tangle in 
 objective and reliable way. 
 
-It was originally developed as standalone project. Site with live metrics can be found at [tanglebeat.com](http://tanglebeat.com)
+It was originally developed as standalone project. The site with live metrics can be found at [tanglebeat.com](http://tanglebeat.com)
 
-Currently the Tanglebeat it is being developed under the umbrella of joined **UNIO Project** funded by 
+Currently Tanglebeat it is being developed under the umbrella of joined **UNIO Project** funded by 
 *Ecosystem Development Fund of IOTA Foundation*.
 
 
