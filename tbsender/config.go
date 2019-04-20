@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	Version                 = "1.4.1"
+	Version                 = "unio 1.4.2"
 	PREFIX_MODULE           = "tbsender"
 	ROTATE_LOG_HOURS        = 12
 	ROTATE_LOG_RETAIN_HOURS = 12
