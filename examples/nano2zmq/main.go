@@ -18,7 +18,7 @@ func main() {
 	pintOutp := flag.Int("to", defaultZmqOutputPort, "ZMQ output port")
 	flag.Parse()
 	inputUri := *pstrInp
-	outputUri := fmt.Sprintf("tcp://:%v", *pintOutp)
+	outputUri := fmt.Sprintf("tcp://*:%v", *pintOutp)
 
 	fmt.Printf("Nanomsg input: %v\n", inputUri)
 	fmt.Printf("ZMQ output: %v\n", outputUri)
