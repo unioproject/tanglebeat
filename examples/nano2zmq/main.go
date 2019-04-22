@@ -11,10 +11,15 @@ import (
 	"time"
 )
 
+// program converts Nanomsg/Mangos data stream (SUB) into ZMQ data stream (PUB).
+// usage: nano2zmq [-from <input Nanomsg URI> [-to <ZMQ output port>]]
+
 const defaultNanoInput = "tcp://tanglebeat.com:5550"
 const defaultZmqOutputPort = 5556
 
 func main() {
+	fmt.Printf("nano2zmq: converts Nanomsg/Mangos data stream (SUB) into ZMQ data stream (PUB)")
+
 	pstrInp := flag.String("from", defaultNanoInput, "Nanomsg input")
 	pintOutp := flag.Int("to", defaultZmqOutputPort, "ZMQ output port")
 	flag.Parse()
