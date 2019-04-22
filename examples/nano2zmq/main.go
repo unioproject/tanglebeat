@@ -12,7 +12,7 @@ import (
 )
 
 const defaultNanoInput = "tcp://tanglebeat.com:5550"
-const defaultZmqOutputPort = 5557
+const defaultZmqOutputPort = 5556
 
 func main() {
 	pstrInp := flag.String("from", defaultNanoInput, "Nanomsg input")
