@@ -43,7 +43,7 @@ func main() {
 		counter++
 		if time.Since(startInterv) > 10*time.Second {
 			startInterv = time.Now()
-			fmt.Printf("%v  %v messages passed\n", startInterv, counter)
+			fmt.Printf("%v  %v messages passed\n", startInterv.Format(time.RFC3339), counter)
 			counter = 0
 		}
 	}
