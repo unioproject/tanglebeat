@@ -8,6 +8,7 @@ import (
 	"nanomsg.org/go-mangos/protocol/sub"
 	"nanomsg.org/go-mangos/transport/tcp"
 	"os"
+	"time"
 )
 
 const defaultNanoInput = "tcp://tanglebeat.com:5550"
@@ -27,18 +28,23 @@ func main() {
 	pubSock := mustOpenOutput(outputUri)
 	var msg []byte
 	var err error
+	startInterv := time.Now()
+	counter := 0
 	for {
 		msg, err = subSock.Recv()
 		if err != nil {
-			fmt.Printf("nanomsg Recv: %v\n", err)
-		} else {
-			fmt.Printf("received: '%v'\n", string(msg))
+			fmt.Printf("nanomsg Recv: %v\nSleep 5 sec.", err)
+			time.Sleep(5 * time.Second)
 		}
 		_, err = pubSock.SendBytes(msg, 0)
 		if err != nil {
 			fmt.Printf("zmq SendBytes: %v\n", err)
-		} else {
-			fmt.Printf("sent succesfully\n")
+		}
+		counter++
+		if time.Since(startInterv) > 10*time.Second {
+			startInterv = time.Now()
+			fmt.Printf("%v  %v messages passed\n", startInterv, counter)
+			counter = 0
 		}
 	}
 }
