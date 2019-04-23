@@ -17,6 +17,9 @@ import (
 type GlbStats struct {
 	InstanceVersion     string                         `json:"instanceVersion"`
 	InstanceStarted     uint64                         `json:"instanceStarted"`
+	QuorumTX            int                            `json:"quorumTX"`
+	QuorumSN            int                            `json:"quorumSN"`
+	QuorumLMI           int                            `json:"quorumLMI"`
 	GoRuntimeStats      memStatsStruct                 `json:"goRuntimeStats"`
 	ZmqCacheStats       inputpart.ZmqCacheStatsStruct  `json:"zmqRuntimeStats"`
 	ZmqOutputStats      inputpart.ZmqOutputStatsStruct `json:"zmqOutputStats"`
@@ -52,6 +55,7 @@ func updateGlbStatsLoop(refreshStatsEverySec int) {
 		inp := inputpart.GetInputStats()
 
 		glbStats.mutex.Lock()
+
 		glbStats.ZmqInputStats = inp
 		glbStats.ZmqCacheStats = *inputpart.GetZmqCacheStats()
 		t1, t2 := inputpart.GetOutputStats()
@@ -61,6 +65,11 @@ func updateGlbStatsLoop(refreshStatsEverySec int) {
 		updateRuntimeMetrics(glbStats.GoRuntimeStats.MemAllocMB)
 
 		glbStats.GoRuntimeStats.NumGoroutine = runtime.NumGoroutine()
+
+		glbStats.QuorumTX = inputpart.GetTxQuorum()
+		glbStats.QuorumSN = inputpart.GetSnQuorum()
+		glbStats.QuorumLMI = inputpart.GetLmiQuorum()
+
 		glbStats.mutex.Unlock()
 
 		time.Sleep(time.Duration(refreshStatsEverySec) * time.Second)

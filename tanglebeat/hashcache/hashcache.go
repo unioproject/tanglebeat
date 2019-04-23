@@ -3,7 +3,6 @@ package hashcache
 import (
 	"github.com/unioproject/tanglebeat/lib/ebuffer"
 	"github.com/unioproject/tanglebeat/lib/utils"
-	"github.com/unioproject/tanglebeat/tanglebeat/cfg"
 )
 
 type CacheEntry struct {
@@ -203,7 +202,7 @@ type hashcacheStats struct {
 	SeenOnceRateById map[byte]int
 }
 
-func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
+func (cache *HashCacheBase) Stats(msecBack uint64, quorumTx int) *hashcacheStats {
 	nowis := utils.UnixMsNow()
 	earliest := nowis - msecBack
 	ago1min := nowis - 10*60*1000
@@ -236,7 +235,7 @@ func (cache *HashCacheBase) Stats(msecBack uint64) *hashcacheStats {
 				ret.SeenOnceRateById[entry.FirstVisitId] += 1
 			}
 		}
-		if int(entry.Visits) >= cfg.Config.QuorumTxToPass {
+		if int(entry.Visits) >= quorumTx {
 			lat = float64(entry.LastSeen-entry.FirstSeen) / 1000
 			ret.LatencySecAvg += lat
 			ret.TxCountPassed++

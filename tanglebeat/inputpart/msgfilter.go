@@ -120,7 +120,7 @@ func filterTXMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
 	checkForEcho(msgSplit[1], utils.UnixMsNow())
 
 	// check if message was seen exactly number of times as configured (usually 2)
-	if int(entry.Visits) == cfg.Config.QuorumTxToPass {
+	if int(entry.Visits) == GetTxQuorum() {
 		toOutput(msgData, msgSplit)
 	}
 }
@@ -156,7 +156,7 @@ func filterSNMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
 	sncache.SeenHashBy(hash, routine.GetId__(), nil, &entry)
 
 	// check if message was seen exactly number of times as configured (usually 2)
-	if int(entry.Visits) == cfg.Config.QuorumTxToPass {
+	if int(entry.Visits) == GetSnQuorum() {
 		toOutput(msgData, msgSplit)
 	}
 }
@@ -201,7 +201,7 @@ func filterLMIMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
 	case index == lastLMI:
 		lastLMITimesSeen++
 		lastLMILastSeen = utils.UnixMsNow()
-		if lastLMITimesSeen == cfg.Config.QuorumTxToPass {
+		if lastLMITimesSeen == GetLmiQuorum() {
 			toOutput(msgData, msgSplit)
 		}
 	}
