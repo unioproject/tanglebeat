@@ -107,8 +107,9 @@ func updateZmqCacheStats() {
 	zmqCacheStats.SizeConfirmedTransfers = fmt.Sprintf("%v, seg=%v", e, s)
 
 	// 1 hour stats
-	txcacheStats := txcache.Stats(0)
-	sncacheStats := sncache.Stats(0)
+	txcacheStats := txcache.Stats(0, GetTxQuorum())
+	sncacheStats := sncache.Stats(0, GetSnQuorum())
+
 	zmqCacheStats.TXSeenOnceCount = txcacheStats.SeenOnce
 	zmqCacheStats.SNSeenOnceCount = sncacheStats.SeenOnce
 
@@ -122,8 +123,9 @@ func updateZmqCacheStats() {
 	zmqCacheStats.TXLatencySecAvg = math.Round(txcacheStats.LatencySecAvg*100) / 100
 	zmqCacheStats.SNLatencySecAvg = math.Round(sncacheStats.LatencySecAvg*100) / 100
 
-	txcacheStats10min := txcache.Stats(10 * 60 * 1000)
-	sncacheStats10min := sncache.Stats(10 * 60 * 1000)
+	txcacheStats10min := txcache.Stats(10*60*1000, GetTxQuorum())
+	sncacheStats10min := sncache.Stats(10*60*1000, GetSnQuorum())
+
 	zmqCacheStats.TXSeenOnceCount10min = txcacheStats10min.SeenOnce
 	zmqCacheStats.SNSeenOnceCount10min = sncacheStats10min.SeenOnce
 
@@ -134,7 +136,7 @@ func updateZmqCacheStats() {
 		zmqCacheStats.SNNonPropagationRate10min = (sncacheStats10min.SeenOnce * 100) / sncacheStats10min.TxCountOlder1Min
 	}
 
-	txcacheStats5min := txcache.Stats(5 * 60 * 1000)
+	txcacheStats5min := txcache.Stats(5*60*1000, GetTxQuorum())
 	zmqCacheStats.seenOnceRateById5Min = txcacheStats5min.SeenOnceRateById
 
 	zmqCacheStats.TXLatencySecAvg10min = math.Round(txcacheStats10min.LatencySecAvg*100) / 100
@@ -158,10 +160,10 @@ func updateZmqOutputSlowStats() {
 	// all retentionPeriod stats
 	retentionPeriodSec := uint64(cfg.Config.RetentionPeriodMin) * 60
 	var st ZmqOutputStatsStruct
-	txs := txcache.Stats(retentionPeriodSec * 1000)
+	txs := txcache.Stats(retentionPeriodSec*1000, GetTxQuorum())
 	st.TXCount = txs.TxCountPassed
 
-	sns := sncache.Stats(retentionPeriodSec * 1000)
+	sns := sncache.Stats(retentionPeriodSec*1000, GetSnQuorum())
 	st.SNCount = sns.TxCountPassed
 
 	secPassed := float64((utils.UnixMsNow() - txs.EarliestSeen) / 1000)
@@ -171,7 +173,6 @@ func updateZmqOutputSlowStats() {
 		st.TPS = math.Round(st.TPS*100) / 100
 		st.CTPS = float64(st.SNCount) / secPassed
 		st.CTPS = math.Round(st.CTPS*100) / 100
-		//debugf("+++++++++++++ secPassed = %v st = %+v", secPassed, st)
 	}
 
 	if st.TXCount != 0 {
@@ -182,10 +183,10 @@ func updateZmqOutputSlowStats() {
 	// 10 min stats
 	const secBack10min = 10 * 60
 	var st10 ZmqOutputStatsStruct
-	txs10 := txcache.Stats(secBack10min * 1000)
+	txs10 := txcache.Stats(secBack10min*1000, GetTxQuorum())
 	st10.TXCount = txs10.TxCountPassed
 
-	sns10 := sncache.Stats(secBack10min * 1000)
+	sns10 := sncache.Stats(secBack10min*1000, GetSnQuorum())
 	st10.SNCount = sns10.TxCountPassed
 
 	secPassed10 := float64((utils.UnixMsNow() - txs10.EarliestSeen) / 1000)
