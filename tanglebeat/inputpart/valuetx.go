@@ -22,6 +22,7 @@ var (
 	positiveValueTxCache     *hashcache.HashCacheBase
 	valueBundleCache         *hashcache.HashCacheBase
 	confirmedPositiveValueTx *ebuffer.EventTsWithDataExpiringBuffer
+	transferBundleCache      *bundleCache
 )
 
 const (
@@ -38,73 +39,84 @@ func initValueTx() {
 		"valueBundleCache", useFirstHashTrytes, segmentDurationValueBundleSec, retentionPeriodSec)
 	confirmedPositiveValueTx = ebuffer.NewEventTsWithDataExpiringBuffer(
 		"confirmedPositiveValueTx", segmentDurationConfirmedTransfersSec, retentionPeriodSec)
+	transferBundleCache = newBundleCache(
+		useFirstHashTrytes, segmentDurationValueBundleSec, retentionPeriodSec)
+
+	go updateBundleMetricsLoop()
 }
 
 func processValueTxMsg(msgSplit []string) {
 	switch msgSplit[0] {
 	case "tx":
-		// track hashes of >0 value transaction if 'positiveValueTxCache'.
-		if len(msgSplit) >= 9 {
-			if value, err := strconv.Atoi(msgSplit[3]); err == nil {
-				if value > 0 {
-					data := &valueTxData{
-						value:        uint64(value),
-						lastInBundle: msgSplit[6] == msgSplit[7],
-					}
-					// Store tx hash is seen first time to wait for corresponding 'sn' message
-					positiveValueTxCache.SeenHashBy(msgSplit[1], 0, data, nil) // transaction
-					// Store bundle hash is seen first time to wait for corresponding 'sn' message (track bundle confirmation)
-					valueBundleCache.SeenHashBy(msgSplit[8], 0, &valueBundleData{}, nil)
-				}
-			} else {
-				errorf("toOutput: expected integer in value field")
-			}
-		} else {
+		if len(msgSplit) < 9 {
 			errorf("toOutput: expected at least 9 fields in TX message")
+			return
+		}
+		value, err := strconv.Atoi(msgSplit[3])
+		if err != nil {
+			errorf("toOutput: expected integer in value field")
+			return
+		}
+		// track hashes of >0 value transaction if 'positiveValueTxCache'.
+		if value > 0 {
+			data := &valueTxData{
+				value:        uint64(value),
+				lastInBundle: msgSplit[6] == msgSplit[7],
+			}
+			// Store tx hash is seen first time to wait for corresponding 'sn' message
+			positiveValueTxCache.SeenHashBy(msgSplit[1], 0, data, nil) // transaction
+			// Store bundle hash is seen first time to wait for corresponding 'sn' message (track bundle confirmation)
+			valueBundleCache.SeenHashBy(msgSplit[8], 0, &valueBundleData{}, nil)
+		}
+		if value != 0 {
+			// TODO eliminate reattachments
+			transferBundleCache.updateBundleData(msgSplit[8], msgSplit[2], int64(value), msgSplit[6] == msgSplit[7])
 		}
 	case "sn":
-		if len(msgSplit) >= 7 {
-			var entry hashcache.CacheEntry
-			// confirmed value transaction received
-			// checking if it was seen positiveValueTxCache.
-			// If so, delete it from there and update corresponding metrics
-			// tx is not needed in the cache anymore because another message with the same hash won't come
-			seen := positiveValueTxCache.FindWithDelete(msgSplit[2], &entry)
-			if seen {
-				if vtd, ok := entry.Data.(*valueTxData); ok {
-					// move value tx data to confirmedPositiveValueTx
-					confirmedPositiveValueTx.RecordTS(entry.Data)
-					updateConfirmedValueTxMetrics(vtd.value, vtd.lastInBundle)
-					infof("Confirmed value tx %v value = %v duration %v min",
-						msgSplit[2], vtd.value, float32(utils.SinceUnixMs(entry.FirstSeen))/60000,
-					)
-				} else {
-					errorf("confirmedPositiveValueTx cache: wrong data type")
-					panic("confirmedPositiveValueTx cache: wrong data type")
-				}
-			}
-			// confirmed value bundle
-			// check if it was seen in 'valueBundleCache'
-			// if it was seen first time (!*pconf), update corresponding metrics
-			// bundle is not delete from the cache, just market as 'confirmed' and then purged by the
-			// background routine after 'retentionPeriod'
-			// that is because bundle must be kept in the cache as long as confirmations with that bundle hash are coming
-			seen = valueBundleCache.Find(msgSplit[6], &entry)
-			if seen {
-				vbd, _ := entry.Data.(*valueBundleData)
-				if !vbd.confirmed {
-					// not 100% correct
-					valueBundleCache.Lock()
-					vbd.confirmed = true
-					vbd.when = utils.UnixMsNow()
-					valueBundleCache.Unlock()
-
-					updateConfirmedValueBundleMetrics()
-					infof("Confirmed bundle %v", msgSplit[6])
-				}
-			}
-		} else {
+		if len(msgSplit) < 7 {
 			errorf("toOutput: expected at least 7 fields in SN message")
+			return
+		}
+		transferBundleCache.markConfirmed(msgSplit[6])
+
+		var entry hashcache.CacheEntry
+		// confirmed value transaction received
+		// checking if it was seen positiveValueTxCache.
+		// If so, delete it from there and update corresponding metrics
+		// tx is not needed in the cache anymore because another message with the same hash won't come
+		seen := positiveValueTxCache.FindWithDelete(msgSplit[2], &entry)
+		if seen {
+			if vtd, ok := entry.Data.(*valueTxData); ok {
+				// move value tx data to confirmedPositiveValueTx
+				confirmedPositiveValueTx.RecordTS(entry.Data)
+				updateConfirmedValueTxMetrics(vtd.value, vtd.lastInBundle)
+				infof("Confirmed value tx %v value = %v duration %v min",
+					msgSplit[2], vtd.value, float32(utils.SinceUnixMs(entry.FirstSeen))/60000,
+				)
+			} else {
+				errorf("confirmedPositiveValueTx cache: wrong data type")
+				panic("confirmedPositiveValueTx cache: wrong data type")
+			}
+		}
+		// confirmed value bundle
+		// check if it was seen in 'valueBundleCache'
+		// if it was seen first time (!*pconf), update corresponding metrics
+		// bundle is not delete from the cache, just market as 'confirmed' and then purged by the
+		// background routine after 'retentionPeriod'
+		// that is because bundle must be kept in the cache as long as confirmations with that bundle hash are coming
+		seen = valueBundleCache.Find(msgSplit[6], &entry)
+		if seen {
+			vbd, _ := entry.Data.(*valueBundleData)
+			if !vbd.confirmed {
+				// not 100% correct
+				valueBundleCache.Lock()
+				vbd.confirmed = true
+				vbd.when = utils.UnixMsNow()
+				valueBundleCache.Unlock()
+
+				updateConfirmedValueBundleMetrics()
+				infof("Confirmed bundle %v", msgSplit[6])
+			}
 		}
 	}
 }

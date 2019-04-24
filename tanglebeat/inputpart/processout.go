@@ -1,7 +1,7 @@
 package inputpart
 
 func toOutput(msgData []byte, msgSplit []string) {
-	// publish message to output Nanomsg channel exactly as reaceived from ZeroMQ. For others to consume
+	// publish message to output Nanomsg channel exactly as received from ZeroMQ. For others to consume
 	if err := compoundOutPublisher.PublishData(msgData); err != nil {
 		errorf("Error while publishing data: %v", err)
 	}
