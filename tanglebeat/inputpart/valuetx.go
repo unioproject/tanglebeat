@@ -1,7 +1,9 @@
 package inputpart
 
 import (
+	"github.com/unioproject/tanglebeat/lib/ebuffer"
 	"github.com/unioproject/tanglebeat/lib/utils"
+	"github.com/unioproject/tanglebeat/tanglebeat/cfg"
 	"github.com/unioproject/tanglebeat/tanglebeat/hashcache"
 	"strconv"
 )
@@ -14,6 +16,28 @@ type valueTxData struct {
 type valueBundleData struct {
 	confirmed bool
 	when      uint64
+}
+
+var (
+	positiveValueTxCache     *hashcache.HashCacheBase
+	valueBundleCache         *hashcache.HashCacheBase
+	confirmedPositiveValueTx *ebuffer.EventTsWithDataExpiringBuffer
+)
+
+const (
+	segmentDurationValueTXSec            = 10 * 60
+	segmentDurationValueBundleSec        = 10 * 60
+	segmentDurationConfirmedTransfersSec = 10 * 60
+)
+
+func initValueTx() {
+	retentionPeriodSec := cfg.Config.RetentionPeriodMin * 60
+	positiveValueTxCache = hashcache.NewHashCacheBase(
+		"positiveValueTxCache", useFirstHashTrytes, segmentDurationValueTXSec, retentionPeriodSec)
+	valueBundleCache = hashcache.NewHashCacheBase(
+		"valueBundleCache", useFirstHashTrytes, segmentDurationValueBundleSec, retentionPeriodSec)
+	confirmedPositiveValueTx = ebuffer.NewEventTsWithDataExpiringBuffer(
+		"confirmedPositiveValueTx", segmentDurationConfirmedTransfersSec, retentionPeriodSec)
 }
 
 func processValueTxMsg(msgSplit []string) {

@@ -109,12 +109,12 @@ func (cache *HashCacheBase) ShortHash(hash string) string {
 	return string(ret)
 }
 
-func (cache *HashCacheBase) __insertNew(shorthash string, id byte, data interface{}) {
+func (cache *HashCacheBase) InsertNewNolock(shorthash string, id byte, data interface{}) {
 	cache.NewEntry(shorthash, id, data)
 }
 
 // finds entry and increases visit counter if found
-func (cache *HashCacheBase) __find(shorthash string, ret *CacheEntry, touch bool) bool {
+func (cache *HashCacheBase) FindNolock(shorthash string, ret *CacheEntry, touch bool) bool {
 	var found bool
 	if touch {
 		cache.ForEachSegment__(func(seg ebuffer.ExpiringSegment) bool {
@@ -133,17 +133,17 @@ func (cache *HashCacheBase) __find(shorthash string, ret *CacheEntry, touch bool
 func (cache *HashCacheBase) Find(hash string, ret *CacheEntry) bool {
 	cache.Lock()
 	defer cache.Unlock()
-	return cache.__find(cache.ShortHash(hash), ret, true)
+	return cache.FindNolock(cache.ShortHash(hash), ret, true)
 }
 
 func (cache *HashCacheBase) FindNoTouch(hash string, ret *CacheEntry) bool {
 	cache.Lock()
 	defer cache.Unlock()
-	return cache.__find(cache.ShortHash(hash), ret, false)
+	return cache.FindNolock(cache.ShortHash(hash), ret, false)
 }
 
 func (cache *HashCacheBase) FindNoTouch__(hash string, ret *CacheEntry) bool {
-	return cache.__find(cache.ShortHash(hash), ret, false)
+	return cache.FindNolock(cache.ShortHash(hash), ret, false)
 }
 
 func (cache *HashCacheBase) __findWithDelete(shorthash string, ret *CacheEntry) bool {
@@ -175,10 +175,10 @@ func (cache *HashCacheBase) SeenHashBy(hash string, id byte, data interface{}, r
 	defer cache.Unlock()
 
 	shash := cache.ShortHash(hash)
-	if seen := cache.__find(shash, ret, true); seen {
+	if seen := cache.FindNolock(shash, ret, true); seen {
 		return true
 	}
-	cache.__insertNew(shash, id, data)
+	cache.InsertNewNolock(shash, id, data)
 	// if new entry, ret is not touched
 	// CacheEntry is mock
 	if ret != nil {

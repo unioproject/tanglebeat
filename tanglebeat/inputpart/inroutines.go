@@ -54,6 +54,8 @@ var (
 
 func MustInitInputRoutines(outEnabled bool, outPort int, inputsZMQ []string, inputsNanomsg []string) {
 	initMsgFilter()
+	initValueTx()
+
 	inputRoutines = inreaders.NewInputReaderSet("inreader set")
 	var err error
 	compoundOutPublisher, err = nanomsg.NewPublisher(outEnabled, outPort, 0, localLog)
