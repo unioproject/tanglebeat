@@ -14,6 +14,7 @@ var (
 	zmqMetricsConfirmedValueTxLastIndexCounter Counter
 
 	zmqMetricsConfirmedValueTxNotLastIndexTotalCounter Counter
+	zmqMetricsTransferVolumeCounter                    Counter // new
 
 	zmqMetricsConfirmedValueBundleCounter Counter
 
@@ -27,9 +28,6 @@ var (
 
 	zmqMetricsLatencySNAvg        Gauge
 	zmqMetricsNotPropagatedPercSN Gauge
-
-	//zmqMetricsTxCounterVec  *CounterVec
-	//zmqMetricsCtxCounterVec *CounterVec
 
 	echoNotSeenPerc         Gauge
 	echoMetricsAvgFirstSeen Gauge
@@ -66,6 +64,12 @@ func init() {
 		Help: "Total of value transactions not last in bundle",
 	})
 	MustRegister(zmqMetricsConfirmedValueTxNotLastIndexTotalCounter)
+
+	zmqMetricsTransferVolumeCounter = NewCounter(CounterOpts{
+		Name: "tanglebeat_transfer_volume_counter",
+		Help: "Approximation of the total transfer value",
+	})
+	MustRegister(zmqMetricsTransferVolumeCounter)
 
 	zmqMetricsConfirmedValueBundleCounter = NewCounter(CounterOpts{
 		Name: "tanglebeat_confirmed_bundle_counter",
