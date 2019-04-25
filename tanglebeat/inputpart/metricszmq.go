@@ -11,13 +11,12 @@ var (
 	zmqMetricsConfirmedValueTxCounter      Counter
 	zmqMetricsConfirmedValueTxTotalCounter Counter
 
-	zmqMetricsConfirmedValueTxSubTiCounter     Counter
-	zmqMetricsConfirmedValueTxSubGiCounter     Counter
 	zmqMetricsConfirmedValueTxLastIndexCounter Counter
 
-	zmqMetricsConfirmedValueTxSubTiTotalCounter        Counter
-	zmqMetricsConfirmedValueTxSubGiTotalCounter        Counter
 	zmqMetricsConfirmedValueTxNotLastIndexTotalCounter Counter
+
+	zmqMetricsTransferVolumeCounter Counter // new
+	zmqMetricsTransferCounter       Counter // new
 
 	zmqMetricsConfirmedValueBundleCounter Counter
 
@@ -31,9 +30,6 @@ var (
 
 	zmqMetricsLatencySNAvg        Gauge
 	zmqMetricsNotPropagatedPercSN Gauge
-
-	//zmqMetricsTxCounterVec  *CounterVec
-	//zmqMetricsCtxCounterVec *CounterVec
 
 	echoNotSeenPerc         Gauge
 	echoMetricsAvgFirstSeen Gauge
@@ -59,41 +55,29 @@ func init() {
 	})
 	MustRegister(zmqMetricsConfirmedValueTxTotalCounter)
 
-	zmqMetricsConfirmedValueTxSubTiCounter = NewCounter(CounterOpts{
-		Name: "tanglebeat_confirmed_value_tx_subti_counter",
-		Help: "Counter confirmed value sub-tiota transactions",
-	})
-	MustRegister(zmqMetricsConfirmedValueTxSubTiCounter)
-
-	zmqMetricsConfirmedValueTxSubGiCounter = NewCounter(CounterOpts{
-		Name: "tanglebeat_confirmed_value_tx_subgi_counter",
-		Help: "Counter value sub Tiota transactions",
-	})
-	MustRegister(zmqMetricsConfirmedValueTxSubGiCounter)
-
 	zmqMetricsConfirmedValueTxLastIndexCounter = NewCounter(CounterOpts{
 		Name: "tanglebeat_confirmed_value_tx_lastindex_counter",
 		Help: "Counter value transactions last in bundle",
 	})
 	MustRegister(zmqMetricsConfirmedValueTxLastIndexCounter)
 
-	zmqMetricsConfirmedValueTxSubTiTotalCounter = NewCounter(CounterOpts{
-		Name: "tanglebeat_confirmed_value_tx_subti_total_counter",
-		Help: "Total of value transactions < Ti",
-	})
-	MustRegister(zmqMetricsConfirmedValueTxSubTiTotalCounter)
-
-	zmqMetricsConfirmedValueTxSubGiTotalCounter = NewCounter(CounterOpts{
-		Name: "tanglebeat_confirmed_value_tx_subgi_total_counter",
-		Help: "Total of value transactions < Gi",
-	})
-	MustRegister(zmqMetricsConfirmedValueTxSubGiTotalCounter)
-
 	zmqMetricsConfirmedValueTxNotLastIndexTotalCounter = NewCounter(CounterOpts{
 		Name: "tanglebeat_confirmed_value_tx_notlastindex_total_counter",
 		Help: "Total of value transactions not last in bundle",
 	})
 	MustRegister(zmqMetricsConfirmedValueTxNotLastIndexTotalCounter)
+
+	zmqMetricsTransferVolumeCounter = NewCounter(CounterOpts{
+		Name: "tanglebeat_transfer_volume_counter",
+		Help: "Approximation of the total transfer value",
+	})
+	MustRegister(zmqMetricsTransferVolumeCounter)
+
+	zmqMetricsTransferCounter = NewCounter(CounterOpts{
+		Name: "tanglebeat_transfer_counter",
+		Help: "Number of confirmed transfers",
+	})
+	MustRegister(zmqMetricsTransferCounter)
 
 	zmqMetricsConfirmedValueBundleCounter = NewCounter(CounterOpts{
 		Name: "tanglebeat_confirmed_bundle_counter",
@@ -140,18 +124,6 @@ func init() {
 		Help: "Confirmed transaction counter.",
 	})
 	MustRegister(zmqMetricsCtxCounterCompound)
-
-	//zmqMetricsTxCounterVec = NewCounterVec(CounterOpts{
-	//	Name: "tanglebeat_tx_counter_vec",
-	//	Help: "Transaction counter labeled by host.",
-	//}, []string{"host"})
-	//MustRegister(zmqMetricsTxCounterVec)
-	//
-	//zmqMetricsCtxCounterVec = NewCounterVec(CounterOpts{
-	//	Name: "tanglebeat_ctx_counter_vec",
-	//	Help: "Confirmed transaction counter labeled by host.",
-	//}, []string{"host"})
-	//MustRegister(zmqMetricsCtxCounterVec)
 
 	metricsMiotaPriceUSD = NewGauge(GaugeOpts{
 		Name: "tanglebeat_miota_price_usd",
@@ -202,28 +174,19 @@ func init() {
 		Help: "Average conf rate by Luca Moser",
 	})
 	MustRegister(lmConfRate30minMetrics)
-
 }
 
-const (
-	Miota = 1000000
-	Giota = Miota * 1000
-	Tiota = Giota * 1000
-)
+func updateTransferVolumeMetrics(value uint64) {
+	zmqMetricsTransferVolumeCounter.Add(float64(value))
+}
+
+func updateTransferCounter() {
+	zmqMetricsTransferCounter.Inc()
+}
 
 func updateConfirmedValueTxMetrics(value uint64, lastInBundle bool) {
 	zmqMetricsConfirmedValueTxCounter.Inc()
 	zmqMetricsConfirmedValueTxTotalCounter.Add(float64(value))
-
-	if value < Giota {
-		zmqMetricsConfirmedValueTxSubGiCounter.Inc()
-		zmqMetricsConfirmedValueTxSubGiTotalCounter.Add(float64(value))
-	}
-
-	if value < Tiota {
-		zmqMetricsConfirmedValueTxSubTiCounter.Inc()
-		zmqMetricsConfirmedValueTxSubTiTotalCounter.Add(float64(value))
-	}
 
 	if lastInBundle {
 		zmqMetricsConfirmedValueTxLastIndexCounter.Inc()

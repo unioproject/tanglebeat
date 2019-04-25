@@ -2,7 +2,6 @@ package inputpart
 
 import (
 	"fmt"
-	"github.com/unioproject/tanglebeat/lib/ebuffer"
 	"github.com/unioproject/tanglebeat/lib/utils"
 	"github.com/unioproject/tanglebeat/tanglebeat/cfg"
 	"github.com/unioproject/tanglebeat/tanglebeat/hashcache"
@@ -12,26 +11,20 @@ import (
 )
 
 const (
-	useFirstHashTrytes                   = 12 // first positions of the hash will only be used in hash table. To spare memory
-	segmentDurationTXSec                 = 60
-	segmentDurationValueTXSec            = 10 * 60
-	segmentDurationValueBundleSec        = 10 * 60
-	segmentDurationSNSec                 = 1 * 60
-	segmentDurationConfirmedTransfersSec = 10 * 60
+	useFirstHashTrytes   = 12 // first positions of the hash will only be used in hash table. To spare memory
+	segmentDurationTXSec = 60
+	segmentDurationSNSec = 1 * 60
 )
 
 var (
-	txcache                  *hashcache.HashCacheBase
-	sncache                  *hashCacheSN
-	positiveValueTxCache     *hashcache.HashCacheBase
-	valueBundleCache         *hashcache.HashCacheBase
-	confirmedPositiveValueTx *ebuffer.EventTsWithDataExpiringBuffer
-	lastLMI                  int
-	lastLMITimesSeen         int
-	lastLMIFirstSeen         uint64
-	lastLMILastSeen          uint64
-	lmiMutex                 = &sync.RWMutex{}
-	lmhsCache                *hashcache.HashCacheBase
+	txcache          *hashcache.HashCacheBase
+	sncache          *hashCacheSN
+	lastLMI          int
+	lastLMITimesSeen int
+	lastLMIFirstSeen uint64
+	lastLMILastSeen  uint64
+	lmiMutex         = &sync.RWMutex{}
+	lmhsCache        *hashcache.HashCacheBase
 )
 
 type zmqMsg struct {
@@ -59,13 +52,6 @@ func initMsgFilter() {
 		"txcache", useFirstHashTrytes, segmentDurationTXSec, retentionPeriodSec)
 	sncache = newHashCacheSN(
 		useFirstHashTrytes, segmentDurationSNSec, retentionPeriodSec)
-	positiveValueTxCache = hashcache.NewHashCacheBase(
-		"positiveValueTxCache", useFirstHashTrytes, segmentDurationValueTXSec, retentionPeriodSec)
-	valueBundleCache = hashcache.NewHashCacheBase(
-		"valueBundleCache", useFirstHashTrytes, segmentDurationValueBundleSec, retentionPeriodSec)
-	confirmedPositiveValueTx = ebuffer.NewEventTsWithDataExpiringBuffer(
-		"confirmedPositiveValueTx", segmentDurationConfirmedTransfersSec, retentionPeriodSec)
-
 	// use all trytes of milestone hash
 	lmhsCache = hashcache.NewHashCacheBase("lmhscache", 0, segmentDurationTXSec, retentionPeriodSec)
 

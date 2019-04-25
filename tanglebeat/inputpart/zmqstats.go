@@ -23,8 +23,10 @@ type ZmqOutputStatsStruct struct {
 }
 
 type ZmqCacheStatsStruct struct {
-	SizeTXCache            string `json:"sizeTXCache"`
-	SizeSNCache            string `json:"sizeSNCache"`
+	SizeTXCache     string `json:"sizeTXCache"`
+	SizeSNCache     string `json:"sizeSNCache"`
+	SizeBundleCache string `json:"sizeBundleCache"`
+
 	SizeValueTxCache       string `json:"sizeValueTxCache"`
 	SizeValueBundleCache   string `json:"sizeValueBundleCache"`
 	SizeConfirmedTransfers string `json:"sizeConfirmedTransfers"`
@@ -99,6 +101,9 @@ func updateZmqCacheStats() {
 	zmqCacheStats.SizeTXCache = fmt.Sprintf("%v, seg=%v", e, s)
 	s, e = sncache.Size()
 	zmqCacheStats.SizeSNCache = fmt.Sprintf("%v, seg=%v", e, s)
+	s, e = transferBundleCache.Size()
+	zmqCacheStats.SizeBundleCache = fmt.Sprintf("%v, seg=%v", e, s)
+
 	s, e = positiveValueTxCache.Size()
 	zmqCacheStats.SizeValueTxCache = fmt.Sprintf("%v, seg=%v", e, s)
 	s, e = valueBundleCache.Size()

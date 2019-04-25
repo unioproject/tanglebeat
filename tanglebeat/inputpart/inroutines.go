@@ -54,6 +54,8 @@ var (
 
 func MustInitInputRoutines(outEnabled bool, outPort int, inputsZMQ []string, inputsNanomsg []string) {
 	initMsgFilter()
+	initValueTx()
+
 	inputRoutines = inreaders.NewInputReaderSet("inreader set")
 	var err error
 	compoundOutPublisher, err = nanomsg.NewPublisher(outEnabled, outPort, 0, localLog)
@@ -62,9 +64,9 @@ func MustInitInputRoutines(outEnabled bool, outPort int, inputsZMQ []string, inp
 		panic(err)
 	}
 	if outEnabled {
-		infof("Publisher for zmq compound output stream initialized successfully on port %v", outPort)
+		infof("Publisher for output stream initialized successfully on port %v", outPort)
 	} else {
-		infof("Publisher for zmq compound output stream is DISABLED")
+		infof("Publisher for output stream is DISABLED")
 	}
 
 	for _, uri := range inputsZMQ {
