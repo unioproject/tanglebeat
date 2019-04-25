@@ -45,7 +45,38 @@ func initValueTx() {
 	go updateBundleMetricsLoop()
 }
 
+func processValueTxMsgNew(msgSplit []string) {
+	var idx, idxLast int
+
+	switch msgSplit[0] {
+	case "tx":
+		if len(msgSplit) < 9 {
+			errorf("toOutput: expected at least 9 fields in TX message")
+			return
+		}
+		value, err := strconv.Atoi(msgSplit[3])
+		if err != nil {
+			errorf("toOutput: expected integer in value field")
+			return
+		}
+		if value != 0 {
+			idx, _ = strconv.Atoi(msgSplit[6])
+			idxLast, _ = strconv.Atoi(msgSplit[7])
+
+			transferBundleCache.updateBundleData(msgSplit[8], msgSplit[2], int64(value), idx, idxLast)
+		}
+	case "sn":
+		if len(msgSplit) < 7 {
+			errorf("toOutput: expected at least 7 fields in SN message")
+			return
+		}
+		transferBundleCache.markConfirmed(msgSplit[6])
+	}
+}
+
 func processValueTxMsg(msgSplit []string) {
+	processValueTxMsgNew(msgSplit)
+
 	switch msgSplit[0] {
 	case "tx":
 		if len(msgSplit) < 9 {
@@ -68,16 +99,11 @@ func processValueTxMsg(msgSplit []string) {
 			// Store bundle hash is seen first time to wait for corresponding 'sn' message (track bundle confirmation)
 			valueBundleCache.SeenHashBy(msgSplit[8], 0, &valueBundleData{}, nil)
 		}
-		if value != 0 {
-			// TODO eliminate reattachments
-			transferBundleCache.updateBundleData(msgSplit[8], msgSplit[2], int64(value), msgSplit[6] == msgSplit[7])
-		}
 	case "sn":
 		if len(msgSplit) < 7 {
 			errorf("toOutput: expected at least 7 fields in SN message")
 			return
 		}
-		transferBundleCache.markConfirmed(msgSplit[6])
 
 		var entry hashcache.CacheEntry
 		// confirmed value transaction received

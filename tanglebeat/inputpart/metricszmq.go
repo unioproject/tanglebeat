@@ -14,7 +14,9 @@ var (
 	zmqMetricsConfirmedValueTxLastIndexCounter Counter
 
 	zmqMetricsConfirmedValueTxNotLastIndexTotalCounter Counter
-	zmqMetricsTransferVolumeCounter                    Counter // new
+
+	zmqMetricsTransferVolumeCounter Counter // new
+	zmqMetricsTransferCounter       Counter // new
 
 	zmqMetricsConfirmedValueBundleCounter Counter
 
@@ -70,6 +72,12 @@ func init() {
 		Help: "Approximation of the total transfer value",
 	})
 	MustRegister(zmqMetricsTransferVolumeCounter)
+
+	zmqMetricsTransferCounter = NewCounter(CounterOpts{
+		Name: "tanglebeat_transfer_counter",
+		Help: "Number of confirmed transfers",
+	})
+	MustRegister(zmqMetricsTransferCounter)
 
 	zmqMetricsConfirmedValueBundleCounter = NewCounter(CounterOpts{
 		Name: "tanglebeat_confirmed_bundle_counter",
@@ -166,6 +174,14 @@ func init() {
 		Help: "Average conf rate by Luca Moser",
 	})
 	MustRegister(lmConfRate30minMetrics)
+}
+
+func updateTransferVolumeMetrics(value uint64) {
+	zmqMetricsTransferVolumeCounter.Add(float64(value))
+}
+
+func updateTransferCounter() {
+	zmqMetricsTransferCounter.Inc()
 }
 
 func updateConfirmedValueTxMetrics(value uint64, lastInBundle bool) {
