@@ -166,13 +166,14 @@ func updateBundleMetricsLoop() {
 				newConfirmedBundles++
 				debugf("++++++ Bundle %v...: counting new", data.hash)
 			}
-			deltaValue = sumPos - data.postedValue - reminder
+			deltaValue = sumPos - reminder - data.postedValue
 			debugf("++++++ Bundle %v...: posting value %v posted prev %v",
 				data.hash, deltaValue, data.postedValue)
 
-			newConfirmedValue += deltaValue
-			data.postedValue = newConfirmedValue
+			data.postedValue = deltaValue
 			data.posted = true
+
+			newConfirmedValue += deltaValue
 		}, 0, true)
 		if newConfirmedValue > 0 {
 			infof("Updating newly confirmed transfer value: %v", newConfirmedValue)
