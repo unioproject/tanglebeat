@@ -181,7 +181,7 @@ func updateBundleMetricsLoop() {
 		}
 		if newConfirmedBundles > 0 {
 			infof("Updating counter of newly confirmed transfers: %v", newConfirmedBundles)
-			updateTransferCounter()
+			updateTransferCounter(newConfirmedBundles)
 		}
 	}
 }
