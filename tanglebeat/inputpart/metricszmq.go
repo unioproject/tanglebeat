@@ -180,8 +180,8 @@ func updateTransferVolumeMetrics(value uint64) {
 	zmqMetricsTransferVolumeCounter.Add(float64(value))
 }
 
-func updateTransferCounter() {
-	zmqMetricsTransferCounter.Inc()
+func updateTransferCounter(numTransfers int) {
+	zmqMetricsTransferCounter.Add(float64(numTransfers))
 }
 
 func updateConfirmedValueTxMetrics(value uint64, lastInBundle bool) {
