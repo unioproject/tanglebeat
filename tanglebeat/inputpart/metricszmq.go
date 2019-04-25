@@ -68,13 +68,13 @@ func init() {
 	MustRegister(zmqMetricsConfirmedValueTxNotLastIndexTotalCounter)
 
 	zmqMetricsTransferVolumeCounter = NewCounter(CounterOpts{
-		Name: "tanglebeat_transfer_volume_counter",
+		Name: "tanglebeat_transfer_volume_counter_prod",
 		Help: "Approximation of the total transfer value",
 	})
 	MustRegister(zmqMetricsTransferVolumeCounter)
 
 	zmqMetricsTransferCounter = NewCounter(CounterOpts{
-		Name: "tanglebeat_transfer_counter",
+		Name: "tanglebeat_transfer_counter_prod",
 		Help: "Number of confirmed transfers",
 	})
 	MustRegister(zmqMetricsTransferCounter)
