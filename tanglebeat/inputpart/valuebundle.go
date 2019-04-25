@@ -20,7 +20,7 @@ type transferBundleData struct {
 	inconsistent bool
 	counted      bool
 	posted       bool
-	postedValue  uint64
+	postedValue  int64
 	confirmed    bool
 	numUpdate    int
 }
@@ -103,13 +103,13 @@ func (cache *bundleCache) markConfirmed(bundleHash string) {
 
 // returns: isBalanced, isFake, sumPos, lastInBundleValue
 
-func sumBundle(data *transferBundleData) (bool, bool, uint64, int64) {
+func sumBundle(data *transferBundleData) (bool, bool, int64, int64) {
 	var sum int64
-	var sumPos uint64
+	var sumPos int64
 	for i := range data.entries {
 		sum += data.entries[i].value
 		if data.entries[i].value > 0 {
-			sumPos += uint64(data.entries[i].value)
+			sumPos += data.entries[i].value
 		}
 	}
 	if sum != 0 {
@@ -134,12 +134,12 @@ func sumBundle(data *transferBundleData) (bool, bool, uint64, int64) {
 func updateBundleMetricsLoop() {
 	debugf("Started 'updateBundleMetricsLoop'")
 	var isBalanced, isFake bool
-	var sumPos uint64
-	var valueLast int64
+	var sumPos int64
+	var valueLast, deltaValue int64
 	var data *transferBundleData
-	var newConfirmedValue uint64
+	var newConfirmedValue int64
 	var newConfirmedBundles int
-	var reminder uint64
+	var reminder int64
 
 	for {
 		time.Sleep(3 * time.Second)
@@ -159,22 +159,24 @@ func updateBundleMetricsLoop() {
 			}
 			reminder = 0
 			if valueLast > 0 {
-				reminder = uint64(valueLast)
+				reminder = valueLast
 			}
 			if !data.counted {
 				data.counted = true
 				newConfirmedBundles++
 				debugf("++++++ Bundle %v...: counting new", data.hash)
 			}
-			debugf("++++++ Bundle %v...: posting value %v", data.hash, sumPos-data.postedValue-reminder)
+			deltaValue = sumPos - data.postedValue - reminder
+			debugf("++++++ Bundle %v...: posting value %v posted prev %v",
+				data.hash, deltaValue, data.postedValue)
 
-			newConfirmedValue += sumPos - data.postedValue - reminder
+			newConfirmedValue += deltaValue
 			data.postedValue = newConfirmedValue
 			data.posted = true
 		}, 0, true)
 		if newConfirmedValue > 0 {
 			infof("Updating newly confirmed transfer value: %v", newConfirmedValue)
-			updateTransferVolumeMetrics(newConfirmedValue)
+			updateTransferVolumeMetrics(uint64(newConfirmedValue))
 		}
 		if newConfirmedBundles > 0 {
 			infof("Updating counter of newly confirmed transfers: %v", newConfirmedBundles)
