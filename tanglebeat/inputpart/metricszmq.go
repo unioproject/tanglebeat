@@ -18,7 +18,7 @@ var (
 	zmqMetricsTxCounterCompound  Counter
 	zmqMetricsCtxCounterCompound Counter
 
-	zmqMetricsLatencyTXAvg        Gauge
+	zmqMetricsLatencyTXAvg        Gauge // TODO do we need this?
 	zmqMetricsNotPropagatedPercTX Gauge
 
 	zmqMetricsLatencySNAvg        Gauge
@@ -119,6 +119,7 @@ func init() {
 	MustRegister(echoMetricsAvgLastSeen)
 
 	//--------------------------------------------------
+	// metrics by Luca Moser
 	lmConfRate5minMetrics = NewGauge(GaugeOpts{
 		Name: "tanglebeat_lm_conf_rate_5min",
 		Help: "Average conf rate by Luca Moser",
