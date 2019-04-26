@@ -1,7 +1,10 @@
 package inputpart
 
 import (
+	"github.com/unioproject/tanglebeat/lib/utils"
+	"github.com/unioproject/tanglebeat/tanglebeat/cfg"
 	"github.com/unioproject/tanglebeat/tanglebeat/hashcache"
+	"strconv"
 	"time"
 )
 
@@ -23,6 +26,17 @@ type transferBundleData struct {
 	postedValue  int64
 	confirmed    bool
 	numUpdate    int
+}
+
+var transferBundleCache *bundleCache
+
+const segmentDurationBundleCacheSec = 10 * 60
+
+func initValueTx() {
+	transferBundleCache = newBundleCache(
+		useFirstHashTrytes, segmentDurationBundleCacheSec, cfg.Config.RetentionPeriodMin*60)
+
+	go updateBundleMetricsLoop()
 }
 
 func newBundleCache(hashLen int, segmentDurationSec int, retentionPeriodSec int) *bundleCache {
@@ -142,7 +156,8 @@ func updateBundleMetricsLoop() {
 	var reminder int64
 
 	for {
-		time.Sleep(3 * time.Second)
+		time.Sleep(4 * time.Second)
+
 		newConfirmedValue = 0
 		newConfirmedBundles = 0
 		transferBundleCache.ForEachEntry(func(entry *hashcache.CacheEntry) {
@@ -184,4 +199,55 @@ func updateBundleMetricsLoop() {
 			updateTransferCounter(newConfirmedBundles)
 		}
 	}
+}
+
+func processValueTxMsg(msgSplit []string) {
+	var idx, idxLast int
+
+	switch msgSplit[0] {
+	case "tx":
+		if len(msgSplit) < 9 {
+			errorf("toOutput: expected at least 9 fields in TX message")
+			return
+		}
+		value, err := strconv.Atoi(msgSplit[3])
+		if err != nil {
+			errorf("toOutput: expected integer in value field")
+			return
+		}
+		if value != 0 {
+			idx, _ = strconv.Atoi(msgSplit[6])
+			idxLast, _ = strconv.Atoi(msgSplit[7])
+
+			transferBundleCache.updateBundleData(msgSplit[8], msgSplit[2], int64(value), idx, idxLast)
+		}
+	case "sn":
+		if len(msgSplit) < 7 {
+			errorf("toOutput: expected at least 7 fields in SN message")
+			return
+		}
+		transferBundleCache.markConfirmed(msgSplit[6])
+	}
+}
+
+// return num confirmed bundles, total value without last in bundle
+func getValueConfirmationStats(msecBack uint64) (int, int64) {
+	var confBundles int
+	var totalValue int64
+
+	earliest := utils.UnixMsNow() - msecBack
+	if msecBack == 0 {
+		earliest = 0
+	}
+	var data *transferBundleData
+	transferBundleCache.ForEachEntry(func(entry *hashcache.CacheEntry) {
+		data = entry.Data.(*transferBundleData)
+		if data.counted {
+			confBundles++
+		}
+		if data.posted {
+			totalValue += data.postedValue
+		}
+	}, earliest, true)
+	return confBundles, totalValue
 }
