@@ -22,8 +22,8 @@ type transferBundleData struct {
 	entries      []bundleEntry
 	inconsistent bool
 	counted      bool
-	posted       bool
 	postedValue  int64
+	posted       bool
 	confirmed    bool
 	numUpdate    int
 }
@@ -93,8 +93,8 @@ func (cache *bundleCache) updateBundleData(bundleHash, addr string, value int64,
 		data.entries[idx].value = value
 		cache.InsertNewNolock(shash, 0, data)
 	}
-	data.posted = false
 	data.numUpdate++
+	data.posted = false
 }
 
 func (cache *bundleCache) markConfirmed(bundleHash string) {
@@ -115,11 +115,16 @@ func (cache *bundleCache) markConfirmed(bundleHash string) {
 	}
 }
 
-// returns: isBalanced, isFake, sumPos, lastInBundleValue
+// returns: isBalanced, valueMoved
 
-func sumBundle(data *transferBundleData) (bool, bool, int64, int64) {
+func sumBundle(data *transferBundleData) int64 {
 	var sum int64
 	var sumPos int64
+
+	if data.posted {
+		return data.postedValue
+	}
+
 	for i := range data.entries {
 		sum += data.entries[i].value
 		if data.entries[i].value > 0 {
@@ -127,72 +132,83 @@ func sumBundle(data *transferBundleData) (bool, bool, int64, int64) {
 		}
 	}
 	if sum != 0 {
-		return false, false, sumPos, data.entries[len(data.entries)-1].value
+		// only makes sense if all tx balanced to zero
+		return 0
 	}
-	// check if funds are moved outside addresses
+	// collect net sums by address
 	sumMap := make(map[string]int64)
-	for i := range data.entries {
-		if _, ok := sumMap[data.entries[i].addr]; !ok {
-			sumMap[data.entries[i].addr] = 0
+	for _, e := range data.entries {
+		if _, ok := sumMap[e.addr]; !ok {
+			sumMap[e.addr] = 0
 		}
-		sumMap[data.entries[i].addr] += data.entries[i].value
+		sumMap[e.addr] += e.value
 	}
-	for _, v := range sumMap {
-		if v != 0 {
-			return true, false, sumPos, data.entries[len(data.entries)-1].value
+	var valueMoved int64
+	for _, e := range data.entries {
+		m, _ := sumMap[e.addr]
+		if m > 0 && e.value > 0 {
+			// if address balance moved then sum up positive value
+			// thus excluded addresses which doesn't move balances
+			valueMoved += e.value
 		}
 	}
-	return true, true, sumPos, data.entries[len(data.entries)-1].value
+	if valueMoved == 0 {
+		return 0 // bundle doesn't move balances, it is fake transfer
+	}
+	//  assume reminder is last in the bundle if value > 0 and if corresponding addr balance moved
+	reminder := data.entries[len(data.entries)-1].value
+	if reminder > 0 {
+		mv, _ := sumMap[data.entries[len(data.entries)-1].addr]
+		if mv == 0 {
+			reminder = 0
+		}
+	} else {
+		reminder = 0
+	}
+	if valueMoved < reminder {
+		panic("assert: inconsistency")
+	}
+	return valueMoved - reminder
 }
 
 func updateBundleMetricsLoop() {
 	debugf("Started 'updateBundleMetricsLoop'")
-	var isBalanced, isFake bool
-	var sumPos int64
-	var valueLast, deltaValue int64
 	var data *transferBundleData
-	var newConfirmedValue int64
+	var valueMoved, deltaValue, totalNewConfirmedValue int64
 	var newConfirmedBundles int
-	var reminder int64
 
 	for {
 		time.Sleep(4 * time.Second)
 
-		newConfirmedValue = 0
+		totalNewConfirmedValue = 0
 		newConfirmedBundles = 0
+
 		transferBundleCache.ForEachEntry(func(entry *hashcache.CacheEntry) {
 			data = entry.Data.(*transferBundleData)
-			if !data.confirmed || data.posted {
+			if !data.confirmed {
 				return
 			}
-			isBalanced, isFake, sumPos, valueLast = sumBundle(data)
-			debugf("++++++ Bundle %v...: isBalanced=%v isFake=%v sumPos=%v rem=%v",
-				data.hash, isBalanced, isFake, sumPos, valueLast)
+			valueMoved = sumBundle(data)
+			deltaValue = valueMoved - data.postedValue
+			if deltaValue == 0 {
+				return
+			}
+			debugf("++++++ Bundle %v...: deltaValueMoved = %v", data.hash, deltaValue)
 
-			if !isBalanced || isFake || sumPos == 0 {
-				return
-			}
-			reminder = 0
-			if valueLast > 0 {
-				reminder = valueLast
-			}
 			if !data.counted {
 				data.counted = true
 				newConfirmedBundles++
 				debugf("++++++ Bundle %v...: counting new", data.hash)
 			}
-			deltaValue = sumPos - reminder - data.postedValue
-			debugf("++++++ Bundle %v...: posting value %v posted prev %v",
-				data.hash, deltaValue, data.postedValue)
-
-			data.postedValue = deltaValue
+			data.postedValue = valueMoved
 			data.posted = true
 
-			newConfirmedValue += deltaValue
+			totalNewConfirmedValue += deltaValue
 		}, 0, true)
-		if newConfirmedValue > 0 {
-			infof("Updating newly confirmed transfer value: %v", newConfirmedValue)
-			updateTransferVolumeMetrics(uint64(newConfirmedValue))
+
+		if totalNewConfirmedValue > 0 {
+			infof("Updating newly confirmed transfer value: %v", totalNewConfirmedValue)
+			updateTransferVolumeMetrics(uint64(totalNewConfirmedValue))
 		}
 		if newConfirmedBundles > 0 {
 			infof("Updating counter of newly confirmed transfers: %v", newConfirmedBundles)
@@ -245,9 +261,7 @@ func getValueConfirmationStats(msecBack uint64) (int, int64) {
 		if data.counted {
 			confBundles++
 		}
-		if data.posted {
-			totalValue += data.postedValue
-		}
+		totalValue += data.postedValue
 	}, earliest, true)
 	return confBundles, totalValue
 }
