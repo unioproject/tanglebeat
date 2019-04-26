@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	useFirstHashTrytes   = 12 // first positions of the hash will only be used in hash table. To spare memory
+	useFirstHashTrytes   = 12 // first N positions of the hash will only be used in hash table. To (significantly) spare memory
 	segmentDurationTXSec = 60
 	segmentDurationSNSec = 1 * 60
 )

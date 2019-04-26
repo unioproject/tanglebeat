@@ -8,13 +8,6 @@ import (
 )
 
 var (
-	zmqMetricsConfirmedValueTxCounter      Counter
-	zmqMetricsConfirmedValueTxTotalCounter Counter
-
-	zmqMetricsConfirmedValueTxLastIndexCounter Counter
-
-	zmqMetricsConfirmedValueTxNotLastIndexTotalCounter Counter
-
 	zmqMetricsTransferVolumeCounter Counter // new
 	zmqMetricsTransferCounter       Counter // new
 
@@ -25,7 +18,7 @@ var (
 	zmqMetricsTxCounterCompound  Counter
 	zmqMetricsCtxCounterCompound Counter
 
-	zmqMetricsLatencyTXAvg        Gauge
+	zmqMetricsLatencyTXAvg        Gauge // TODO do we need this?
 	zmqMetricsNotPropagatedPercTX Gauge
 
 	zmqMetricsLatencySNAvg        Gauge
@@ -42,31 +35,6 @@ var (
 )
 
 func init() {
-	//------------------------------- value tx
-	zmqMetricsConfirmedValueTxCounter = NewCounter(CounterOpts{
-		Name: "tanglebeat_confirmed_value_tx_counter",
-		Help: "Counter of confirmed value transactions",
-	})
-	MustRegister(zmqMetricsConfirmedValueTxCounter)
-
-	zmqMetricsConfirmedValueTxTotalCounter = NewCounter(CounterOpts{
-		Name: "tanglebeat_confirmed_value_tx_total_counter",
-		Help: "Counter total value confirmed value transactions",
-	})
-	MustRegister(zmqMetricsConfirmedValueTxTotalCounter)
-
-	zmqMetricsConfirmedValueTxLastIndexCounter = NewCounter(CounterOpts{
-		Name: "tanglebeat_confirmed_value_tx_lastindex_counter",
-		Help: "Counter value transactions last in bundle",
-	})
-	MustRegister(zmqMetricsConfirmedValueTxLastIndexCounter)
-
-	zmqMetricsConfirmedValueTxNotLastIndexTotalCounter = NewCounter(CounterOpts{
-		Name: "tanglebeat_confirmed_value_tx_notlastindex_total_counter",
-		Help: "Total of value transactions not last in bundle",
-	})
-	MustRegister(zmqMetricsConfirmedValueTxNotLastIndexTotalCounter)
-
 	zmqMetricsTransferVolumeCounter = NewCounter(CounterOpts{
 		Name: "tanglebeat_transfer_volume_counter_prod",
 		Help: "Approximation of the total transfer value",
@@ -151,6 +119,7 @@ func init() {
 	MustRegister(echoMetricsAvgLastSeen)
 
 	//--------------------------------------------------
+	// metrics by Luca Moser
 	lmConfRate5minMetrics = NewGauge(GaugeOpts{
 		Name: "tanglebeat_lm_conf_rate_5min",
 		Help: "Average conf rate by Luca Moser",
@@ -182,21 +151,6 @@ func updateTransferVolumeMetrics(value uint64) {
 
 func updateTransferCounter(numTransfers int) {
 	zmqMetricsTransferCounter.Add(float64(numTransfers))
-}
-
-func updateConfirmedValueTxMetrics(value uint64, lastInBundle bool) {
-	zmqMetricsConfirmedValueTxCounter.Inc()
-	zmqMetricsConfirmedValueTxTotalCounter.Add(float64(value))
-
-	if lastInBundle {
-		zmqMetricsConfirmedValueTxLastIndexCounter.Inc()
-	} else {
-		zmqMetricsConfirmedValueTxNotLastIndexTotalCounter.Add(float64(value))
-	}
-}
-
-func updateConfirmedValueBundleMetrics() {
-	zmqMetricsConfirmedValueBundleCounter.Inc()
 }
 
 func updateCompoundMetrics(msgtype string) {

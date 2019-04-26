@@ -18,8 +18,8 @@ type ZmqOutputStatsStruct struct {
 	CTPS     float64 `json:"ctps"`
 	ConfRate int     `json:"confRate"`
 
-	ConfirmedTransferCount int    `json:"confirmedValueBundleCount"`
-	ValueVolumeApprox      uint64 `json:"valueVolumeApprox"`
+	ConfirmedTransferCount int   `json:"confirmedValueBundleCount"`
+	ValueVolumeApprox      int64 `json:"valueVolumeApprox"`
 }
 
 type ZmqCacheStatsStruct struct {
@@ -27,9 +27,9 @@ type ZmqCacheStatsStruct struct {
 	SizeSNCache     string `json:"sizeSNCache"`
 	SizeBundleCache string `json:"sizeBundleCache"`
 
-	SizeValueTxCache       string `json:"sizeValueTxCache"`
-	SizeValueBundleCache   string `json:"sizeValueBundleCache"`
-	SizeConfirmedTransfers string `json:"sizeConfirmedTransfers"`
+	//SizeValueTxCache       string `json:"sizeValueTxCache"`
+	//SizeValueBundleCache   string `json:"sizeValueBundleCache"`
+	//SizeConfirmedTransfers string `json:"sizeConfirmedTransfers"`
 
 	TXSeenOnceCount      int `json:"txSeenOnceCount"`
 	SNSeenOnceCount      int `json:"snSeenOnceCount"`
@@ -104,12 +104,12 @@ func updateZmqCacheStats() {
 	s, e = transferBundleCache.Size()
 	zmqCacheStats.SizeBundleCache = fmt.Sprintf("%v, seg=%v", e, s)
 
-	s, e = positiveValueTxCache.Size()
-	zmqCacheStats.SizeValueTxCache = fmt.Sprintf("%v, seg=%v", e, s)
-	s, e = valueBundleCache.Size()
-	zmqCacheStats.SizeValueBundleCache = fmt.Sprintf("%v, seg=%v", e, s)
-	s, e = confirmedPositiveValueTx.Size()
-	zmqCacheStats.SizeConfirmedTransfers = fmt.Sprintf("%v, seg=%v", e, s)
+	//s, e = positiveValueTxCache.Size()
+	//zmqCacheStats.SizeValueTxCache = fmt.Sprintf("%v, seg=%v", e, s)
+	//s, e = valueBundleCache.Size()
+	//zmqCacheStats.SizeValueBundleCache = fmt.Sprintf("%v, seg=%v", e, s)
+	//s, e = confirmedPositiveValueTx.Size()
+	//zmqCacheStats.SizeConfirmedTransfers = fmt.Sprintf("%v, seg=%v", e, s)
 
 	// 1 hour stats
 	txcacheStats := txcache.Stats(0, GetTxQuorum())
@@ -183,7 +183,7 @@ func updateZmqOutputSlowStats() {
 	if st.TXCount != 0 {
 		st.ConfRate = (st.SNCount * 100) / st.TXCount
 	}
-	st.ConfirmedTransferCount, _, st.ValueVolumeApprox = getValueConfirmationStats(0)
+	st.ConfirmedTransferCount, st.ValueVolumeApprox = getValueConfirmationStats(0)
 
 	// 10 min stats
 	const secBack10min = 10 * 60
@@ -207,7 +207,7 @@ func updateZmqOutputSlowStats() {
 	if st10.TXCount != 0 {
 		st10.ConfRate = (st10.SNCount * 100) / st10.TXCount
 	}
-	st10.ConfirmedTransferCount, _, st10.ValueVolumeApprox = getValueConfirmationStats(secBack10min * 1000)
+	st10.ConfirmedTransferCount, st10.ValueVolumeApprox = getValueConfirmationStats(secBack10min * 1000)
 
 	zmqOutputStatsMutex.Lock() //----
 	*zmqOutputStats = st
