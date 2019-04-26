@@ -155,7 +155,11 @@ func sumBundle(data *transferBundleData) int64 {
 	if valueMoved == 0 {
 		return 0 // bundle doesn't move balances, it is fake transfer
 	}
-	//  assume reminder is last in the bundle if value > 0 and if corresponding addr balance moved
+	//  assume:
+	//  - reminder = last in the bundle if value > 0
+	//  - corresponding addr balance moved
+	//  - reminder < value moved
+	//  - otherwise it is = 0
 	reminder := data.entries[len(data.entries)-1].value
 	if reminder > 0 {
 		mv, _ := sumMap[data.entries[len(data.entries)-1].addr]
@@ -165,8 +169,8 @@ func sumBundle(data *transferBundleData) int64 {
 	} else {
 		reminder = 0
 	}
-	if valueMoved < reminder {
-		panic("assert: inconsistency")
+	if valueMoved <= reminder {
+		return 0
 	}
 	return valueMoved - reminder
 }
