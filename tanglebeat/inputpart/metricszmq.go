@@ -11,8 +11,6 @@ var (
 	zmqMetricsTransferVolumeCounter Counter // new
 	zmqMetricsTransferCounter       Counter // new
 
-	zmqMetricsConfirmedValueBundleCounter Counter
-
 	metricsMiotaPriceUSD Gauge
 
 	zmqMetricsTxCounterCompound  Counter
@@ -46,12 +44,6 @@ func init() {
 		Help: "Number of confirmed transfers",
 	})
 	MustRegister(zmqMetricsTransferCounter)
-
-	zmqMetricsConfirmedValueBundleCounter = NewCounter(CounterOpts{
-		Name: "tanglebeat_confirmed_bundle_counter",
-		Help: "Number of confirmed positive value bundles",
-	})
-	MustRegister(zmqMetricsConfirmedValueBundleCounter)
 
 	//---------------------------------------------- value tx end
 
