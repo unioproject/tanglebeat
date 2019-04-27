@@ -283,7 +283,7 @@ confirmation rate.
 - `tanglebeat_transfer_volume_counter_prod` - counter of transferred amount in iotas.
 
    It sums up approximately calculated volume of transfer. It is calculated by summing up values of positive 
-   transactions in the bundle less transactions which do not move iotas in tne bundle, i.e. those address 
+   transactions in the bundle less transactions which do not move iotas in the bundle, i.e. those address 
    which net sum is 0 (fake transfers) and less assumed transfer to reminder address.
    The reminder is assumed equal to value of the last transaction in the bundle if it is positive and it does not
    belong to the fake transfer. Otherwise it is 0.
