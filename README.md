@@ -273,5 +273,33 @@ binary dependencies with original ZeroMQ version 4.0.1 which must be
 installed (Tanglebeat itself don't have this dependency).
 
 ## Metrics exposed to Prometheus
-TBD
 
+The following metrics are exposed to Prometheus by Tanglebeat. It can be found in Grafana admin frontend when designing
+charts and panels.
+
+- `tanglebeat_tx_counter_compound` counter of `tx` (transaction) messages. Used to calculate TPS metrics
+- `tanglebeat_ctx_counter_compound` counter of `sn` (confirmation) messages. Used to calculate CTPS metrics and 
+confirmation rate. 
+- `tanglebeat_transfer_volume_counter_prod` - counter of transferred amount in iotas.
+
+   It sums up approximately calculated volume of transfer. It is calculated by summing up values of positive 
+   transactions in the bundle less transactions which do not move iotas in tne bundle, i.e. those address 
+   which net sum is 0 (fake transfers) and less assumed transfer to reminder address.
+   The reminder is assumed equal to value of the last transaction in the bundle if it is positive and it does not
+   belong to the fake transfer. Otherwise it is 0.
+   
+- `tanglebeat_transfer_counter_prod` counter of confimed bundles with positive moved volume of iotas.
+
+- `tanglebeat_miota_price_usd` IOTA price as taken form *Coincap* site
+
+- `tanglebeat_echo_first` time in miliseconds when first echo of the transaction, send by TBSender, 
+is seen from ZMQ inout. 
+- `tanglebeat_echo_last`  time in seconds when last echo of the transaction, send by TBSender, comes form all
+ZMQ input. 
+
+- `tanglebeat_lm_conf_rate_5min`, `tanglebeat_lm_conf_rate_10min`, 
+`tanglebeat_lm_conf_rate_15min`,`tanglebeat_lm_conf_rate_30min` confirmation rate as provided by Luca Moser.
+Is is based on statistics collected while sending zero value transactions and obeserving it's confirmation.
+
+- `tanglebeat:confirmation_metrics:tfph_adjusted` **TfPH** or `Transfers Per Hour` metrics. 
+Average number of confirmed transfer one sequence of TBSender was able to make in last 1 hour
