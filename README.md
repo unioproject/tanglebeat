@@ -23,9 +23,7 @@ Currently Tanglebeat it is being developed under the umbrella of joined **UNIO P
 - [Download and install](#download-and-install)
 - [Configure and run](#configure-and-run) 
 - [Output stream](#output-stream)
-- [List of metrics exposed to Prometheus](#list-of-metrics-exposed-to-prometheus)
-- [Advanced configurations](#advanced-configurations)
-- [API](#api)
+- [Metrics exposed to Prometheus](#metrics-exposed-to-prometheus)
 
 
 ## Functions
@@ -265,6 +263,6 @@ Note that `nano2zmq` uses [this library](https://github.com/pebbe/zmq4) and so i
 binary dependency with original ZeroMQ version 4.0.1 which must be 
 installed (Tanglebeat itself doesn't have this dependencies).
 
-## List of metrics exposed to Prometheus
+## Metrics exposed to Prometheus
 TBD
 
