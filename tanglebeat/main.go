@@ -2,11 +2,11 @@ package main
 
 import (
 	"flag"
-	"github.com/lunfardo314/tanglebeat/lib/ebuffer"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/cfg"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/inputpart"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/senderpart"
+	"github.com/unioproject/tanglebeat/lib/ebuffer"
+	"github.com/unioproject/tanglebeat/tanglebeat/cfg"
+	"github.com/unioproject/tanglebeat/tanglebeat/inputpart"
+	"github.com/unioproject/tanglebeat/tanglebeat/inreaders"
+	"github.com/unioproject/tanglebeat/tanglebeat/senderpart"
 )
 
 // TODO clean unnecessary metrics

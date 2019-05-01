@@ -1,8 +1,8 @@
 package senderpart
 
 import (
-	"github.com/lunfardo314/tanglebeat/tbsender/sender_update"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/unioproject/tanglebeat/tbsender/sender_update"
 )
 
 var (

@@ -1,39 +1,26 @@
 package inputpart
 
 import (
-	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"github.com/op/go-logging"
 	. "github.com/prometheus/client_golang/prometheus"
+	"github.com/unioproject/tanglebeat/lib/utils"
 	"time"
 )
 
 var (
-	zmqMetricsConfirmedValueTxCounter      Counter
-	zmqMetricsConfirmedValueTxTotalCounter Counter
-
-	zmqMetricsConfirmedValueTxSubTiCounter     Counter
-	zmqMetricsConfirmedValueTxSubGiCounter     Counter
-	zmqMetricsConfirmedValueTxLastIndexCounter Counter
-
-	zmqMetricsConfirmedValueTxSubTiTotalCounter        Counter
-	zmqMetricsConfirmedValueTxSubGiTotalCounter        Counter
-	zmqMetricsConfirmedValueTxNotLastIndexTotalCounter Counter
-
-	zmqMetricsConfirmedValueBundleCounter Counter
+	zmqMetricsTransferVolumeCounter Counter // new
+	zmqMetricsTransferCounter       Counter // new
 
 	metricsMiotaPriceUSD Gauge
 
 	zmqMetricsTxCounterCompound  Counter
 	zmqMetricsCtxCounterCompound Counter
 
-	zmqMetricsLatencyTXAvg        Gauge
+	zmqMetricsLatencyTXAvg        Gauge // TODO do we need this?
 	zmqMetricsNotPropagatedPercTX Gauge
 
 	zmqMetricsLatencySNAvg        Gauge
 	zmqMetricsNotPropagatedPercSN Gauge
-
-	//zmqMetricsTxCounterVec  *CounterVec
-	//zmqMetricsCtxCounterVec *CounterVec
 
 	echoNotSeenPerc         Gauge
 	echoMetricsAvgFirstSeen Gauge
@@ -46,60 +33,17 @@ var (
 )
 
 func init() {
-	//------------------------------- value tx
-	zmqMetricsConfirmedValueTxCounter = NewCounter(CounterOpts{
-		Name: "tanglebeat_confirmed_value_tx_counter",
-		Help: "Counter of confirmed value transactions",
+	zmqMetricsTransferVolumeCounter = NewCounter(CounterOpts{
+		Name: "tanglebeat_transfer_volume_counter_prod",
+		Help: "Approximation of the total transfer value",
 	})
-	MustRegister(zmqMetricsConfirmedValueTxCounter)
+	MustRegister(zmqMetricsTransferVolumeCounter)
 
-	zmqMetricsConfirmedValueTxTotalCounter = NewCounter(CounterOpts{
-		Name: "tanglebeat_confirmed_value_tx_total_counter",
-		Help: "Counter total value confirmed value transactions",
+	zmqMetricsTransferCounter = NewCounter(CounterOpts{
+		Name: "tanglebeat_transfer_counter_prod",
+		Help: "Number of confirmed transfers",
 	})
-	MustRegister(zmqMetricsConfirmedValueTxTotalCounter)
-
-	zmqMetricsConfirmedValueTxSubTiCounter = NewCounter(CounterOpts{
-		Name: "tanglebeat_confirmed_value_tx_subti_counter",
-		Help: "Counter confirmed value sub-tiota transactions",
-	})
-	MustRegister(zmqMetricsConfirmedValueTxSubTiCounter)
-
-	zmqMetricsConfirmedValueTxSubGiCounter = NewCounter(CounterOpts{
-		Name: "tanglebeat_confirmed_value_tx_subgi_counter",
-		Help: "Counter value sub Tiota transactions",
-	})
-	MustRegister(zmqMetricsConfirmedValueTxSubGiCounter)
-
-	zmqMetricsConfirmedValueTxLastIndexCounter = NewCounter(CounterOpts{
-		Name: "tanglebeat_confirmed_value_tx_lastindex_counter",
-		Help: "Counter value transactions last in bundle",
-	})
-	MustRegister(zmqMetricsConfirmedValueTxLastIndexCounter)
-
-	zmqMetricsConfirmedValueTxSubTiTotalCounter = NewCounter(CounterOpts{
-		Name: "tanglebeat_confirmed_value_tx_subti_total_counter",
-		Help: "Total of value transactions < Ti",
-	})
-	MustRegister(zmqMetricsConfirmedValueTxSubTiTotalCounter)
-
-	zmqMetricsConfirmedValueTxSubGiTotalCounter = NewCounter(CounterOpts{
-		Name: "tanglebeat_confirmed_value_tx_subgi_total_counter",
-		Help: "Total of value transactions < Gi",
-	})
-	MustRegister(zmqMetricsConfirmedValueTxSubGiTotalCounter)
-
-	zmqMetricsConfirmedValueTxNotLastIndexTotalCounter = NewCounter(CounterOpts{
-		Name: "tanglebeat_confirmed_value_tx_notlastindex_total_counter",
-		Help: "Total of value transactions not last in bundle",
-	})
-	MustRegister(zmqMetricsConfirmedValueTxNotLastIndexTotalCounter)
-
-	zmqMetricsConfirmedValueBundleCounter = NewCounter(CounterOpts{
-		Name: "tanglebeat_confirmed_bundle_counter",
-		Help: "Number of confirmed positive value bundles",
-	})
-	MustRegister(zmqMetricsConfirmedValueBundleCounter)
+	MustRegister(zmqMetricsTransferCounter)
 
 	//---------------------------------------------- value tx end
 
@@ -141,18 +85,6 @@ func init() {
 	})
 	MustRegister(zmqMetricsCtxCounterCompound)
 
-	//zmqMetricsTxCounterVec = NewCounterVec(CounterOpts{
-	//	Name: "tanglebeat_tx_counter_vec",
-	//	Help: "Transaction counter labeled by host.",
-	//}, []string{"host"})
-	//MustRegister(zmqMetricsTxCounterVec)
-	//
-	//zmqMetricsCtxCounterVec = NewCounterVec(CounterOpts{
-	//	Name: "tanglebeat_ctx_counter_vec",
-	//	Help: "Confirmed transaction counter labeled by host.",
-	//}, []string{"host"})
-	//MustRegister(zmqMetricsCtxCounterVec)
-
 	metricsMiotaPriceUSD = NewGauge(GaugeOpts{
 		Name: "tanglebeat_miota_price_usd",
 		Help: "Price USD/MIOTA, labeled by source",
@@ -179,6 +111,7 @@ func init() {
 	MustRegister(echoMetricsAvgLastSeen)
 
 	//--------------------------------------------------
+	// metrics by Luca Moser
 	lmConfRate5minMetrics = NewGauge(GaugeOpts{
 		Name: "tanglebeat_lm_conf_rate_5min",
 		Help: "Average conf rate by Luca Moser",
@@ -202,38 +135,14 @@ func init() {
 		Help: "Average conf rate by Luca Moser",
 	})
 	MustRegister(lmConfRate30minMetrics)
-
 }
 
-const (
-	Miota = 1000000
-	Giota = Miota * 1000
-	Tiota = Giota * 1000
-)
-
-func updateConfirmedValueTxMetrics(value uint64, lastInBundle bool) {
-	zmqMetricsConfirmedValueTxCounter.Inc()
-	zmqMetricsConfirmedValueTxTotalCounter.Add(float64(value))
-
-	if value < Giota {
-		zmqMetricsConfirmedValueTxSubGiCounter.Inc()
-		zmqMetricsConfirmedValueTxSubGiTotalCounter.Add(float64(value))
-	}
-
-	if value < Tiota {
-		zmqMetricsConfirmedValueTxSubTiCounter.Inc()
-		zmqMetricsConfirmedValueTxSubTiTotalCounter.Add(float64(value))
-	}
-
-	if lastInBundle {
-		zmqMetricsConfirmedValueTxLastIndexCounter.Inc()
-	} else {
-		zmqMetricsConfirmedValueTxNotLastIndexTotalCounter.Add(float64(value))
-	}
+func updateTransferVolumeMetrics(value uint64) {
+	zmqMetricsTransferVolumeCounter.Add(float64(value))
 }
 
-func updateConfirmedValueBundleMetrics() {
-	zmqMetricsConfirmedValueBundleCounter.Inc()
+func updateTransferCounter(numTransfers int) {
+	zmqMetricsTransferCounter.Add(float64(numTransfers))
 }
 
 func updateCompoundMetrics(msgtype string) {

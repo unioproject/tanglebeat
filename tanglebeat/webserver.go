@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/senderpart"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/unioproject/tanglebeat/tanglebeat/senderpart"
 	"net/http"
 	"strings"
 )

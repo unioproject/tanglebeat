@@ -2,13 +2,13 @@ package cfg
 
 import (
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/lib/config"
 	"github.com/op/go-logging"
+	"github.com/unioproject/tanglebeat/lib/config"
 	"os"
 )
 
 const (
-	Version   = "19.04.08"
+	Version   = "unio 19.04.26-2"
 	logFormat = "%{time:2006-01-02 15:04:05.000} %{level:.4s} [%{module:.6s}|%{shortfunc:.12s}] %{message}"
 	level     = logging.DEBUG
 )

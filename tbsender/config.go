@@ -5,11 +5,11 @@ package main
 import (
 	"fmt"
 	. "github.com/iotaledger/iota.go/trinary"
-	"github.com/lunfardo314/tanglebeat/lib/config"
-	"github.com/lunfardo314/tanglebeat/lib/multiapi"
-	"github.com/lunfardo314/tanglebeat/lib/utils"
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
+	"github.com/unioproject/tanglebeat/lib/config"
+	"github.com/unioproject/tanglebeat/lib/multiapi"
+	"github.com/unioproject/tanglebeat/lib/utils"
 	"io"
 	"os"
 	"path"
@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	Version                 = "1.4.1"
+	Version                 = "unio 1.4.2"
 	PREFIX_MODULE           = "tbsender"
 	ROTATE_LOG_HOURS        = 12
 	ROTATE_LOG_RETAIN_HOURS = 12

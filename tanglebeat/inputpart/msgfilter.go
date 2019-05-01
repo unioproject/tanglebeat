@@ -2,36 +2,29 @@ package inputpart
 
 import (
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/lib/ebuffer"
-	"github.com/lunfardo314/tanglebeat/lib/utils"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/cfg"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
+	"github.com/unioproject/tanglebeat/lib/utils"
+	"github.com/unioproject/tanglebeat/tanglebeat/cfg"
+	"github.com/unioproject/tanglebeat/tanglebeat/hashcache"
 	"math"
 	"strconv"
 	"sync"
 )
 
 const (
-	useFirstHashTrytes                   = 12 // first positions of the hash will only be used in hash table. To spare memory
-	segmentDurationTXSec                 = 60
-	segmentDurationValueTXSec            = 10 * 60
-	segmentDurationValueBundleSec        = 10 * 60
-	segmentDurationSNSec                 = 1 * 60
-	segmentDurationConfirmedTransfersSec = 10 * 60
+	useFirstHashTrytes   = 12 // first N positions of the hash will only be used in hash table. To (significantly) spare memory
+	segmentDurationTXSec = 60
+	segmentDurationSNSec = 1 * 60
 )
 
 var (
-	txcache                  *hashcache.HashCacheBase
-	sncache                  *hashCacheSN
-	positiveValueTxCache     *hashcache.HashCacheBase
-	valueBundleCache         *hashcache.HashCacheBase
-	confirmedPositiveValueTx *ebuffer.EventTsWithDataExpiringBuffer
-	lastLMI                  int
-	lastLMITimesSeen         int
-	lastLMIFirstSeen         uint64
-	lastLMILastSeen          uint64
-	lmiMutex                 = &sync.RWMutex{}
-	lmhsCache                *hashcache.HashCacheBase
+	txcache          *hashcache.HashCacheBase
+	sncache          *hashCacheSN
+	lastLMI          int
+	lastLMITimesSeen int
+	lastLMIFirstSeen uint64
+	lastLMILastSeen  uint64
+	lmiMutex         = &sync.RWMutex{}
+	lmhsCache        *hashcache.HashCacheBase
 )
 
 type zmqMsg struct {
@@ -59,13 +52,6 @@ func initMsgFilter() {
 		"txcache", useFirstHashTrytes, segmentDurationTXSec, retentionPeriodSec)
 	sncache = newHashCacheSN(
 		useFirstHashTrytes, segmentDurationSNSec, retentionPeriodSec)
-	positiveValueTxCache = hashcache.NewHashCacheBase(
-		"positiveValueTxCache", useFirstHashTrytes, segmentDurationValueTXSec, retentionPeriodSec)
-	valueBundleCache = hashcache.NewHashCacheBase(
-		"valueBundleCache", useFirstHashTrytes, segmentDurationValueBundleSec, retentionPeriodSec)
-	confirmedPositiveValueTx = ebuffer.NewEventTsWithDataExpiringBuffer(
-		"confirmedPositiveValueTx", segmentDurationConfirmedTransfersSec, retentionPeriodSec)
-
 	// use all trytes of milestone hash
 	lmhsCache = hashcache.NewHashCacheBase("lmhscache", 0, segmentDurationTXSec, retentionPeriodSec)
 
@@ -120,7 +106,7 @@ func filterTXMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
 	checkForEcho(msgSplit[1], utils.UnixMsNow())
 
 	// check if message was seen exactly number of times as configured (usually 2)
-	if int(entry.Visits) == cfg.Config.QuorumTxToPass {
+	if int(entry.Visits) == GetTxQuorum() {
 		toOutput(msgData, msgSplit)
 	}
 }
@@ -156,7 +142,7 @@ func filterSNMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
 	sncache.SeenHashBy(hash, routine.GetId__(), nil, &entry)
 
 	// check if message was seen exactly number of times as configured (usually 2)
-	if int(entry.Visits) == cfg.Config.QuorumTxToPass {
+	if int(entry.Visits) == GetSnQuorum() {
 		toOutput(msgData, msgSplit)
 	}
 }
@@ -201,7 +187,7 @@ func filterLMIMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
 	case index == lastLMI:
 		lastLMITimesSeen++
 		lastLMILastSeen = utils.UnixMsNow()
-		if lastLMITimesSeen == cfg.Config.QuorumTxToPass {
+		if lastLMITimesSeen == GetLmiQuorum() {
 			toOutput(msgData, msgSplit)
 		}
 	}

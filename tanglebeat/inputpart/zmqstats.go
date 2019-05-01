@@ -2,8 +2,8 @@ package inputpart
 
 import (
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/lib/utils"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/cfg"
+	"github.com/unioproject/tanglebeat/lib/utils"
+	"github.com/unioproject/tanglebeat/tanglebeat/cfg"
 	"math"
 	"sync"
 	"time"
@@ -18,16 +18,18 @@ type ZmqOutputStatsStruct struct {
 	CTPS     float64 `json:"ctps"`
 	ConfRate int     `json:"confRate"`
 
-	ConfirmedTransferCount int    `json:"confirmedValueBundleCount"`
-	ValueVolumeApprox      uint64 `json:"valueVolumeApprox"`
+	ConfirmedTransferCount int   `json:"confirmedValueBundleCount"`
+	ValueVolumeApprox      int64 `json:"valueVolumeApprox"`
 }
 
 type ZmqCacheStatsStruct struct {
-	SizeTXCache            string `json:"sizeTXCache"`
-	SizeSNCache            string `json:"sizeSNCache"`
-	SizeValueTxCache       string `json:"sizeValueTxCache"`
-	SizeValueBundleCache   string `json:"sizeValueBundleCache"`
-	SizeConfirmedTransfers string `json:"sizeConfirmedTransfers"`
+	SizeTXCache     string `json:"sizeTXCache"`
+	SizeSNCache     string `json:"sizeSNCache"`
+	SizeBundleCache string `json:"sizeBundleCache"`
+
+	//SizeValueTxCache       string `json:"sizeValueTxCache"`
+	//SizeValueBundleCache   string `json:"sizeValueBundleCache"`
+	//SizeConfirmedTransfers string `json:"sizeConfirmedTransfers"`
 
 	TXSeenOnceCount      int `json:"txSeenOnceCount"`
 	SNSeenOnceCount      int `json:"snSeenOnceCount"`
@@ -99,16 +101,20 @@ func updateZmqCacheStats() {
 	zmqCacheStats.SizeTXCache = fmt.Sprintf("%v, seg=%v", e, s)
 	s, e = sncache.Size()
 	zmqCacheStats.SizeSNCache = fmt.Sprintf("%v, seg=%v", e, s)
-	s, e = positiveValueTxCache.Size()
-	zmqCacheStats.SizeValueTxCache = fmt.Sprintf("%v, seg=%v", e, s)
-	s, e = valueBundleCache.Size()
-	zmqCacheStats.SizeValueBundleCache = fmt.Sprintf("%v, seg=%v", e, s)
-	s, e = confirmedPositiveValueTx.Size()
-	zmqCacheStats.SizeConfirmedTransfers = fmt.Sprintf("%v, seg=%v", e, s)
+	s, e = transferBundleCache.Size()
+	zmqCacheStats.SizeBundleCache = fmt.Sprintf("%v, seg=%v", e, s)
+
+	//s, e = positiveValueTxCache.Size()
+	//zmqCacheStats.SizeValueTxCache = fmt.Sprintf("%v, seg=%v", e, s)
+	//s, e = valueBundleCache.Size()
+	//zmqCacheStats.SizeValueBundleCache = fmt.Sprintf("%v, seg=%v", e, s)
+	//s, e = confirmedPositiveValueTx.Size()
+	//zmqCacheStats.SizeConfirmedTransfers = fmt.Sprintf("%v, seg=%v", e, s)
 
 	// 1 hour stats
-	txcacheStats := txcache.Stats(0)
-	sncacheStats := sncache.Stats(0)
+	txcacheStats := txcache.Stats(0, GetTxQuorum())
+	sncacheStats := sncache.Stats(0, GetSnQuorum())
+
 	zmqCacheStats.TXSeenOnceCount = txcacheStats.SeenOnce
 	zmqCacheStats.SNSeenOnceCount = sncacheStats.SeenOnce
 
@@ -122,8 +128,9 @@ func updateZmqCacheStats() {
 	zmqCacheStats.TXLatencySecAvg = math.Round(txcacheStats.LatencySecAvg*100) / 100
 	zmqCacheStats.SNLatencySecAvg = math.Round(sncacheStats.LatencySecAvg*100) / 100
 
-	txcacheStats10min := txcache.Stats(10 * 60 * 1000)
-	sncacheStats10min := sncache.Stats(10 * 60 * 1000)
+	txcacheStats10min := txcache.Stats(10*60*1000, GetTxQuorum())
+	sncacheStats10min := sncache.Stats(10*60*1000, GetSnQuorum())
+
 	zmqCacheStats.TXSeenOnceCount10min = txcacheStats10min.SeenOnce
 	zmqCacheStats.SNSeenOnceCount10min = sncacheStats10min.SeenOnce
 
@@ -134,7 +141,7 @@ func updateZmqCacheStats() {
 		zmqCacheStats.SNNonPropagationRate10min = (sncacheStats10min.SeenOnce * 100) / sncacheStats10min.TxCountOlder1Min
 	}
 
-	txcacheStats5min := txcache.Stats(5 * 60 * 1000)
+	txcacheStats5min := txcache.Stats(5*60*1000, GetTxQuorum())
 	zmqCacheStats.seenOnceRateById5Min = txcacheStats5min.SeenOnceRateById
 
 	zmqCacheStats.TXLatencySecAvg10min = math.Round(txcacheStats10min.LatencySecAvg*100) / 100
@@ -158,10 +165,10 @@ func updateZmqOutputSlowStats() {
 	// all retentionPeriod stats
 	retentionPeriodSec := uint64(cfg.Config.RetentionPeriodMin) * 60
 	var st ZmqOutputStatsStruct
-	txs := txcache.Stats(retentionPeriodSec * 1000)
+	txs := txcache.Stats(retentionPeriodSec*1000, GetTxQuorum())
 	st.TXCount = txs.TxCountPassed
 
-	sns := sncache.Stats(retentionPeriodSec * 1000)
+	sns := sncache.Stats(retentionPeriodSec*1000, GetSnQuorum())
 	st.SNCount = sns.TxCountPassed
 
 	secPassed := float64((utils.UnixMsNow() - txs.EarliestSeen) / 1000)
@@ -171,21 +178,20 @@ func updateZmqOutputSlowStats() {
 		st.TPS = math.Round(st.TPS*100) / 100
 		st.CTPS = float64(st.SNCount) / secPassed
 		st.CTPS = math.Round(st.CTPS*100) / 100
-		//debugf("+++++++++++++ secPassed = %v st = %+v", secPassed, st)
 	}
 
 	if st.TXCount != 0 {
 		st.ConfRate = (st.SNCount * 100) / st.TXCount
 	}
-	st.ConfirmedTransferCount, _, st.ValueVolumeApprox = getValueConfirmationStats(0)
+	st.ConfirmedTransferCount, st.ValueVolumeApprox = getValueConfirmationStats(0)
 
 	// 10 min stats
 	const secBack10min = 10 * 60
 	var st10 ZmqOutputStatsStruct
-	txs10 := txcache.Stats(secBack10min * 1000)
+	txs10 := txcache.Stats(secBack10min*1000, GetTxQuorum())
 	st10.TXCount = txs10.TxCountPassed
 
-	sns10 := sncache.Stats(secBack10min * 1000)
+	sns10 := sncache.Stats(secBack10min*1000, GetSnQuorum())
 	st10.SNCount = sns10.TxCountPassed
 
 	secPassed10 := float64((utils.UnixMsNow() - txs10.EarliestSeen) / 1000)
@@ -201,7 +207,7 @@ func updateZmqOutputSlowStats() {
 	if st10.TXCount != 0 {
 		st10.ConfRate = (st10.SNCount * 100) / st10.TXCount
 	}
-	st10.ConfirmedTransferCount, _, st10.ValueVolumeApprox = getValueConfirmationStats(secBack10min * 1000)
+	st10.ConfirmedTransferCount, st10.ValueVolumeApprox = getValueConfirmationStats(secBack10min * 1000)
 
 	zmqOutputStatsMutex.Lock() //----
 	*zmqOutputStats = st

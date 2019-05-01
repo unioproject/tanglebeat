@@ -56,7 +56,7 @@ func (irs *InputReaderSet) runStarter() {
 			inputRoutine.Lock()
 			if !inputRoutine.isRunning__() && inputRoutine.isTimeToRestart__() {
 				inputRoutine.setRunning__()
-				infof("Time to run input routine %v. Go run!", name)
+				debugf("Time to run input routine %v. Go run!", name)
 				go func() {
 					stopReason := inputRoutine.Run(name)
 					var restartAfter time.Duration
@@ -77,7 +77,7 @@ func (irs *InputReaderSet) runStarter() {
 					inputRoutine.Lock()
 					inputRoutine.setIdle__(restartAfter, stopReason)
 					inputRoutine.Unlock()
-					infof("Stopped input routine '%v'. Will be restarted after %v", name, restartAfter)
+					debugf("Stopped input routine '%v'. Will be restarted after %v", name, restartAfter)
 				}()
 			}
 			inputRoutine.Unlock()

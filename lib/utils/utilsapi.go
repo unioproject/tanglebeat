@@ -5,7 +5,7 @@ import (
 	. "github.com/iotaledger/iota.go/api"
 	. "github.com/iotaledger/iota.go/transaction"
 	. "github.com/iotaledger/iota.go/trinary"
-	"github.com/lunfardo314/tanglebeat/lib/multiapi"
+	"github.com/unioproject/tanglebeat/lib/multiapi"
 )
 
 // checks if transaction in any bundle with specified hash is confirmed

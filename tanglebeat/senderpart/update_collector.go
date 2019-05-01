@@ -2,12 +2,12 @@ package senderpart
 
 import (
 	"fmt"
-	"github.com/lunfardo314/tanglebeat/lib/nanomsg"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/hashcache"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/inputpart"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/inreaders"
-	"github.com/lunfardo314/tanglebeat/tanglebeat/pubupdate"
-	"github.com/lunfardo314/tanglebeat/tbsender/sender_update"
+	"github.com/unioproject/tanglebeat/lib/nanomsg"
+	"github.com/unioproject/tanglebeat/tanglebeat/hashcache"
+	"github.com/unioproject/tanglebeat/tanglebeat/inputpart"
+	"github.com/unioproject/tanglebeat/tanglebeat/inreaders"
+	"github.com/unioproject/tanglebeat/tanglebeat/pubupdate"
+	"github.com/unioproject/tanglebeat/tbsender/sender_update"
 )
 
 type updateSource struct {
