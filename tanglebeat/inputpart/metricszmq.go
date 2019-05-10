@@ -36,7 +36,7 @@ var (
 	multiQuorumTps *CounterVec
 )
 
-func init() {
+func initZmqMetrics() {
 	zmqMetricsTransferVolumeCounter = NewCounter(CounterOpts{
 		Name: "tanglebeat_transfer_volume_counter_prod",
 		Help: "Approximation of the total transfer value",

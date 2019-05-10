@@ -53,6 +53,7 @@ var (
 )
 
 func MustInitInputRoutines(outEnabled bool, outPort int, inputsZMQ []string, inputsNanomsg []string) {
+	initZmqMetrics()
 	initMsgFilter()
 	initValueTx()
 
