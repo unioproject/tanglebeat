@@ -168,7 +168,7 @@ func updateCompoundMetrics(msgtype string) {
 
 func updateMultiQuorumTpsCounter(quorum int) {
 	if cfg.Config.MultiQuorumMetricsEnabled {
-		multiQuorumTps.WithLabelValues(fmt.Sprintf("%d", quorum)).Inc()
+		multiQuorumTps.With(Labels{"quorum": fmt.Sprintf("%d", quorum)}).Inc()
 	}
 }
 
