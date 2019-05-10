@@ -37,6 +37,7 @@ type ConfigStructYAML struct {
 	QuorumTxToPass                      int          `yaml:"quorumToPass"`
 	QuorumMilestoneHashToPass           int          `yaml:"quorumMilestoneHashToPass"`
 	TimeIntervalMilestoneHashToPassMsec uint64       `yaml:"timeIntervalMilestoneHashToPassMsec"`
+	MultiQuorumMetricsEnabled           bool         `yaml:"multiQuorumMetricsEnabled"`
 }
 
 var Config = ConfigStructYAML{}
@@ -94,6 +95,7 @@ func MustReadConfig(cfgfile string) {
 	if Config.TimeIntervalMilestoneHashToPassMsec == 0 {
 		Config.TimeIntervalMilestoneHashToPassMsec = 5000
 	}
+	infof("MultiQuorum metrics enabled = %v", Config.MultiQuorumMetricsEnabled)
 }
 
 //func errorf(format string, args ...interface{}) {

@@ -109,6 +109,10 @@ func filterTXMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
 	if int(entry.Visits) == GetTxQuorum() {
 		toOutput(msgData, msgSplit)
 	}
+	// update multiquorum tps metrics for quorums 2, 3, 4, 5
+	if 2 <= int(entry.Visits) && int(entry.Visits) <= 5 {
+		updateMultiQuorumTpsCounter(int(entry.Visits))
+	}
 }
 
 func filterSNMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
