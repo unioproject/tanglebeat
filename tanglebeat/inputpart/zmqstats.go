@@ -104,13 +104,6 @@ func updateZmqCacheStats() {
 	s, e = transferBundleCache.Size()
 	zmqCacheStats.SizeBundleCache = fmt.Sprintf("%v, seg=%v", e, s)
 
-	//s, e = positiveValueTxCache.Size()
-	//zmqCacheStats.SizeValueTxCache = fmt.Sprintf("%v, seg=%v", e, s)
-	//s, e = valueBundleCache.Size()
-	//zmqCacheStats.SizeValueBundleCache = fmt.Sprintf("%v, seg=%v", e, s)
-	//s, e = confirmedPositiveValueTx.Size()
-	//zmqCacheStats.SizeConfirmedTransfers = fmt.Sprintf("%v, seg=%v", e, s)
-
 	// 1 hour stats
 	txcacheStats := txcache.Stats(0, GetTxQuorum())
 	sncacheStats := sncache.Stats(0, GetSnQuorum())

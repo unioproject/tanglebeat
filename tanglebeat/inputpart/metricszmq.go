@@ -1,15 +1,17 @@
 package inputpart
 
 import (
+	"fmt"
 	"github.com/op/go-logging"
 	. "github.com/prometheus/client_golang/prometheus"
 	"github.com/unioproject/tanglebeat/lib/utils"
+	"github.com/unioproject/tanglebeat/tanglebeat/cfg"
 	"time"
 )
 
 var (
-	zmqMetricsTransferVolumeCounter Counter // new
-	zmqMetricsTransferCounter       Counter // new
+	zmqMetricsTransferVolumeCounter Counter
+	zmqMetricsTransferCounter       Counter
 
 	metricsMiotaPriceUSD Gauge
 
@@ -30,9 +32,11 @@ var (
 	lmConfRate10minMetrics Gauge
 	lmConfRate15minMetrics Gauge
 	lmConfRate30minMetrics Gauge
+
+	multiQuorumTps *CounterVec
 )
 
-func init() {
+func initZmqMetrics() {
 	zmqMetricsTransferVolumeCounter = NewCounter(CounterOpts{
 		Name: "tanglebeat_transfer_volume_counter_prod",
 		Help: "Approximation of the total transfer value",
@@ -135,6 +139,14 @@ func init() {
 		Help: "Average conf rate by Luca Moser",
 	})
 	MustRegister(lmConfRate30minMetrics)
+
+	if cfg.Config.MultiQuorumMetricsEnabled {
+		multiQuorumTps = NewCounterVec(CounterOpts{
+			Name: "tanglebeat_multiquorum_tps",
+			Help: "TPS labeled by quorums",
+		}, []string{"quorum"})
+		MustRegister(multiQuorumTps)
+	}
 }
 
 func updateTransferVolumeMetrics(value uint64) {
@@ -151,6 +163,12 @@ func updateCompoundMetrics(msgtype string) {
 		zmqMetricsTxCounterCompound.Inc()
 	case "sn":
 		zmqMetricsCtxCounterCompound.Inc()
+	}
+}
+
+func updateMultiQuorumTpsCounter(quorum int) {
+	if cfg.Config.MultiQuorumMetricsEnabled {
+		multiQuorumTps.With(Labels{"quorum": fmt.Sprintf("%d", quorum)}).Inc()
 	}
 }
 
