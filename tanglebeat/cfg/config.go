@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	Version   = "unio 19.05.11-1"
+	Version   = "unio 19.05.11-2"
 	logFormat = "%{time:2006-01-02 15:04:05.000} %{level:.4s} [%{module:.6s}|%{shortfunc:.12s}] %{message}"
 	level     = logging.DEBUG
 )
@@ -30,6 +30,7 @@ type inputsOutput struct {
 }
 
 type ConfigStructYAML struct {
+	Debug                               bool         `yaml:"debug"`
 	WebServerPort                       int          `yaml:"webServerPort"`
 	IriMsgStream                        inputsOutput `yaml:"iriMsgStream"`
 	SenderMsgStream                     inputsOutput `yaml:"senderMsgStream"`
@@ -79,6 +80,8 @@ func MustReadConfig(cfgfile string) {
 	if !success {
 		os.Exit(1)
 	}
+
+	infof("Debug = %v", Config.Debug)
 	// default values
 	if Config.QuorumTxToPass == 0 {
 		Config.QuorumTxToPass = 2

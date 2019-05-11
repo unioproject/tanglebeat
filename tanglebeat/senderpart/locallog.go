@@ -3,6 +3,7 @@ package senderpart
 import (
 	"fmt"
 	"github.com/op/go-logging"
+	"github.com/unioproject/tanglebeat/tanglebeat/cfg"
 )
 
 var (
@@ -32,6 +33,9 @@ func debugf(format string, args ...interface{}) {
 }
 
 func tracef(format string, args ...interface{}) {
+	if !cfg.Config.Debug {
+		return
+	}
 	if !localTrace {
 		return
 	}
