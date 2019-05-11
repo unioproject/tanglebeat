@@ -3,6 +3,7 @@ package inputpart
 import (
 	"fmt"
 	"github.com/op/go-logging"
+	"github.com/unioproject/tanglebeat/tanglebeat/cfg"
 )
 
 var (
@@ -24,6 +25,9 @@ func errorf(format string, args ...interface{}) {
 }
 
 func debugf(format string, args ...interface{}) {
+	if !cfg.Config.Debug {
+		return
+	}
 	if localLog != nil {
 		localLog.Debugf(format, args...)
 	} else {
