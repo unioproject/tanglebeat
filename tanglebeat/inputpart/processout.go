@@ -17,7 +17,7 @@ func toOutput(msgData []byte, msgSplit []string) {
 }
 
 // forming new message type
-// 'seen <tx_hash> <quorum level passed>'
+// 'seen <tx_hash> <quorum filter level passed>'
 
 func publishQuorumUpdate(txHash string, timesSeen int) {
 	if !cfg.Config.QuorumUpdatesEnabled {
