@@ -113,6 +113,7 @@ func filterTXMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
 	if 1 <= int(entry.Visits) && int(entry.Visits) <= 5 {
 		updateMultiQuorumTpsCounter(int(entry.Visits))
 	}
+	publishQuorumUpdate(msgSplit[1], int(entry.Visits))
 }
 
 func filterSNMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
