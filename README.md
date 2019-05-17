@@ -230,7 +230,7 @@ It contains detailed comments of how to set up configuration parameters. In gene
 following things to set up the environment of TBSender:
 
 - Global parameters for sequences: URLs of IRI nodes, API timeouts and similar. 
-- Specify sequences. Eeach sequence of addresses is defined by `seed` and `index0` parameters. 
+- Specify sequences. Each sequence of addresses is defined by `seed` and `index0` parameters. 
 Sequence of addresses is security level 2 addresses with the `seed` starting at specified index. 
 TBSender will be sending iotas along those sequences: 
 whole balance of the current address to the next address and so on in a loop.
