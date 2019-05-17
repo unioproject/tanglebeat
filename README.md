@@ -148,7 +148,7 @@ Set `PATH` to your `GOPATH/bin`
 
 To download main _tanglebeat_ package with dependencies run:
  
-`go get -d github.com/unioproject/tanglebeat/tanglebeat/tanglebeat` 
+`go get -d github.com/unioproject/tanglebeat/tanglebeat` 
 
 To download _tbsender_ package with dependencies run: 
 
