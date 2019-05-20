@@ -12,10 +12,10 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /root/
 COPY --from=0 tanglebeat .
 COPY --from=0 tbsender .
-COPY dockerstart.sh /
+COPY entrypoint.sh /root/
 ENV SITE_DATA_DIR="/root/config"
 
-ENTRYPOINT ["./dockerstart.sh"]
+ENTRYPOINT ["./entrypoint.sh"]
 # CMD ["./tanglebeat"]
 # sudo docker build -t tanglebeat -f Dockerfile.tanglebeat .
 # sudo docker run -v `pwd`/examples/config:/root/config tanglebeat:latest
