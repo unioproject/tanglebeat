@@ -5,7 +5,7 @@ COPY tanglebeat/ ${GOPATH}/github.com/unioproject/tanglebeat/tanglebeat
 
 # RUN go get -d github.com/unioproject/tanglebeat/tbsender
 # RUN go get -d -v github.com/unioproject/tanglebeat/examples/readnano
-RUN GOOS=linux go build -a -o tanglebeat .
+RUN GOOS=linux go build -a -o tanglebeat ${GOPATH}/src/github.com/unioproject/tanglebeat/tanglebeat
 
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
