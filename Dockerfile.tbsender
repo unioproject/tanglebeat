@@ -1,27 +1,11 @@
 FROM golang:latest
 WORKDIR /
-COPY tanglebeat/ .
-#RUN go get -d github.com/unioproject/tanglebeat/tanglebeat
-RUN go get -d github.com/unioproject/tanglebeat/tbsender
-# RUN go get -d -v github.com/unioproject/tanglebeat/examples/readnano
-#RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o tanglebeat .
-RUN GOOS=linux go build -a -o tbsender .
+RUN go get -d -v github.com/unioproject/tanglebeat/tbsender
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o tbsender ${GOPATH}/src/github.com/unioproject/tanglebeat/tbsender
 
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 WORKDIR /root/
-COPY --from=0 tanglebeat .
 COPY --from=0 tbsender .
-
-#COPY entrypoint.sh .
-#RUN ["chmod", "+x", "entrypoint.sh"]
-
 ENV SITE_DATA_DIR="/root/config"
-
-# ENTRYPOINT ["./entrypoint.sh"]
-ENTRYPOINT ["./tanglebeat"]
-# sudo docker build -t tanglebeat -f Dockerfile.tanglebeat .
-# sudo docker run -v `pwd`/examples/config:/root/config tanglebeat:latest
-
-# docker tag tanglebeat:v1.0.0 new-repo:tagname
-# docker push new-repo:tagname
+ENTRYPOINT ["./tbsender"]
