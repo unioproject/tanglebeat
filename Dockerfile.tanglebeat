@@ -12,7 +12,10 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /root/
 COPY --from=0 tanglebeat .
 COPY --from=0 tbsender .
-COPY entrypoint.sh /root/
+
+COPY entrypoint.sh .
+RUN ["chmod", "+x", "entrypoint.sh"]
+
 ENV SITE_DATA_DIR="/root/config"
 
 ENTRYPOINT ["./entrypoint.sh"]
