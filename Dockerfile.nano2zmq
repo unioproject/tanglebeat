@@ -33,7 +33,7 @@ COPY --from=nano2zmq_compile /usr/lib/libstdc++.so.6 /usr/lib/libstdc++.so.6
 EXPOSE 5556
 #ENTRYPOINT ["./nano2zmq", "-from tcp://localhost:5550", "-to 5556"]
 ENTRYPOINT ["./nano2zmq"]
-#CMD ["-from tcp://localhost.com:5550", "-to 5556"]
+CMD ["-from", "tcp://localhost:5550", "-to", "5556"]
 
 # sudo docker build -t nano2zmq Dockerfile.nano2zmq
 # sudo docker run nano2zmq
