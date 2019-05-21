@@ -1,11 +1,12 @@
-FROM golang:latest
+FROM golang:latest as tbsender_compile
 WORKDIR /
-RUN go get -d -v github.com/unioproject/tanglebeat/tbsender
+RUN go get -d github.com/unioproject/tanglebeat/tbsender
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o tbsender ${GOPATH}/src/github.com/unioproject/tanglebeat/tbsender
 
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 WORKDIR /root/
-COPY --from=0 tbsender .
+COPY --from=tbsender_compile tbsender .
 ENV SITE_DATA_DIR="/root/config"
+EXPOSE 3100
 ENTRYPOINT ["./tbsender"]

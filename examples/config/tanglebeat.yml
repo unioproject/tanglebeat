@@ -17,33 +17,31 @@ quorumToPass: 2
 # configuration of the message hub.
 
 iriMsgStream:
-     # if output is disabled, messages are not sent to the output stream and only metrics are
-     # exposed to Prometheus
-     outputEnabled: true
+  # if output is disabled, messages are not sent to the output stream and only metrics are
+  # exposed to Prometheus
+  outputEnabled: true
 
-     # output port of the output Nanomsg stream
-     outputPort: 5550
+  # output port of the output Nanomsg stream
+  outputPort: 5550
 
-     # static list of ZMQ URI's which Tanglebeat will be listening to
-     # Usually it is a list of at least 10 ZMQ URIs
-     inputsZMQ:
-         - "tcp://db.iota.partners:5556"
-         - "tcp://perma-1.iota.partners:5556"
-         - "tcp://perma-2.iota.partners:5556"
-         - "tcp://node02.iotatoken.nl:5556"
-         - "tcp://node04.iotatoken.nl:5556"
-         - "tcp://node06.iotatoken.nl:5556"
-         - "tcp://ultranode.iotatoken.nl:5556"
-         - "tcp://nodes.tangled.it:5556"
-         - "tcp://node.deviceproof.org:5556"
-         - "tcp://node06.iotamexico.com:5556"
-         - "tcp://0v0.science:5556"
-         - "tcp://trinity.iota-tangle.io:5556"
-         
-         
+  # static list of ZMQ URI's which Tanglebeat will be listening to
+  # Usually it is a list of at least 10 ZMQ URIs
+  inputsZMQ:
+    - "tcp://db.iota.partners:5556"
+    - "tcp://perma-1.iota.partners:5556"
+    - "tcp://perma-2.iota.partners:5556"
+    - "tcp://node02.iotatoken.nl:5556"
+    - "tcp://node04.iotatoken.nl:5556"
+    - "tcp://node06.iotatoken.nl:5556"
+    - "tcp://ultranode.iotatoken.nl:5556"
+    - "tcp://nodes.tangled.it:5556"
+    - "tcp://node.deviceproof.org:5556"
+    - "tcp://node06.iotamexico.com:5556"
+    - "tcp://0v0.science:5556"
+    - "tcp://trinity.iota-tangle.io:5556"
+
 # configuration of the connection with tbsender
 
 senderMsgStream:
-     inputsNanomsg:
-         - "tcp://localhost:3100"
-
+  inputsNanomsg:
+    - "tcp://localhost:3100"

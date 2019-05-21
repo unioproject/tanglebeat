@@ -1,13 +1,14 @@
-FROM golang:latest
+FROM golang:latest as tanglebeat_compile
 WORKDIR /
-RUN go get -d -v github.com/unioproject/tanglebeat/tanglebeat
+RUN go get -d github.com/unioproject/tanglebeat/tanglebeat
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o tanglebeat ${GOPATH}/src/github.com/unioproject/tanglebeat/tanglebeat
 
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 WORKDIR /root/
-COPY --from=0 tanglebeat .
+COPY --from=tanglebeat_compile tanglebeat .
 ENV SITE_DATA_DIR="/root/config"
+EXPOSE 8082 5550
 ENTRYPOINT ["./tanglebeat"]
 
 # sudo docker build -t tanglebeat Dockerfile.tanglebeat
