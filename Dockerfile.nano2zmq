@@ -4,6 +4,8 @@ WORKDIR /
 ENV CGO_ENABLED=1
 ENV GOOS=linux
 
+COPY ./examples/nano2zmq/ ${GOPATH}/src/github.com/unioproject/tanglebeat/examples/nano2zmq/
+
 RUN apk update && apk add --no-cache --virtual .build-deps \
   build-base \
   gcc \
@@ -15,13 +17,11 @@ RUN apk update && apk add --no-cache --virtual .build-deps \
   git \
   && git clone https://github.com/zeromq/libzmq.git && cd libzmq && ./autogen.sh && ./configure && make && make install \
   && go get -d github.com/unioproject/tanglebeat/examples/nano2zmq
-RUN go build -a -installsuffix cgo -o nano2zmq ${GOPATH}/src/github.com/unioproject/tanglebeat/examples/nano2zmq
 
+RUN go build -a -installsuffix cgo -o nano2zmq ${GOPATH}/src/github.com/unioproject/tanglebeat/examples/nano2zmq
 
 FROM alpine:latest
 WORKDIR /root/
-
-RUN apk --no-cache add ca-certificates
 
 COPY --from=nano2zmq_compile nano2zmq .
 COPY --from=nano2zmq_compile /usr/local/lib/libzmq.so.5 /usr/local/lib/libzmq.so.5
@@ -33,7 +33,7 @@ COPY --from=nano2zmq_compile /usr/lib/libstdc++.so.6 /usr/lib/libstdc++.so.6
 EXPOSE 5556
 #ENTRYPOINT ["./nano2zmq", "-from tcp://localhost:5550", "-to 5556"]
 ENTRYPOINT ["./nano2zmq"]
-#CMD ["-from 'tcp://localhost.com:5550'", "-to 5556"]
+CMD ["-from tcp://localhost.com:5550", "-to 5556"]
 
 # sudo docker build -t nano2zmq Dockerfile.nano2zmq
 # sudo docker run nano2zmq
