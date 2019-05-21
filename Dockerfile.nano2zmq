@@ -1,16 +1,39 @@
-FROM golang:latest as tanglebeat_compile
+FROM golang:alpine as nano2zmq_compile
 WORKDIR /
-RUN go get -d github.com/unioproject/tanglebeat/examples/nano2zmq
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o nano2zmq ${GOPATH}/src/github.com/unioproject/examples/nano2zmq
+
+ENV CGO_ENABLED=1
+ENV GOOS=linux
+
+RUN apk update && apk add --no-cache --virtual .build-deps \
+  build-base \
+  gcc \
+  libunwind-dev \
+  pkgconf-dev \
+  libtool \
+  autoconf \
+  automake \
+  git \
+  && git clone https://github.com/zeromq/libzmq.git && cd libzmq && ./autogen.sh && ./configure && make && make install \
+  && go get -d github.com/unioproject/tanglebeat/examples/nano2zmq
+RUN go build -a -installsuffix cgo -o nano2zmq ${GOPATH}/src/github.com/unioproject/tanglebeat/examples/nano2zmq
+
 
 FROM alpine:latest
-RUN apk --no-cache add ca-certificates
 WORKDIR /root/
-COPY --from=tanglebeat_compile nano2zmq .
-ENV SITE_DATA_DIR="/root/config"
+
+RUN apk --no-cache add ca-certificates
+
+COPY --from=nano2zmq_compile nano2zmq .
+COPY --from=nano2zmq_compile /usr/local/lib/libzmq.so.5 /usr/local/lib/libzmq.so.5
+COPY --from=nano2zmq_compile /usr/lib/libstdc++.so.6 /usr/lib/libstdc++.so.6
+COPY --from=nano2zmq_compile /usr/lib/libgcc_s.so.1 /usr/lib/libgcc_s.so.1
+COPY --from=nano2zmq_compile /usr/lib/libunwind.so.8 /usr/lib/libunwind.so.8
+COPY --from=nano2zmq_compile /usr/lib/libstdc++.so.6 /usr/lib/libstdc++.so.6
+
 EXPOSE 5556
+#ENTRYPOINT ["./nano2zmq", "-from tcp://localhost:5550", "-to 5556"]
 ENTRYPOINT ["./nano2zmq"]
-CMD ["-from tcp://localhost.com:5550", "-to 5556"]
+#CMD ["-from 'tcp://localhost.com:5550'", "-to 5556"]
 
 # sudo docker build -t nano2zmq Dockerfile.nano2zmq
 # sudo docker run nano2zmq
