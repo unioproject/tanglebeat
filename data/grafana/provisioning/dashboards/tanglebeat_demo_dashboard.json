@@ -1,0 +1,1409 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS@TANGLEBEAT",
+      "label": "Prometheus@Tanglebeat",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "5.3.2"
+    },
+    {
+      "type": "panel",
+      "id": "graph",
+      "name": "Graph",
+      "version": "5.0.0"
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "5.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "singlestat",
+      "name": "Singlestat",
+      "version": "5.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "text",
+      "name": "Text",
+      "version": "5.0.0"
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "content": "#### Tangebeat site is a work in progress and any metrics, charts and dashboards you see in it are experimental and may change.\n\n\n",
+      "gridPos": {
+        "h": 3,
+        "w": 19,
+        "x": 0,
+        "y": 0
+      },
+      "id": 30,
+      "links": [],
+      "mode": "markdown",
+      "title": "Disclaimer",
+      "type": "text"
+    },
+    {
+      "content": "\n\n**Tanglebeat** is a lightweight software agent intended for collection of Tangle health -related metrics to [Prometheus TSDB](https://prometheus.io). \n\nTangelbeat can run standalone or in distributed configurations to collect metrics from the network. Behind this Grafana dashboard demo there're two Tanglebeat instances\non different nodes running 7 transfer sequences in total . Pratical productions environments as well as dashboard might be different. \nAlso open nanomsg data stream enables extentions of Tanglebeat to provide new metrics and services.\n\nTanglebeat is a successor of [Traveling IOTA](http://traviota.iotalt.com) project. It is open source. \nDetailed description can be found in [GitHub](https://github.com/lunfardo314/tanglebeat) (closed until stabil release)\n",
+      "gridPos": {
+        "h": 5,
+        "w": 19,
+        "x": 0,
+        "y": 3
+      },
+      "id": 6,
+      "links": [],
+      "mode": "markdown",
+      "title": "About Tanglebeat",
+      "type": "text"
+    },
+    {
+      "content": "\n**TfPH** or **Transfers Per Hour** metrics is calculated by running several sequences of IOTA transfers of the whole balance from one address to another. \nUpon confirmation of the transfer Tanglebeat creates new bundle and makes sure it is confirmed by *promoting* and *reattaching* of it (if necessary).\nVarious data is collected in the process and then is scraped by Prometheus as metrics. \n\n**TfPH** is calculated as number of confirmed transfers in one hour *per sequence*. \nIt indicates perceived confirmation speed of the Tangle\": the number of transfers an ideal wallet would be able to make in one hour. \n\n\n**Note** that TfPH calculated by Tanglebeat is significantly higher than the one from [Traveling IOTA](http://traviota.iotalt.com) due to the difference of algorithms as well as different configuration parameters.",
+      "gridPos": {
+        "h": 3,
+        "w": 19,
+        "x": 0,
+        "y": 8
+      },
+      "id": 18,
+      "links": [],
+      "mode": "markdown",
+      "title": "Confirmation time statistics",
+      "type": "text"
+    },
+    {
+      "aliasColors": {
+        "TfPH": "#1f78c1"
+      },
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "description": "kuku",
+      "fill": 1,
+      "gridPos": {
+        "h": 6,
+        "w": 11,
+        "x": 0,
+        "y": 11
+      },
+      "id": 2,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "percentage": false,
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [
+        {
+          "alias": "deriv(TfPH)",
+          "yaxis": 2
+        }
+      ],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "tanglebeat:confirmation_metrics:tfph_adjusted",
+          "format": "time_series",
+          "hide": false,
+          "intervalFactor": 1,
+          "legendFormat": "TfPH",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "TfPH - Transfers per hour",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "decimals": 1,
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "cacheTimeout": null,
+      "colorBackground": false,
+      "colorValue": false,
+      "colors": ["#299c46", "rgba(237, 129, 40, 0.89)", "#d44a3a"],
+      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "decimals": 1,
+      "format": "none",
+      "gauge": {
+        "maxValue": 60,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": true,
+        "thresholdMarkers": false
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 11,
+        "y": 11
+      },
+      "id": 4,
+      "interval": null,
+      "links": [],
+      "mappingType": 1,
+      "mappingTypes": [
+        {
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "name": "range to text",
+          "value": 2
+        }
+      ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "postfix": "tfph",
+      "postfixFontSize": "80%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "full": false,
+        "lineColor": "rgb(31, 120, 193)",
+        "show": true
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "expr": "tanglebeat:confirmation_metrics:tfph_adjusted",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "refId": "A"
+        }
+      ],
+      "thresholds": "10, 30, 100",
+      "title": "TfPH current",
+      "type": "singlestat",
+      "valueFontSize": "120%",
+      "valueMaps": [
+        {
+          "op": "=",
+          "text": "N/A",
+          "value": "null"
+        }
+      ],
+      "valueName": "current"
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "fill": 1,
+      "gridPos": {
+        "h": 6,
+        "w": 11,
+        "x": 0,
+        "y": 17
+      },
+      "id": 10,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "percentage": false,
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "clamp_max(sum(increase(tanglebeat_confirmation_duration_counter[30m]))/sum(increase(tanglebeat_confirmation_counter[30m])), 1200)",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "avg conf time 30 min",
+          "refId": "A"
+        },
+        {
+          "expr": "clamp_max(sum(increase(tanglebeat_confirmation_duration_counter[1h]))/sum(increase(tanglebeat_confirmation_counter[1h])), 1200)",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "avg conf time 1h",
+          "refId": "C"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Average transfer confirmation time",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "decimals": 1,
+          "format": "s",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "s",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": false
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": true,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "fill": 1,
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 11,
+        "y": 17
+      },
+      "id": 16,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": false,
+        "total": false,
+        "values": false
+      },
+      "lines": false,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "percentage": false,
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "avg(rate(tanglebeat_confirmation_duration_counter[1h])/rate(tanglebeat_confirmation_counter[1h]))/60",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "avg conf time 1h",
+          "refId": "C"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Confirmation time distribution (by min)",
+      "tooltip": {
+        "shared": false,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": 20,
+        "mode": "histogram",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "s",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": false
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "content": "**PoW cost per transfer** metrics is equal to the average number of transactions needed to confirm a transfer. \nIt includes not only transactions of the original bundle (usualy 3), but also all promotion transactions and reattachments (if any)\n\nBy promoting and reattaching *Tanglebeat* contributes to the overall **TPS** of the Tangle as slow *value spammer*\n\n_PoW cost_ metrics are experimental. It depends on the promotion startegy. In the current demo it is _promote every 15 sec_. \nIt is unclear how and when transfer confirmation time depends on promotion startegy. \n\nThat might give a ground to compare e.g. BTC transactions (transfers) to IOTA transactions (one transfer costs several transactions).  \n",
+      "gridPos": {
+        "h": 6,
+        "w": 19,
+        "x": 0,
+        "y": 23
+      },
+      "id": 21,
+      "links": [],
+      "mode": "markdown",
+      "title": "",
+      "type": "text"
+    },
+    {
+      "aliasColors": {
+        "pow cost": "#bf1b00"
+      },
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "fill": 1,
+      "gridPos": {
+        "h": 6,
+        "w": 11,
+        "x": 0,
+        "y": 29
+      },
+      "id": 17,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "percentage": false,
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "sum(increase(tanglebeat_pow_cost_counter[1h]))/sum(increase(tanglebeat_confirmation_counter[1h]))",
+          "format": "time_series",
+          "hide": false,
+          "intervalFactor": 1,
+          "legendFormat": "pow cost",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "PoW cost per transfer",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "s",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": false
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "cacheTimeout": null,
+      "colorBackground": false,
+      "colorValue": false,
+      "colors": ["#299c46", "rgba(237, 129, 40, 0.89)", "#d44a3a"],
+      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "decimals": 2,
+      "format": "none",
+      "gauge": {
+        "maxValue": 100,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": false,
+        "thresholdMarkers": true
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 11,
+        "y": 29
+      },
+      "id": 20,
+      "interval": null,
+      "links": [],
+      "mappingType": 1,
+      "mappingTypes": [
+        {
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "name": "range to text",
+          "value": 2
+        }
+      ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "postfix": "tps",
+      "postfixFontSize": "80%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "full": false,
+        "lineColor": "rgb(31, 120, 193)",
+        "show": true
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "expr": "sum(rate(tanglebeat_pow_cost_counter[1h]))",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "refId": "A"
+        }
+      ],
+      "thresholds": "",
+      "title": "Contribution to TPS 1h",
+      "type": "singlestat",
+      "valueFontSize": "120%",
+      "valueMaps": [
+        {
+          "op": "=",
+          "text": "N/A",
+          "value": "null"
+        }
+      ],
+      "valueName": "current"
+    },
+    {
+      "content": "Tanglebeat also provides usual *Zero MQ based metrics* such as *TPS*, *CTPS*, *Confirmation rate* and *Seconds between milestones*",
+      "gridPos": {
+        "h": 2,
+        "w": 19,
+        "x": 0,
+        "y": 35
+      },
+      "id": 22,
+      "links": [],
+      "mode": "markdown",
+      "title": "Zero MQ -based metrics",
+      "type": "text"
+    },
+    {
+      "aliasColors": {
+        "CTPS avg 20 min": "#bf1b00",
+        "TPS avg 20 min": "#0a50a1"
+      },
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "fill": 1,
+      "gridPos": {
+        "h": 6,
+        "w": 11,
+        "x": 0,
+        "y": 37
+      },
+      "id": 14,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "percentage": false,
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "rate(tanglebeat_tx_counter_compound[20m])",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "TPS avg 20 min avg",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(tanglebeat_ctx_counter_compound[20m])",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "CTPS avg 20 min avg",
+          "refId": "B"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "TPS vs CTPS",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "cacheTimeout": null,
+      "colorBackground": false,
+      "colorValue": false,
+      "colors": ["#299c46", "rgba(237, 129, 40, 0.89)", "#d44a3a"],
+      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "decimals": 1,
+      "format": "none",
+      "gauge": {
+        "maxValue": 100,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": false,
+        "thresholdMarkers": true
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 11,
+        "y": 37
+      },
+      "id": 23,
+      "interval": null,
+      "links": [],
+      "mappingType": 1,
+      "mappingTypes": [
+        {
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "name": "range to text",
+          "value": 2
+        }
+      ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "postfix": "tps",
+      "postfixFontSize": "100%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "full": false,
+        "lineColor": "rgb(31, 120, 193)",
+        "show": true
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "expr": "rate(tanglebeat_tx_counter_compound[5m])",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "refId": "A"
+        }
+      ],
+      "thresholds": "",
+      "title": "TPS 5 min avg",
+      "type": "singlestat",
+      "valueFontSize": "120%",
+      "valueMaps": [
+        {
+          "op": "=",
+          "text": "N/A",
+          "value": "null"
+        }
+      ],
+      "valueName": "current"
+    },
+    {
+      "cacheTimeout": null,
+      "colorBackground": false,
+      "colorValue": false,
+      "colors": ["#299c46", "rgba(237, 129, 40, 0.89)", "#d44a3a"],
+      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "decimals": 1,
+      "format": "none",
+      "gauge": {
+        "maxValue": 100,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": false,
+        "thresholdMarkers": true
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 11,
+        "y": 41
+      },
+      "id": 24,
+      "interval": null,
+      "links": [],
+      "mappingType": 1,
+      "mappingTypes": [
+        {
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "name": "range to text",
+          "value": 2
+        }
+      ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "postfix": "tps",
+      "postfixFontSize": "100%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "full": false,
+        "lineColor": "rgb(31, 120, 193)",
+        "show": true
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "expr": "rate(tanglebeat_ctx_counter_compound[5m])",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "refId": "A"
+        }
+      ],
+      "thresholds": "",
+      "title": "CTPS 5 min avg",
+      "type": "singlestat",
+      "valueFontSize": "120%",
+      "valueMaps": [
+        {
+          "op": "=",
+          "text": "N/A",
+          "value": "null"
+        }
+      ],
+      "valueName": "current"
+    },
+    {
+      "aliasColors": {
+        "Conf. rate 10 min": "#ef843c",
+        "Conf. rate 20 min avg": "#962d82",
+        "TPS avg 10 min": "#ef843c",
+        "TPS avg 20 min": "#ef843c"
+      },
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "fill": 1,
+      "gridPos": {
+        "h": 6,
+        "w": 11,
+        "x": 0,
+        "y": 43
+      },
+      "id": 15,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "percentage": false,
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "100* rate(tanglebeat_ctx_counter_compound[20m]) / rate(tanglebeat_tx_counter_compound[20m])",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "Conf. rate 20 min avg",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Confirmation rate %",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "decimals": null,
+          "format": "short",
+          "label": "%",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "decimals": null,
+          "format": "short",
+          "label": "%",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": false
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "cacheTimeout": null,
+      "colorBackground": false,
+      "colorValue": false,
+      "colors": ["#299c46", "rgba(237, 129, 40, 0.89)", "#d44a3a"],
+      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "decimals": null,
+      "format": "none",
+      "gauge": {
+        "maxValue": 100,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": false,
+        "thresholdMarkers": true
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 11,
+        "y": 45
+      },
+      "id": 25,
+      "interval": null,
+      "links": [],
+      "mappingType": 1,
+      "mappingTypes": [
+        {
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "name": "range to text",
+          "value": 2
+        }
+      ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "postfix": "%",
+      "postfixFontSize": "120%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "full": false,
+        "lineColor": "rgb(31, 120, 193)",
+        "show": true
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "expr": "100 * rate(tanglebeat_ctx_counter_compound[5m]) / rate(tanglebeat_tx_counter_compound[5m])",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "refId": "A"
+        }
+      ],
+      "thresholds": "",
+      "title": "Conf. rate 5 min",
+      "type": "singlestat",
+      "valueFontSize": "120%",
+      "valueMaps": [
+        {
+          "op": "=",
+          "text": "N/A",
+          "value": "null"
+        }
+      ],
+      "valueName": "current"
+    },
+    {
+      "content": "Tanglebeat keeps a counter for errors returned by IOTA API calls. It gives idea about the health of the IOTA nodes Tanglebeat is connected to. \nThis and other metrics very much depends on the confirguration of the Tanglebeat.  ",
+      "gridPos": {
+        "h": 3,
+        "w": 11,
+        "x": 0,
+        "y": 49
+      },
+      "id": 27,
+      "links": [],
+      "mode": "markdown",
+      "title": "",
+      "type": "text"
+    },
+    {
+      "aliasColors": {
+        "api.powsrv.io": "#bf1b00"
+      },
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "fill": 1,
+      "gridPos": {
+        "h": 6,
+        "w": 11,
+        "x": 0,
+        "y": 52
+      },
+      "id": 8,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "percentage": false,
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "increase(tanglebeat_iota_api_error_counter[10m])",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "{{endpoint}}",
+          "refId": "A"
+        },
+        {
+          "expr": "increase(tanglebeat_iota_api_error_counter{endpoint=\"https://field.deviota.com:443\"}[10m])",
+          "format": "time_series",
+          "hide": true,
+          "intervalFactor": 1,
+          "legendFormat": "field.deviota.com",
+          "refId": "C"
+        },
+        {
+          "expr": "sum(increase(tanglebeat_iota_api_error_counter{endpoint!~\"https://api.powsrv.io:443|https://field.deviota.com:443\"}[10m]))",
+          "format": "time_series",
+          "hide": true,
+          "intervalFactor": 1,
+          "legendFormat": "other",
+          "refId": "B"
+        },
+        {
+          "expr": "increase(tanglebeat_iota_api_error_counter{endpoint=\"https://api.powsrv.io:443\"}[10m])",
+          "format": "time_series",
+          "hide": true,
+          "intervalFactor": 1,
+          "legendFormat": "api.powsrv.io",
+          "refId": "D"
+        },
+        {
+          "expr": "increase(tanglebeat_iota_api_error_counter{endpoint=\"https://api.powsrv.io:443\"}[10m])",
+          "format": "time_series",
+          "hide": false,
+          "intervalFactor": 1,
+          "legendFormat": "api.powsrv.io",
+          "refId": "E"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "IOTA API error count last 10 min",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "content": "Each sequence of transfers is based on one seed. Sequences is *active* if it has at least one confirmation in 15 minutes. \nTfPH averages are calculated over average number of active sequences in order to minimize effect of technical downtime or changes in the configuration.",
+      "gridPos": {
+        "h": 3,
+        "w": 15,
+        "x": 0,
+        "y": 58
+      },
+      "id": 28,
+      "links": [],
+      "mode": "markdown",
+      "title": "",
+      "type": "text"
+    },
+    {
+      "aliasColors": {
+        "average active sequences": "#bf1b00",
+        "avg number of active sequences": "#0a437c",
+        "number of active sequences": "#bf1b00"
+      },
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "fill": 1,
+      "gridPos": {
+        "h": 5,
+        "w": 11,
+        "x": 0,
+        "y": 61
+      },
+      "id": 13,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "percentage": false,
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "tanglebeat:confirmation_metrics:num_active_seq",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "number of active sequences",
+          "refId": "A"
+        },
+        {
+          "expr": "tanglebeat:confirmation_metrics:avg_seq_num_active",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "avg number of active sequences",
+          "refId": "B"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Number of sequences active last 15 min",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "cacheTimeout": null,
+      "colorBackground": false,
+      "colorValue": false,
+      "colors": ["#299c46", "rgba(237, 129, 40, 0.89)", "#d44a3a"],
+      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "decimals": null,
+      "format": "none",
+      "gauge": {
+        "maxValue": 60,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": true,
+        "thresholdMarkers": false
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 11,
+        "y": 61
+      },
+      "id": 11,
+      "interval": null,
+      "links": [],
+      "mappingType": 1,
+      "mappingTypes": [
+        {
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "name": "range to text",
+          "value": 2
+        }
+      ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "postfix": "",
+      "postfixFontSize": "50%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "full": false,
+        "lineColor": "rgb(31, 120, 193)",
+        "show": true
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "expr": "tanglebeat:confirmation_metrics:num_active_seq",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "refId": "A"
+        }
+      ],
+      "thresholds": "",
+      "title": "Number active sequences",
+      "type": "singlestat",
+      "valueFontSize": "200%",
+      "valueMaps": [
+        {
+          "op": "=",
+          "text": "N/A",
+          "value": "null"
+        }
+      ],
+      "valueName": "current"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 16,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ],
+    "time_options": ["5m", "15m", "1h", "6h", "12h", "24h", "2d", "7d", "30d"]
+  },
+  "timezone": "",
+  "title": "Tanglebeat demo",
+  "uid": "85B_28aiz",
+  "version": 200
+}

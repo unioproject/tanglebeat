@@ -11,7 +11,7 @@ ENV SITE_DATA_DIR="/root/config"
 EXPOSE 8082 5550
 ENTRYPOINT ["./tanglebeat"]
 
-# sudo docker build -t tanglebeat Dockerfile.tanglebeat
+# sudo docker build -t tanglebeat -f Dockerfile.tanglebeat .
 # sudo docker run -v `pwd`/examples/config:/root/config tanglebeat:latest
 
 # docker tag tanglebeat:v1.0.0 new-repo:tagname

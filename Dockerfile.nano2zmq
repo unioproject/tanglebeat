@@ -34,5 +34,5 @@ EXPOSE 5556
 ENTRYPOINT ["./nano2zmq"]
 CMD ["-from", "tcp://localhost:5550", "-to", "5556"]
 
-# sudo docker build -t nano2zmq Dockerfile.nano2zmq
+#  sudo docker build --rm -t nano2zmq -f Dockerfile.nano2zmq .
 # sudo docker run nano2zmq
