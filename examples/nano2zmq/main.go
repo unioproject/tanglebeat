@@ -102,12 +102,12 @@ const (
 var log *logging.Logger
 
 func initLogging() {
-	log = logging.MustGetLogger("main")
+	log = logging.MustGetLogger("nano2zmq")
 	backend := logging.NewLogBackend(os.Stderr, "", 0)
 	logFormat := logging.MustStringFormatter(logFormat)
 	backendFormatter := logging.NewBackendFormatter(backend, logFormat)
 	backendLeveled := logging.AddModuleLevel(backendFormatter)
-	backendLeveled.SetLevel(logLevel, "main")
+	backendLeveled.SetLevel(logLevel, "nano2zmq")
 	log.SetBackend(backendLeveled)
 }
 
