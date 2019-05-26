@@ -95,7 +95,7 @@ func mustOpenOutput(uri string) *zmq4.Socket {
 // logging
 
 const (
-	logFormat = "%{time:2006-01-02 15:04:05.000} %{level:.4s} [%{module:.6s}] %{message}"
+	logFormat = "%{time:2006-01-02 15:04:05.000} %{level:.4s} [%{module}] %{message}"
 	logLevel  = logging.INFO
 )
 
