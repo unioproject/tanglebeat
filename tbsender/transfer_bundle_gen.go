@@ -147,7 +147,7 @@ func (gen *transferBundleGenerator) runGenerator() {
 		}
 		spent, balance, err = gen.CheckBalance(addr)
 		if err != nil {
-			gen.log.Errorf("%v[%v]: CheckBalance returned %v", gen.name, gen.index, err)
+			gen.log.Errorf("%v[%v]: CheckBalance returned '%v'", gen.name, gen.index, err)
 			time.Sleep(5 * time.Second)
 			errorCount += 1
 			continue
@@ -283,7 +283,8 @@ func (gen *transferBundleGenerator) getBalanceAddr(addresses Hashes) (*Balances,
 }
 
 func (gen *transferBundleGenerator) getAddress(index uint64) (Hash, error) {
-	return GenerateAddress(gen.seed, index, securityLevel)
+	// since 2019-05-26 API require 90-tryte long addresses (by Alex)
+	return GenerateAddress(gen.seed, index, securityLevel, true)
 }
 
 func (gen *transferBundleGenerator) getLastIndexFname() string {

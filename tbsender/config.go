@@ -4,6 +4,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/iotaledger/iota.go/address"
+	"github.com/iotaledger/iota.go/checksum"
 	. "github.com/iotaledger/iota.go/trinary"
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
@@ -302,7 +304,7 @@ func getSeqParams(name string) (*senderParamsYAML, error) {
 	if len(ret.IOTANode) == 0 {
 		ret.IOTANode = Config.Sender.Globals.IOTANode
 		if len(ret.IOTANode) == 0 {
-			return &ret, errors.New(fmt.Sprintf("Default IOTA node is undefined in sequence '%v'\n", name))
+			return &ret, fmt.Errorf("Default IOTA node is undefined in sequence '%v'\n", name)
 		}
 	}
 	if len(ret.IOTANodeTipsel) == 0 {
@@ -334,6 +336,20 @@ func getSeqParams(name string) (*senderParamsYAML, error) {
 	}
 	if len(ret.AddressPromote) == 0 {
 		ret.AddressPromote = defaultAddressPromote
+	}
+	// ensure valid checksum in promote address.
+	if len(ret.AddressPromote) == 90 {
+		// check checksum
+		if err := address.ValidAddress(ret.AddressPromote); err != nil {
+			return &ret, fmt.Errorf("Invalid address '%v' in sequence '%v': '%v'\n", ret.AddressPromote, name, err)
+		}
+	} else {
+		// add checksum
+		var err error
+		ret.AddressPromote, err = checksum.AddChecksum(ret.AddressPromote, true, 9)
+		if err != nil {
+			return &ret, fmt.Errorf("AddChecksum returned '%v' in sequence '%v'\n", err, name)
+		}
 	}
 
 	var err error
