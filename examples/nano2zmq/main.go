@@ -21,7 +21,7 @@ const defaultZmqOutputPort = 5556
 func main() {
 	initLogging()
 
-	infof("nano2zmq: converts Nanomsg/Mangos data stream (SUB) into ZMQ data stream (PUB)\n")
+	infof("Starting nano2zmq: converts Nanomsg/Mangos data stream (SUB) into ZMQ data stream (PUB)\n")
 
 	pstrInp := flag.String("from", defaultNanoInput, "Nanomsg input")
 	pintOutp := flag.Int("to", defaultZmqOutputPort, "ZMQ output port")
