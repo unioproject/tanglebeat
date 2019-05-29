@@ -31,6 +31,7 @@ func main() {
 		cfg.Config.SenderMsgStream.InputsNanomsg)
 
 	initGlobStatsCollector(5)
+	spawnCommands()
 	runWebServer(cfg.Config.WebServerPort)
 }
 

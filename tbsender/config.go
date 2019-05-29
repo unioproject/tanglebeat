@@ -1,7 +1,5 @@
 package main
 
-// Version with iota.go library Version
-
 import (
 	"fmt"
 	"github.com/iotaledger/iota.go/address"
@@ -238,12 +236,12 @@ func configMasterLogging(msgBeforeLog []string) ([]string, bool) {
 		msgBeforeLog = append(msgBeforeLog, fmt.Sprintf("Will be logging at %v level to stderr and %v\n", logLevelName, logFname))
 	}
 	// creating master logger 'log'
-	log = logging.MustGetLogger("main")
+	log = logging.MustGetLogger("tbsender")
 
 	logBackend := logging.NewLogBackend(logWriter, "", 0)
 	logBackendFormatter := logging.NewBackendFormatter(logBackend, logFormatter)
 	masterLoggingBackend = logging.AddModuleLevel(logBackendFormatter)
-	masterLoggingBackend.SetLevel(logLevel, "main")
+	masterLoggingBackend.SetLevel(logLevel, "tbsender")
 
 	log.SetBackend(masterLoggingBackend)
 
