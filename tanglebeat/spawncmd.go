@@ -24,7 +24,7 @@ func spawnCmd(cmdline string) {
 	cmd.Stderr = os.Stderr
 	go func() {
 		if err := cmd.Run(); err != nil {
-			errorf("Failed to run '%v' from 'tanglebeat'", cmdline)
+			errorf("Failed to run '%v' from 'tanglebeat': %v", cmdline, err)
 		}
 	}()
 }
