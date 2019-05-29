@@ -38,7 +38,7 @@ func main() {
 	spawnCommands()
 
 	chInterrupt := make(chan os.Signal, 2)
-	signal.Notify(chInterrupt, os.Interrupt, os.Kill)
+	signal.Notify(chInterrupt)
 	go func() {
 		<-chInterrupt
 		warningf("Exiting after interrupt")
