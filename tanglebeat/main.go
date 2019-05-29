@@ -43,7 +43,7 @@ func main() {
 		<-chInterrupt
 		warningf("Exiting after interrupt")
 		cleanup()
-		os.Exit(1)
+		os.Exit(0)
 	}()
 	runWebServer(cfg.Config.WebServerPort)
 }
