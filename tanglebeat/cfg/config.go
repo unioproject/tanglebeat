@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	Version   = "unio 19.05.11-2"
-	logFormat = "%{time:2006-01-02 15:04:05.000} %{level:.4s} [%{module:.6s}|%{shortfunc:.12s}] %{message}"
+	Version   = "unio 19.05.29-1"
+	logFormat = "%{time:2006-01-02 15:04:05.000} %{level:.4s} [%{module:.8s}|%{shortfunc:.12s}] %{message}"
 	level     = logging.DEBUG
 )
 
@@ -39,17 +39,21 @@ type ConfigStructYAML struct {
 	QuorumMilestoneHashToPass           int          `yaml:"quorumMilestoneHashToPass"`
 	TimeIntervalMilestoneHashToPassMsec uint64       `yaml:"timeIntervalMilestoneHashToPassMsec"`
 	MultiQuorumMetricsEnabled           bool         `yaml:"multiQuorumMetricsEnabled"`
+	QuorumUpdatesEnabled                bool         `yaml:"quorumUpdatesEnabled"`
+	QuorumUpdatesFrom                   int          `yaml:"quorumUpdatesFrom"`
+	QuorumUpdatesTo                     int          `yaml:"quorumUpdatesTo"`
+	SpawnCmd                            []string     `yaml:"spawnCmd"`
 }
 
 var Config = ConfigStructYAML{}
 
 func initLogging(msgBeforeLog []string) ([]string, bool) {
-	log = logging.MustGetLogger("main")
+	log = logging.MustGetLogger("tanglebeat")
 	backend := logging.NewLogBackend(os.Stderr, "", 0)
 	logFormat := logging.MustStringFormatter(logFormat)
 	backendFormatter := logging.NewBackendFormatter(backend, logFormat)
 	backendLeveled := logging.AddModuleLevel(backendFormatter)
-	backendLeveled.SetLevel(level, "main")
+	backendLeveled.SetLevel(level, "tanglebeat")
 	log.SetBackend(backendLeveled)
 	logInitialized = true
 	return msgBeforeLog, true
@@ -99,15 +103,18 @@ func MustReadConfig(cfgfile string) {
 		Config.TimeIntervalMilestoneHashToPassMsec = 5000
 	}
 	infof("MultiQuorum metrics enabled = %v", Config.MultiQuorumMetricsEnabled)
+	infof("QuorumUpdatesEnabled = %v", Config.QuorumUpdatesEnabled)
+	if Config.QuorumUpdatesEnabled {
+		if Config.QuorumUpdatesFrom == 0 {
+			Config.QuorumUpdatesFrom = 1
+		}
+		if Config.QuorumUpdatesTo == 0 {
+			Config.QuorumUpdatesTo = 5
+		}
+		infof("QuorumUpdatesFrom = %d, QuorumUpdatesTo = %d",
+			Config.QuorumUpdatesFrom, Config.QuorumUpdatesTo)
+	}
 }
-
-//func errorf(format string, args ...interface{}) {
-//	log.Errorf(format, args...)
-//}
-//
-//func debugf(format string, args ...interface{}) {
-//	log.Debugf(format, args...)
-//}
 
 func infof(format string, args ...interface{}) {
 	log.Infof(format, args...)

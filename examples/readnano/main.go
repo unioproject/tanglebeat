@@ -11,9 +11,9 @@ import (
 
 // program reads Nanomsg stream for testing
 
-const defaultUri = "tcp://tanglebeat.com:5550"
+const defaultUri = "tcp://test1.tanglebeat.com:5550"
 
-var topics = []string{"lmi", "lmhs"}
+var topics = []string{"lmi", "lmhs", "seen"}
 
 func main() {
 	pstr := flag.String("uri", defaultUri, "Nanomsg stream URI")

@@ -21,9 +21,15 @@ type respStruct struct {
 
 func callEndpoint(endp string, result chan *respStruct) {
 	response, err := http.Get(endp)
-	if err == nil {
-		defer response.Body.Close() // https://golang.org/pkg/net/http/
+	if err != nil {
+		result <- &respStruct{
+			data: nil,
+			err:  err,
+		}
+		return
 	}
+	defer response.Body.Close() // https://golang.org/pkg/net/http/
+
 	var data []byte
 	data, err = ioutil.ReadAll(response.Body)
 	result <- &respStruct{
@@ -45,6 +51,7 @@ func callMultiEnpoints(args ...string) ([]byte, error) {
 		}()
 	}
 	go func() {
+		// close after all async calls done
 		wg.Wait()
 		close(resultCh)
 	}()
@@ -53,6 +60,11 @@ func callMultiEnpoints(args ...string) ([]byte, error) {
 	for r := range resultCh {
 		err = r.err
 		if err == nil {
+			go func() {
+				// drain the rest of the channel until closed
+				for range resultCh {
+				}
+			}()
 			return r.data, nil
 		}
 	}
