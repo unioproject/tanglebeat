@@ -49,3 +49,11 @@ func infof(format string, args ...interface{}) {
 		fmt.Printf("INFO "+format+"\n", args...)
 	}
 }
+
+func warningf(format string, args ...interface{}) {
+	if localLog != nil {
+		localLog.Warningf(format, args...)
+	} else {
+		fmt.Printf("WARN "+format+"\n", args...)
+	}
+}

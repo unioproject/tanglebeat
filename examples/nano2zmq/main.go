@@ -112,13 +112,13 @@ func initLogging() {
 }
 
 func errorf(format string, args ...interface{}) {
-	log.Errorf("ERRO "+format, args...)
+	log.Errorf(format, args...)
 }
 
 func infof(format string, args ...interface{}) {
-	log.Infof("INFO "+format, args...)
+	log.Infof(format, args...)
 }
 
 func criticalf(format string, args ...interface{}) {
-	log.Criticalf("INFO "+format, args...)
+	log.Criticalf(format, args...)
 }
