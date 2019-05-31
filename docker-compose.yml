@@ -51,8 +51,8 @@ services:
     image: mongo:latest
     restart: always
     environment:
-      - MONGO_INITDB_DATABASE: "tanglemonitor"
-      - MONGO_LOG_DIR: "/dev/null"
+      MONGO_INITDB_DATABASE: "tanglemonitor"
+      MONGO_LOG_DIR: "/dev/null"
     volumes:
       - ./data/tangle:/data/db
       - ./data/mongodb:/docker-entrypoint-initdb.d
