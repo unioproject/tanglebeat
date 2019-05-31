@@ -53,8 +53,6 @@ services:
     environment:
       - MONGO_INITDB_DATABASE: "tanglemonitor"
       - MONGO_LOG_DIR: "/dev/null"
-      #- MONGO_INITDB_ROOT_USERNAME: docker
-      #- MONGO_INITDB_ROOT_PASSWORD: v3ry53cur3p455w0rd
     volumes:
       - ./data/tangle:/data/db
       - ./data/mongodb:/docker-entrypoint-initdb.d
