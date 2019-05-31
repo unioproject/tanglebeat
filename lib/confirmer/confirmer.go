@@ -181,7 +181,10 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 	conf.confMon.OnConfirmation(bundleHash, func(nowis time.Time) {
 		conf.mutex.RLock()
 		defer conf.mutex.RUnlock()
-		conf.sendConfirmerUpdate(UPD_CONFIRM, "", nil)
+		if conf.running {
+			//  to avoid sending update to already closed channel (when task is stopped by `stopConfirmerTask`
+			conf.sendConfirmerUpdate(UPD_CONFIRM, "", nil)
+		}
 	})
 
 	conf.running = true
