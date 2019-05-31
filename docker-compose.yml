@@ -41,7 +41,7 @@ services:
     image: unioproject/tanglemonitor:latest
     restart: always
     volumes:
-      - /home/cyclux/unio/tanglemonitor/backend/config:/root/backend/config
+      - /home/cyclux/unioproject/tanglemonitor/backend/config:/root/backend/config
     ports:
       - "4000:4000"
       - "4433:4433"
