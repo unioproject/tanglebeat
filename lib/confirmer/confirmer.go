@@ -183,9 +183,9 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 		defer conf.runningMutex.RUnlock()
 
 		if !conf.running {
+			//  to avoid sending update to already closed channel (when task is stopped by `stopConfirmerTask`
 			return
 		}
-		//  to avoid sending update to already closed channel (when task is stopped by `stopConfirmerTask`
 		conf.sendConfirmerUpdate(UPD_CONFIRM, "", nil)
 	})
 
