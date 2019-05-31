@@ -45,3 +45,7 @@ iriMsgStream:
 senderMsgStream:
   inputsNanomsg:
     - "tcp://localhost:3100"
+
+spawnCmd:
+  - tbsender
+  - "nano2zmq -from tcp://localhost:5550"

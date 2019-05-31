@@ -40,6 +40,7 @@ services:
   tanglemonitor-service:
     image: unioproject/tanglemonitor:latest
     restart: always
+    depends_on: mongodb
     volumes:
       - /home/cyclux/unioproject/tanglemonitor/backend/config:/root/backend/config
     ports:
