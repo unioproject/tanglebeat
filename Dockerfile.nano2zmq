@@ -1,9 +1,6 @@
 FROM golang:alpine as nano2zmq_compile
 WORKDIR /
 
-ENV CGO_ENABLED=1
-ENV GOOS=linux
-
 COPY ./examples/nano2zmq/ ${GOPATH}/src/github.com/unioproject/tanglebeat/examples/nano2zmq/
 
 RUN apk update && apk add --no-cache --virtual .build-deps \
@@ -18,7 +15,7 @@ RUN apk update && apk add --no-cache --virtual .build-deps \
   && git clone https://github.com/zeromq/libzmq.git && cd libzmq && ./autogen.sh && ./configure && make && make install \
   && go get -d github.com/unioproject/tanglebeat/examples/nano2zmq
 
-RUN go build -a -installsuffix cgo -o nano2zmq ${GOPATH}/src/github.com/unioproject/tanglebeat/examples/nano2zmq
+RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o nano2zmq ${GOPATH}/src/github.com/unioproject/tanglebeat/examples/nano2zmq
 
 FROM alpine:latest
 WORKDIR /root/

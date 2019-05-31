@@ -1,44 +1,62 @@
-version: "3"
+version: "3.7"
 services:
-  nano2zmq:
-    image: nano2zmq
-    command: ["-from", "tcp://tanglebeat:5550", "-to", "5556"]
-    ports:
-      - "5556:5556"
-
   tanglebeat:
-    image: tanglebeat
+    image: unioproject/tanglebeat:latest
+    #restart: always
     volumes:
       - ./examples/config:/root/config
+      - ./data/tbsender:/root/config/log
     ports:
       - "8082:8082"
       - "5550:5550"
+      - "5556:5556"
 
   prometheus:
     image: prom/prometheus:latest
+    restart: always
+    user: "root"
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
     volumes:
       - ./examples/config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./examples/config/tanglebeat.rules:/etc/prometheus/tanglebeat.rules
       - ./data/prometheus:/prometheus
     ports:
       - "9090:9090"
 
   grafana:
     image: grafana/grafana:latest
+    restart: always
+    user: "root"
+    command: "--config=/etc/grafana/grafana.ini"
     volumes:
       - ./examples/config/grafana.ini:/etc/grafana/grafana.ini
       - ./data/grafana:/var/lib/grafana
-      - ./data/grafana/provisioning/:/etc/grafana/provisioning/
+      - ./data/grafana/provisioning/:/etc/grafana/misc/provisioning/
     ports:
       - "3000:3000"
 
   tanglemonitor-service:
-    image: tanglemonitor
+    image: unioproject/tanglemonitor:latest
+    restart: always
     volumes:
       - /home/cyclux/unio/tanglemonitor/backend/config:/root/backend/config
     ports:
       - "4000:4000"
       - "4433:4433"
       - "4434:4434"
+
+  mongodb:
+    image: mongo:latest
+    restart: always
+    environment:
+      - MONGO_INITDB_DATABASE: "tanglemonitor"
+      - MONGO_LOG_DIR: "/dev/null"
+      #- MONGO_INITDB_ROOT_USERNAME: docker
+      #- MONGO_INITDB_ROOT_PASSWORD: v3ry53cur3p455w0rd
+    volumes:
+      - ./data/tangle:/data/db
+      - ./data/mongodb:/docker-entrypoint-initdb.d
+    ports:
+      - "27017:27017"

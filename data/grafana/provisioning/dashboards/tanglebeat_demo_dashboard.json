@@ -1,7 +1,7 @@
 {
   "__inputs": [
     {
-      "name": "DS_PROMETHEUS@TANGLEBEAT",
+      "name": "Prometheus",
       "label": "Prometheus@Tanglebeat",
       "description": "",
       "type": "datasource",
@@ -109,7 +109,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "datasource": "Prometheus",
       "description": "kuku",
       "fill": 1,
       "gridPos": {
@@ -201,7 +201,7 @@
       "colorBackground": false,
       "colorValue": false,
       "colors": ["#299c46", "rgba(237, 129, 40, 0.89)", "#d44a3a"],
-      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "datasource": "Prometheus",
       "decimals": 1,
       "format": "none",
       "gauge": {
@@ -278,7 +278,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 6,
@@ -370,7 +370,7 @@
       "bars": true,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 6,
@@ -470,7 +470,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 6,
@@ -555,7 +555,7 @@
       "colorBackground": false,
       "colorValue": false,
       "colors": ["#299c46", "rgba(237, 129, 40, 0.89)", "#d44a3a"],
-      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "datasource": "Prometheus",
       "decimals": 2,
       "format": "none",
       "gauge": {
@@ -649,7 +649,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 6,
@@ -740,7 +740,7 @@
       "colorBackground": false,
       "colorValue": false,
       "colors": ["#299c46", "rgba(237, 129, 40, 0.89)", "#d44a3a"],
-      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "datasource": "Prometheus",
       "decimals": 1,
       "format": "none",
       "gauge": {
@@ -817,7 +817,7 @@
       "colorBackground": false,
       "colorValue": false,
       "colors": ["#299c46", "rgba(237, 129, 40, 0.89)", "#d44a3a"],
-      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "datasource": "Prometheus",
       "decimals": 1,
       "format": "none",
       "gauge": {
@@ -899,7 +899,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 6,
@@ -985,7 +985,7 @@
       "colorBackground": false,
       "colorValue": false,
       "colors": ["#299c46", "rgba(237, 129, 40, 0.89)", "#d44a3a"],
-      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "datasource": "Prometheus",
       "decimals": null,
       "format": "none",
       "gauge": {
@@ -1078,7 +1078,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 6,
@@ -1212,7 +1212,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 5,
@@ -1303,7 +1303,7 @@
       "colorBackground": false,
       "colorValue": false,
       "colors": ["#299c46", "rgba(237, 129, 40, 0.89)", "#d44a3a"],
-      "datasource": "${DS_PROMETHEUS@TANGLEBEAT}",
+      "datasource": "Prometheus",
       "decimals": null,
       "format": "none",
       "gauge": {
