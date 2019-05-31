@@ -179,12 +179,14 @@ func (conf *Confirmer) StartConfirmerTask(bundleTrytes []Trytes) (chan *Confirme
 
 	// confirmation monitor starts yet another routine
 	conf.confMon.OnConfirmation(bundleHash, func(nowis time.Time) {
-		conf.mutex.RLock()
-		defer conf.mutex.RUnlock()
-		if conf.running {
-			//  to avoid sending update to already closed channel (when task is stopped by `stopConfirmerTask`
-			conf.sendConfirmerUpdate(UPD_CONFIRM, "", nil)
+		conf.runningMutex.RLock()
+		defer conf.runningMutex.RUnlock()
+
+		if !conf.running {
+			return
 		}
+		//  to avoid sending update to already closed channel (when task is stopped by `stopConfirmerTask`
+		conf.sendConfirmerUpdate(UPD_CONFIRM, "", nil)
 	})
 
 	conf.running = true
