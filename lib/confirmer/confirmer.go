@@ -226,7 +226,7 @@ func (conf *Confirmer) postConfirmerUpdate(updType UpdateType, promoTailHash Has
 			//  (when task is being stopped by `stopConfirmerTask`
 			return
 		}
-		upd := &ConfirmerUpdate{
+		conf.chanUpdate <- &ConfirmerUpdate{
 			NumAttaches:           conf.numAttach,
 			NumPromotions:         conf.numPromote,
 			TotalDurationATTMsec:  conf.totalDurationATTMsec,
@@ -236,7 +236,6 @@ func (conf *Confirmer) postConfirmerUpdate(updType UpdateType, promoTailHash Has
 			PromoteTailHash:       promoTailHash,
 			Err:                   err,
 		}
-		conf.chanUpdate <- upd
 	}()
 }
 
