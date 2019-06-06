@@ -59,13 +59,8 @@ func checkForEcho(txhash string, ts uint64) {
 
 	if echoBuffer.FindNolock(echoBuffer.ShortHash(txhash), &entry, true) {
 		d := entry.Data.(*echoEntry)
-		if d.seen {
-			if 1 <= entry.Visits && entry.Visits <= whenSeenArrayLen {
-				d.whenSeenNth[entry.Visits-1] = ts
-				d.whenSeenLast = ts
-			}
-		} else {
-			d.whenSeenNth[0] = ts
+		if 1 <= entry.Visits && entry.Visits <= whenSeenArrayLen {
+			d.whenSeenNth[entry.Visits-1] = ts
 			d.whenSeenLast = ts
 			d.seen = true
 		}
