@@ -82,12 +82,14 @@ type avgEchoParams struct {
 	avgLastSeenLatencyMs uint64
 }
 
+const avgEchoMsecBack = 10 * 60 * 1000 //10min
+
 func calcAvgEchoParams(res *avgEchoParams) {
 	var numSeenAll uint64
 	var numSeen [whenSeenArrayLen]uint64
 	var data *echoEntry
 
-	earliest := utils.UnixMsNow() - 30*60*1000 //30min
+	earliest := utils.UnixMsNow() - avgEchoMsecBack
 	echoBuffer.ForEachEntry(func(entry *hashcache.CacheEntry) {
 		data = entry.Data.(*echoEntry)
 		if data.seen {
