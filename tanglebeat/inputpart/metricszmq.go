@@ -25,9 +25,8 @@ var (
 	zmqMetricsNotPropagatedPercSN Gauge
 
 	//echoNotSeenPerc         Gauge
-	echoMetricsAvgFirstSeen Gauge
-	echoMetricsAvgLastSeen  Gauge
-	echoMetricsAvgNthSeen   *GaugeVec
+	echoMetricsAvgLastSeen Gauge
+	echoMetricsAvgNthSeen  *GaugeVec
 
 	lmConfRate5minMetrics  Gauge
 	lmConfRate10minMetrics Gauge
@@ -96,18 +95,6 @@ func initZmqMetrics() {
 	})
 	MustRegister(metricsMiotaPriceUSD)
 	startCollectingMiotaPrice(nil)
-
-	//echoNotSeenPerc = NewGauge(GaugeOpts{
-	//	Name: "tanglebeat_echo_silence",
-	//	Help: "Average echo silence %",
-	//})
-	//MustRegister(echoNotSeenPerc)
-
-	echoMetricsAvgFirstSeen = NewGauge(GaugeOpts{
-		Name: "tanglebeat_echo_first",
-		Help: "Average msec first echo",
-	})
-	MustRegister(echoMetricsAvgFirstSeen)
 
 	echoMetricsAvgLastSeen = NewGauge(GaugeOpts{
 		Name: "tanglebeat_echo_last",
@@ -181,7 +168,6 @@ func updateMultiQuorumTpsCounter(quorum int) {
 
 func updateEchoMetrics(echoParams *avgEchoParams) {
 	echoMetricsAvgLastSeen.Set(float64(echoParams.avgLastSeenLatencyMs))
-	echoMetricsAvgFirstSeen.Set(float64(echoParams.avgLatencyNthMs[0]))
 
 	for i := 0; i < whenSeenArrayLen; i++ {
 		echoMetricsAvgNthSeen.With(
