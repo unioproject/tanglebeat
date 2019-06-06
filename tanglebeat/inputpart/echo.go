@@ -12,11 +12,13 @@ const (
 	echoBufferRetentionPeriodSec = 30 * 60
 )
 
+const whenSeenArrayLen = 10
+
 type echoEntry struct {
-	whenSent      uint64
-	seen          bool
-	whenSeenFirst uint64
-	whenSeenLast  uint64
+	whenSent     uint64
+	seen         bool
+	whenSeenLast uint64
+	whenSeenNth  [whenSeenArrayLen]uint64
 }
 
 var (
@@ -28,31 +30,28 @@ func startEchoLatencyRoutine() {
 		"echoBuffer", echoBufferHashLen, echoBufferSegmentDurationSec, echoBufferRetentionPeriodSec)
 	go func() {
 		debugf("Started echo latency calculation routine")
-		var percNotSeen, avgSeenFirstMs, avgSeenLastMs uint64
+		var echoParams avgEchoParams
 		for {
 			time.Sleep(10 * time.Second)
-			percNotSeen, avgSeenFirstMs, avgSeenLastMs = calcAvgEchoParams()
-			updateEchoMetrics(percNotSeen, avgSeenFirstMs, avgSeenLastMs)
+			calcAvgEchoParams(&echoParams)
+			updateEchoMetrics(&echoParams)
 		}
 	}()
 }
 
-func TxSentForEcho(txhash string, ts uint64) {
-	var entry hashcache.CacheEntry
+// called by update_collector for each PROMOTE update received from the tbsender
+// never called in case tbsender isn't running
+// normally called once (as tail promoted is once) and results in record in echoBuffer
 
-	ee := echoEntry{
+func TxSentForEcho(txhash string, ts uint64) {
+	echoBuffer.SeenHashBy(txhash, 0, &echoEntry{
 		whenSent: ts,
-	}
-	if txcache.FindNoTouch(txhash, &entry) {
-		ee.whenSeenFirst = entry.FirstSeen
-		ee.whenSeenLast = entry.LastSeen
-		ee.seen = true
-	}
-	echoBuffer.SeenHashBy(txhash, 0, &ee, nil)
+	}, nil)
 	debugf("++++++Promo tx waiting for echo: %v...", txhash[:12])
 }
 
-// it is called for each tx message
+// it is called for each tx message to check if echo is expected
+
 func checkForEcho(txhash string, ts uint64) {
 	var entry hashcache.CacheEntry
 	echoBuffer.Lock()
@@ -62,53 +61,64 @@ func checkForEcho(txhash string, ts uint64) {
 		d := entry.Data.(*echoEntry)
 		if d.seen {
 			debugf("+++++++ Promo tx echo in %v msec. %v..", ts-d.whenSent, txhash[:12])
-			d.whenSeenLast = ts
+			if 1 <= entry.Visits && entry.Visits <= whenSeenArrayLen {
+				d.whenSeenNth[entry.Visits-1] = ts
+				d.whenSeenLast = ts
+			}
 		} else {
-			d.whenSeenFirst = ts
+			d.whenSeenNth[0] = ts
 			d.whenSeenLast = ts
 			d.seen = true
 		}
 	}
 }
 
-func nonNegativeDuration(whenSent, whenSeenFirst uint64) uint64 {
+func nonNegativeDuration(whenSent, whenSeen uint64) uint64 {
 	var ret int64
-	ret = int64(whenSeenFirst) - int64(whenSent)
+	ret = int64(whenSeen) - int64(whenSent)
 	if ret < 0 {
 		ret = 0
 	}
 	return uint64(ret)
 }
 
-func calcAvgEchoParams() (uint64, uint64, uint64) {
-	var numAll, numSeen, avgSeenFirstLatencyMs, avgSeenLastLatencyMs uint64
+type avgEchoParams struct {
+	avgLatencyNthMs      [whenSeenArrayLen]uint64
+	avgLastSeenLatencyMs uint64
+}
+
+func calcAvgEchoParams(res *avgEchoParams) {
+	var numSeenAll uint64
+	var numSeen [whenSeenArrayLen]uint64
 	var data *echoEntry
+
 	earliest := utils.UnixMsNow() - 30*60*1000 //30min
 	echoBuffer.ForEachEntry(func(entry *hashcache.CacheEntry) {
 		data = entry.Data.(*echoEntry)
-		numAll++
 		if data.seen {
-			numSeen++
-			avgSeenFirstLatencyMs += nonNegativeDuration(data.whenSent, data.whenSeenFirst)
-			avgSeenLastLatencyMs += nonNegativeDuration(data.whenSent, data.whenSeenLast)
+			numSeenAll++
+			res.avgLastSeenLatencyMs += nonNegativeDuration(data.whenSent, data.whenSeenLast)
+			for i := 0; i < whenSeenArrayLen; i++ {
+				if data.whenSeenNth[i] != 0 {
+					numSeen[i]++
+					res.avgLatencyNthMs[i] += nonNegativeDuration(data.whenSent, data.whenSeenNth[i])
+				}
+			}
 		}
 	}, earliest, true)
-	var percNotSeen uint64
 	// averages are calculated only if enough data
-	if numSeen > 5 {
-		avgSeenFirstLatencyMs = avgSeenFirstLatencyMs / numSeen
-		avgSeenLastLatencyMs = avgSeenLastLatencyMs / numSeen
-		percNotSeen = 100 - (numSeen*100)/numAll
+	if numSeenAll > 5 {
+		res.avgLastSeenLatencyMs = res.avgLastSeenLatencyMs / numSeenAll
 	} else {
-		avgSeenFirstLatencyMs = 0
-		avgSeenLastLatencyMs = 0
-		percNotSeen = 0
+		res.avgLastSeenLatencyMs = 0
 	}
-	debugf("percNotSeen = %v avgSeenFirstLatencyMs = %v avgSeenLastLatencyMs = %v",
-		percNotSeen, avgSeenFirstLatencyMs, avgSeenLastLatencyMs)
+	for i := 0; i < whenSeenArrayLen; i++ {
+		if numSeen[i] > 5 {
+			res.avgLatencyNthMs[i] = res.avgLatencyNthMs[i] / numSeen[i]
+		} else {
+			res.avgLatencyNthMs[i] = 0
+		}
 
-	if avgSeenFirstLatencyMs > 100000 {
-		debugf("Anomaly avgSeenFirstLatencyMs = %v", avgSeenFirstLatencyMs)
 	}
-	return percNotSeen, avgSeenFirstLatencyMs, avgSeenLastLatencyMs
+	debugf("avgSeenLastLatencyMs = %v avgSeenMth = %v ", res.avgLastSeenLatencyMs, res.avgLatencyNthMs)
 }
