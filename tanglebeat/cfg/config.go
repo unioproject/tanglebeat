@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	Version   = "unio 19.05.29-1"
+	Version   = "unio 19.06.06-1"
 	logFormat = "%{time:2006-01-02 15:04:05.000} %{level:.4s} [%{module:.8s}|%{shortfunc:.12s}] %{message}"
 	level     = logging.DEBUG
 )
