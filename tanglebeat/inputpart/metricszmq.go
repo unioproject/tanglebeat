@@ -24,9 +24,10 @@ var (
 	zmqMetricsLatencySNAvg        Gauge
 	zmqMetricsNotPropagatedPercSN Gauge
 
-	echoNotSeenPerc         Gauge
+	//echoNotSeenPerc         Gauge
 	echoMetricsAvgFirstSeen Gauge
 	echoMetricsAvgLastSeen  Gauge
+	echoMetricsAvgNthSeen   *GaugeVec
 
 	lmConfRate5minMetrics  Gauge
 	lmConfRate10minMetrics Gauge
@@ -96,11 +97,11 @@ func initZmqMetrics() {
 	MustRegister(metricsMiotaPriceUSD)
 	startCollectingMiotaPrice(nil)
 
-	echoNotSeenPerc = NewGauge(GaugeOpts{
-		Name: "tanglebeat_echo_silence",
-		Help: "Average echo silence %",
-	})
-	MustRegister(echoNotSeenPerc)
+	//echoNotSeenPerc = NewGauge(GaugeOpts{
+	//	Name: "tanglebeat_echo_silence",
+	//	Help: "Average echo silence %",
+	//})
+	//MustRegister(echoNotSeenPerc)
 
 	echoMetricsAvgFirstSeen = NewGauge(GaugeOpts{
 		Name: "tanglebeat_echo_first",
@@ -113,6 +114,12 @@ func initZmqMetrics() {
 		Help: "Average msec last echo",
 	})
 	MustRegister(echoMetricsAvgLastSeen)
+
+	echoMetricsAvgNthSeen = NewGaugeVec(GaugeOpts{
+		Name: "tanglebeat_nth_latency",
+		Help: "Average latency of Nth echo",
+	}, []string{"echonr"})
+	MustRegister(echoMetricsAvgNthSeen)
 
 	//--------------------------------------------------
 	// metrics by Luca Moser
@@ -172,10 +179,14 @@ func updateMultiQuorumTpsCounter(quorum int) {
 	}
 }
 
-func updateEchoMetrics(percNotSeen, avgSeenFirstMs, avgSeenLastMs uint64) {
-	echoNotSeenPerc.Set(float64(percNotSeen))
-	echoMetricsAvgFirstSeen.Set(float64(avgSeenFirstMs))
-	echoMetricsAvgLastSeen.Set(float64(avgSeenLastMs))
+func updateEchoMetrics(echoParams *avgEchoParams) {
+	echoMetricsAvgLastSeen.Set(float64(echoParams.avgLastSeenLatencyMs))
+	echoMetricsAvgFirstSeen.Set(float64(echoParams.avgLatencyNthMs[0]))
+
+	for i := 0; i < whenSeenArrayLen; i++ {
+		echoMetricsAvgNthSeen.With(
+			Labels{"echonr": fmt.Sprintf("%d", i+1)}).Set(float64(echoParams.avgLatencyNthMs[i]))
+	}
 }
 
 func startCollectingMiotaPrice(localLog *logging.Logger) {
