@@ -57,10 +57,9 @@ func checkForEcho(txhash string, ts uint64) {
 	echoBuffer.Lock()
 	defer echoBuffer.Unlock()
 
-	if echoBuffer.FindNoTouch__(txhash, &entry) {
+	if echoBuffer.FindNolock(txhash, &entry, true) {
 		d := entry.Data.(*echoEntry)
 		if d.seen {
-			debugf("+++++++ Promo tx echo in %v msec. %v..", ts-d.whenSent, txhash[:12])
 			if 1 <= entry.Visits && entry.Visits <= whenSeenArrayLen {
 				d.whenSeenNth[entry.Visits-1] = ts
 				d.whenSeenLast = ts
@@ -70,6 +69,7 @@ func checkForEcho(txhash string, ts uint64) {
 			d.whenSeenLast = ts
 			d.seen = true
 		}
+		debugf("+++++++ Promo tx echo nr = %v in %v msec. %v..", entry.Visits, ts-d.whenSent, txhash[:12])
 	}
 }
 
