@@ -37,6 +37,8 @@ type ConfirmerParams struct {
 	Log                   *logging.Logger
 	AEC                   utils.ErrorCounter
 	SlowDownThreshold     int
+	ConfmonPollingOnly    bool
+	ConfmonNanozmq        string
 }
 
 type Confirmer struct {
@@ -96,7 +98,11 @@ func (ut UpdateType) ToString() string {
 
 func NewConfirmer(params ConfirmerParams, confMon *ConfirmationMonitor) *Confirmer {
 	if confMon == nil {
-		confMon = NewConfirmationMonitor(params.IotaMultiAPI, params.Log, params.AEC)
+		if params.ConfmonPollingOnly {
+			confMon = NewConfirmationMonitor(params.IotaMultiAPI, "", params.Log, params.AEC)
+		} else {
+			confMon = NewConfirmationMonitor(params.IotaMultiAPI, params.ConfmonNanozmq, params.Log, params.AEC)
+		}
 	}
 	return &Confirmer{
 		ConfirmerParams: params,

@@ -113,6 +113,8 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 		Log:                   logger,
 		AEC:                   AEC,
 		SlowDownThreshold:     len(Config.Sender.Sequences) * 40,
+		ConfmonPollingOnly:    Config.ConfirmationMonitor.UsePollingOnly,
+		ConfmonNanozmq:        Config.ConfirmationMonitor.NanoZmq,
 	}, nil), nil
 }
 
