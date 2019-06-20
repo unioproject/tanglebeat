@@ -18,13 +18,14 @@ import (
 )
 
 const (
-	Version                 = "unio 1.4.2"
-	PREFIX_MODULE           = "tbsender"
-	ROTATE_LOG_HOURS        = 12
-	ROTATE_LOG_RETAIN_HOURS = 12
-	defaultTag              = "TANGLE9BEAT"
-	defaultTagPromote       = "TANGLE9BEAT"
-	defaultAddressPromote   = "TANGLEBEAT9PROMOTE999999999999999999999999999999999999999999999999999999999999999"
+	Version                    = "unio 1.4.2"
+	PREFIX_MODULE              = "tbsender"
+	ROTATE_LOG_HOURS           = 12
+	ROTATE_LOG_RETAIN_HOURS    = 12
+	defaultTag                 = "TANGLE9BEAT"
+	defaultTagPromote          = "TANGLE9BEAT"
+	defaultAddressPromote      = "TANGLEBEAT9PROMOTE999999999999999999999999999999999999999999999999999999999999999"
+	defaultConfirmationNanozmq = "tcp://tanglebeat.com:5550"
 )
 
 var (
@@ -41,7 +42,13 @@ type ConfigStructYAML struct {
 	Logging               loggingConfigYAML         `yaml:"logging"`
 	Sender                senderYAML                `yaml:"sender"`
 	SenderUpdatePublisher senderUpdatePublisherYAML `yaml:"senderUpdatePublisher"`
+	ConfirmationMonitor   confirmationMonitorYAML   `yaml:"confirmationMonitor"`
 	ExitProgram           exitProgramYAML           `yaml:"exitProgram"`
+}
+
+type confirmationMonitorYAML struct {
+	UsePollingOnly bool   `yaml:"usePollingOnly"` // default is listen to zmq data over nano and sometimes polling
+	NanoZmq        string `yaml:"nanoZmq"`        // defaults to tcp://tanglebeat.com:5550
 }
 
 type exitProgramCondition struct {
@@ -179,7 +186,14 @@ func mustReadMasterConfig(configFilename string) {
 		}
 	} else {
 		log.Infof("Program exit conditions are DISABLED")
-
+	}
+	if !Config.ConfirmationMonitor.UsePollingOnly {
+		if Config.ConfirmationMonitor.NanoZmq == "" {
+			Config.ConfirmationMonitor.NanoZmq = defaultConfirmationNanozmq
+		}
+		log.Infof("Will be using Nanozmq stream to monitor confirmations: '%s'", Config.ConfirmationMonitor.NanoZmq)
+	} else {
+		log.Infof("Will be using polling only to monitor confirmations")
 	}
 }
 
