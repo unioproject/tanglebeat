@@ -193,11 +193,11 @@ func (cmon *ConfirmationMonitor) nanozmqLoop() {
 				for _, cb := range bs.callbacks {
 					go cb(nowis)
 				}
+				delete(cmon.bundles, bundle)
+				StopStopwatch(bundle)
+				cmon.log.Infof("Confirmation monitor: received confirmation msg from Nanozmq for bundle %s", bundle)
+				break
 			}
-			delete(cmon.bundles, bundle)
-			StopStopwatch(bundle)
-			cmon.log.Infof("Confirmation monitor: received confirmation msg from Nanozmq for bundle %s", bundle)
-			break
 		}
 		cmon.Unlock()
 	}
