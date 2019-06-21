@@ -20,7 +20,6 @@ type bundleState struct {
 type ConfirmationMonitor struct {
 	sync.Mutex
 	bundles       map[Hash]*bundleState
-	nanozmgSock   mangos.Socket
 	mapi          multiapi.MultiAPI
 	log           *logging.Logger
 	aec           utils.ErrorCounter
@@ -28,8 +27,8 @@ type ConfirmationMonitor struct {
 }
 
 const (
-	loopSleepConfmonWithoutNanozmq = 30 * time.Second
-	loopSleepConfmonWithNanozmq    = 3 * time.Minute
+	pollingSleepWithoutNanozmq = 30 * time.Second
+	pollingSleepWithNanozmq    = 3 * time.Minute
 )
 
 func NewConfirmationMonitor(mapi multiapi.MultiAPI, nanozmq string, log *logging.Logger, aec utils.ErrorCounter) *ConfirmationMonitor {
@@ -38,34 +37,15 @@ func NewConfirmationMonitor(mapi multiapi.MultiAPI, nanozmq string, log *logging
 		mapi:          mapi,
 		log:           log,
 		aec:           aec,
-		loopSleepTime: loopSleepConfmonWithoutNanozmq,
+		loopSleepTime: pollingSleepWithoutNanozmq,
 	}
 	if nanozmq == "" {
 		log.Infof("Confirmation monitor: Will be polling only")
 		return ret
 	}
-	var err error
-	if ret.nanozmgSock, err = sub.NewSocket(); err != nil {
-		log.Errorf("Confirmation monitor: can't create new sub socket '%v'. Will be polling only", err)
-		ret.nanozmgSock = nil
-		return ret
-	}
-	ret.nanozmgSock.AddTransport(tcp.NewTransport())
-	if err = ret.nanozmgSock.Dial(nanozmq); err != nil {
-		log.Errorf("Confirmation monitor: can't dial sub socket at %v: %v.  Will be polling only", nanozmq, err)
-		ret.nanozmgSock = nil
-		return ret
-	}
-	err = ret.nanozmgSock.SetOption(mangos.OptionSubscribe, []byte("sn"))
-	if err != nil {
-		log.Errorf("Confirmation monitor: sub socket error %v: %v.  Will be polling only", nanozmq, err)
-		ret.nanozmgSock = nil
-		return ret
-	}
-	ret.loopSleepTime = loopSleepConfmonWithNanozmq
 	log.Infof("Confirmation monitor: will be listening to '%s'", nanozmq)
 
-	go ret.nanozmqLoop()
+	go ret.nanomsgRoutine(nanozmq)
 
 	return ret
 }
@@ -116,7 +96,11 @@ func (cmon *ConfirmationMonitor) pollConfirmed(bundleHash Hash) {
 
 	startWaiting := time.Now()
 	for !exit {
-		time.Sleep(cmon.loopSleepTime)
+		cmon.Lock()
+		st := cmon.loopSleepTime
+		cmon.Unlock()
+		time.Sleep(st)
+
 		count++
 		if count%5 == 0 {
 			cmon.debugf("Confirmation polling for %v. Time since waiting: %v", bundleHash, time.Since(startWaiting))
@@ -162,21 +146,60 @@ func (cmon *ConfirmationMonitor) checkBundle(bundleHash Hash) bool {
 	return false
 }
 
-func (cmon *ConfirmationMonitor) nanozmqLoop() {
+func (cmon *ConfirmationMonitor) nanomsgRoutine(nanozmq string) {
+	for {
+		sock := cmon.openNanozmq(nanozmq)
+
+		cmon.Lock()
+		cmon.loopSleepTime = pollingSleepWithNanozmq
+		cmon.Unlock()
+
+		cmon.log.Errorf("Confirmation monitor: started listening to '%v'", nanozmq)
+
+		cmon.nanozmqLoop(sock)
+		cmon.Lock()
+		cmon.loopSleepTime = pollingSleepWithoutNanozmq
+		cmon.Unlock()
+	}
+}
+
+func (cmon *ConfirmationMonitor) openNanozmq(nanozmq string) mangos.Socket {
+	var ret mangos.Socket
+	var err error
+	first := true
+	for {
+		if !first {
+			time.Sleep(30 * time.Second)
+			first = false
+		}
+		if ret, err = sub.NewSocket(); err != nil {
+			cmon.log.Errorf("Confirmation monitor: can't create new sub socket '%v'. Will be polling only", err)
+			continue
+		}
+		ret.AddTransport(tcp.NewTransport())
+		if err = ret.Dial(nanozmq); err != nil {
+			cmon.log.Errorf("Confirmation monitor: can't dial sub socket at %v: %v.  Will be polling only", nanozmq, err)
+			continue
+		}
+		err = ret.SetOption(mangos.OptionSubscribe, []byte("sn"))
+		if err != nil {
+			cmon.log.Errorf("Confirmation monitor: sub socket error %v: %v.  Will be polling only", nanozmq, err)
+			continue
+		}
+		return ret
+	}
+}
+
+func (cmon *ConfirmationMonitor) nanozmqLoop(sock mangos.Socket) {
 	var msg []byte
 	var err error
 	var msgSplit []string
 	var bundle Hash
 
 	for {
-		msg, err = cmon.nanozmgSock.Recv()
+		msg, err = sock.Recv()
 		if err != nil {
-			cmon.Lock()
-			defer cmon.Unlock()
-
-			cmon.nanozmgSock = nil
 			cmon.log.Errorf("Confirmation monitor: '%v'. Will be polling only")
-			cmon.loopSleepTime = loopSleepConfmonWithoutNanozmq
 			return
 		}
 		msgSplit = strings.Split(string(msg), " ")
@@ -201,5 +224,4 @@ func (cmon *ConfirmationMonitor) nanozmqLoop() {
 		}
 		cmon.Unlock()
 	}
-
 }
