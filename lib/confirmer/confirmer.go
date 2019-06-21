@@ -96,6 +96,8 @@ func (ut UpdateType) ToString() string {
 	return r
 }
 
+// TODO shared confirmation monitor
+
 func NewConfirmer(params ConfirmerParams, confMon *ConfirmationMonitor) *Confirmer {
 	if confMon == nil {
 		if params.ConfmonPollingOnly {
