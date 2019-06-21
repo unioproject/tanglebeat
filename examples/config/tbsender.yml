@@ -1,5 +1,15 @@
 # Config file for TBSender module
 
+# Confirmation monitor.
+#    preferred way is to listen to the ZMQ stream (over Nanomsg)
+#    If disabled, polling is used. This can result if significant load for respective nodes
+
+confirmationMonitor:
+    # enable listening to Nano ZMQ stream for confirmations instead of polling
+    usePollingOnly: false
+    # listen to Nanomsg stream in the format of IRI ZMQ `sn` massages (confirmations)
+    nanoZmq: tcp://tanglebeat.com:5550
+
 # sender configuration section
 sender:
     # is sender enabled.
