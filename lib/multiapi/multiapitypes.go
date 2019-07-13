@@ -20,6 +20,13 @@ type MultiCallRet struct {
 	Info     string // used by CheckConsistency
 }
 
+func NewFromAPI(api *API, endpoint string) (MultiAPI, error) {
+	return MultiAPI{endpointEntry{
+		api:      api,
+		endpoint: endpoint,
+	}}, nil
+}
+
 func New(endpoints []string, timeout uint64) (MultiAPI, error) {
 	if len(endpoints) == 0 {
 		return nil, errors.New("Must be at least 1 Endpoint")

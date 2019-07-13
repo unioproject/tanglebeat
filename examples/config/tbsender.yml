@@ -31,8 +31,13 @@ sender:
         iotaNodeTipsel: 
             - https://nodes.thetangle.org:443
             - https://mynode.com14265
-        # IOTA node for attachToTangle
+        # IOTA node for attachToTangle (if usePOWService: false)
         iotaNodePOW: https://api.powsrv.io:443
+        # alternatively using PoW service with endpoint and API key
+        usePOWService: true
+        endpointPOW: https://api.powsrv.io:443
+        apiKeyPOWService: KKKKKKKKKKKK
+
         # respective api timeouts in seconds
         apiTimeout: 15
         tipselTimeout: 20
