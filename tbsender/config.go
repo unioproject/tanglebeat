@@ -84,22 +84,27 @@ type senderYAML struct {
 }
 
 type senderParamsYAML struct {
-	Enabled               bool     `yaml:"enabled"`
-	IOTANode              []string `yaml:"iotaNode"`
-	IOTANodeTipsel        []string `yaml:"iotaNodeTipsel"`
-	IOTANodePoW           string   `yaml:"iotaNodePOW"`
-	TimeoutAPI            uint64   `yaml:"apiTimeout"`
-	TimeoutTipsel         uint64   `yaml:"tipselTimeout"`
-	TimeoutPoW            uint64   `yaml:"powTimeout"`
-	Seed                  string   `yaml:"seed"`
-	Index0                uint64   `yaml:"index0"`
-	TxTag                 string   `yaml:"txTag"`
-	TxTagPromote          string   `yaml:"txTagPromote"`
-	AddressPromote        string   `yaml:"addressPromote"`
-	ForceReattachAfterMin uint64   `yaml:"forceReattachAfterMin"`
-	PromoteChain          bool     `yaml:"promoteChain"`
-	PromoteEverySec       uint64   `yaml:"promoteEverySec"`
-	PromoteDisable        bool     `yaml:"promoteDisable"`
+	Enabled        bool     `yaml:"enabled"`
+	IOTANode       []string `yaml:"iotaNode"`
+	IOTANodeTipsel []string `yaml:"iotaNodeTipsel"`
+
+	IOTANodePoW      string `yaml:"iotaNodePOW"`
+	UsePOWService    bool   `yaml:"usePOWService"`
+	EndpointPOW      string `yaml:"endpointPOW"`
+	ApiKeyPOWService string `yaml:"apiKeyPOWService"`
+
+	TimeoutAPI            uint64 `yaml:"apiTimeout"`
+	TimeoutTipsel         uint64 `yaml:"tipselTimeout"`
+	TimeoutPoW            uint64 `yaml:"powTimeout"`
+	Seed                  string `yaml:"seed"`
+	Index0                uint64 `yaml:"index0"`
+	TxTag                 string `yaml:"txTag"`
+	TxTagPromote          string `yaml:"txTagPromote"`
+	AddressPromote        string `yaml:"addressPromote"`
+	ForceReattachAfterMin uint64 `yaml:"forceReattachAfterMin"`
+	PromoteChain          bool   `yaml:"promoteChain"`
+	PromoteEverySec       uint64 `yaml:"promoteEverySec"`
+	PromoteDisable        bool   `yaml:"promoteDisable"`
 }
 
 type senderUpdatePublisherYAML struct {
@@ -172,7 +177,15 @@ func mustReadMasterConfig(configFilename string) {
 			log.Infof("     IOTANodeTipsel: %v", uri)
 		}
 	}
-	log.Infof("     IOTANodePoW: %v, timeout: %v ", Config.Sender.Globals.IOTANodePoW, Config.Sender.Globals.TimeoutPoW)
+
+	if Config.Sender.Globals.UsePOWService {
+		log.Infof("Will be using PoW service from powsrv.io:")
+		log.Infof("     endpointPOW: %s", Config.Sender.Globals.EndpointPOW)
+		log.Infof("     apiKeyPOWService: %d chars long", len(Config.Sender.Globals.ApiKeyPOWService))
+	} else {
+		log.Infof("POW will be performed by the node:")
+		log.Infof("     IOTANodePoW: %v, timeout: %v ", Config.Sender.Globals.IOTANodePoW, Config.Sender.Globals.TimeoutPoW)
+	}
 
 	if Config.ExitProgram.Enabled {
 		log.Infof("Program exit conditions are ENABLED")
@@ -331,6 +344,10 @@ func getSeqParams(name string) (*senderParamsYAML, error) {
 			ret.IOTANodePoW = ret.IOTANode[0] // by default using first of nodes
 		}
 	}
+	ret.UsePOWService = Config.Sender.Globals.UsePOWService
+	ret.EndpointPOW = Config.Sender.Globals.EndpointPOW
+	ret.ApiKeyPOWService = Config.Sender.Globals.ApiKeyPOWService
+
 	if len(ret.TxTag) == 0 {
 		ret.TxTag = Config.Sender.Globals.TxTag
 	}
