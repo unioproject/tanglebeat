@@ -9,7 +9,7 @@ import (
 // see https://powsrv.io/
 // Install:
 // go get -d -u github.com/golang/protobuf/protoc-gen-go
-// go get gitlab.com/powsrv.io/go/client
+// go get -u gitlab.com/powsrv.io/go/client
 
 func createPoWAPI(params *senderParamsYAML) (multiapi.MultiAPI, error) {
 	var ret multiapi.MultiAPI
@@ -30,17 +30,25 @@ func createPoWAPI(params *senderParamsYAML) (multiapi.MultiAPI, error) {
 	return ret, nil
 }
 
-func createPoWServiceAPI(endpointPOW, apiKeyPOWService string) (multiapi.MultiAPI, error) {
-	powClient := &powsrvio.PowClient{
-		APIKey:        apiKeyPOWService,
-		ReadTimeOutMs: 5000,
-		Verbose:       false,
-	}
+// only one powsrw.io client
 
-	// init powsrv.io
-	err := powClient.Init()
-	if err != nil {
-		return nil, err
+var powClient *powsrvio.PowClient
+
+func createPoWServiceAPI(endpointPOW, apiKeyPOWService string) (multiapi.MultiAPI, error) {
+	var err error
+	if powClient == nil {
+		powClientTmp := &powsrvio.PowClient{
+			APIKey:        apiKeyPOWService,
+			ReadTimeOutMs: 5000,
+			Verbose:       false,
+		}
+
+		// init powsrv.io
+		err = powClientTmp.Init()
+		if err != nil {
+			return nil, err
+		}
+		powClient = powClientTmp
 	}
 
 	// create a new API instance
