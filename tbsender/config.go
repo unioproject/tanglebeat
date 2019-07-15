@@ -177,7 +177,15 @@ func mustReadMasterConfig(configFilename string) {
 			log.Infof("     IOTANodeTipsel: %v", uri)
 		}
 	}
-	log.Infof("     IOTANodePoW: %v, timeout: %v ", Config.Sender.Globals.IOTANodePoW, Config.Sender.Globals.TimeoutPoW)
+
+	if Config.Sender.Globals.UsePOWService {
+		log.Infof("Will be using PoW service from powsrv.io:")
+		log.Infof("     endpointPOW: %s", Config.Sender.Globals.EndpointPOW)
+		log.Infof("     apiKeyPOWService: %d chars long", len(Config.Sender.Globals.ApiKeyPOWService))
+	} else {
+		log.Infof("POW will be performed by the node:")
+		log.Infof("     IOTANodePoW: %v, timeout: %v ", Config.Sender.Globals.IOTANodePoW, Config.Sender.Globals.TimeoutPoW)
+	}
 
 	if Config.ExitProgram.Enabled {
 		log.Infof("Program exit conditions are ENABLED")
