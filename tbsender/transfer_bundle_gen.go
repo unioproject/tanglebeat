@@ -74,7 +74,8 @@ func initTransferBundleGenerator(name string, params *senderParamsYAML, logger *
 		return nil, err
 	}
 
-	ret.iotaMultiAPIaTT, err = multiapi.New([]string{params.IOTANodePoW}, params.TimeoutPoW)
+	// APi for PoW (multiapi with one endpoint)
+	ret.iotaMultiAPIaTT, err = createPoWAPI(params)
 	if err != nil {
 		return nil, err
 	}

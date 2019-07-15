@@ -38,7 +38,7 @@ func (conf *Confirmer) promote() (error, Hash) {
 		Value:   0,
 		Tag:     conf.TxTagPromote,
 	}}
-	ts := utils.UnixSec(time.Now()) // corrected, must be seconds, not milis
+	ts := utils.UnixSec(time.Now()) // corrected, must be seconds, not millis
 	prepTransferOptions := PrepareTransfersOptions{
 		Timestamp: &ts,
 	}
