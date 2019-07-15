@@ -122,6 +122,8 @@ func (gen *transferBundleGenerator) CheckBalance(addr Hash) (bool, uint64, error
 	return spent, b.Balances[0], nil
 }
 
+const sleepAfterErrorSec = 15
+
 // main generating loop
 func (gen *transferBundleGenerator) runGenerator() {
 	var addr Hash
@@ -149,7 +151,7 @@ func (gen *transferBundleGenerator) runGenerator() {
 		spent, balance, err = gen.CheckBalance(addr)
 		if err != nil {
 			gen.log.Errorf("%v[%v]: CheckBalance returned '%v'", gen.name, gen.index, err)
-			time.Sleep(5 * time.Second)
+			time.Sleep(sleepAfterErrorSec * time.Second)
 			errorCount += 1
 			continue
 		}
@@ -183,7 +185,7 @@ func (gen *transferBundleGenerator) runGenerator() {
 			bundleData, createNew, err = gen.findBundleToConfirm(addr)
 			if err != nil {
 				gen.log.Errorf("Transfer Bundles '%v': findBundleToConfirm returned: %v", gen.name, err)
-				time.Sleep(5 * time.Second)
+				time.Sleep(sleepAfterErrorSec * time.Second)
 				errorCount += 1
 				continue
 			}
@@ -200,7 +202,7 @@ func (gen *transferBundleGenerator) runGenerator() {
 				bundleData, err = gen.sendToNext(addr) // will fill up Balance field
 				if err != nil {
 					gen.log.Errorf("Transfer Bundles: '%v' sendToNext returned: %v", gen.name, err)
-					time.Sleep(5 * time.Second)
+					time.Sleep(sleepAfterErrorSec * time.Second)
 					errorCount += 1
 					continue
 				}
@@ -225,7 +227,7 @@ func (gen *transferBundleGenerator) runGenerator() {
 			tail, err := utils.TailFromBundleTrytes(bundleData.BundleTrytes)
 			if err != nil {
 				gen.log.Errorf("Transfer Bundles: '%v' AsTransactionObject returned: %v", gen.name, err)
-				time.Sleep(5 * time.Second)
+				time.Sleep(sleepAfterErrorSec * time.Second)
 				continue
 			}
 			bundleHash := tail.Bundle
