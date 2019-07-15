@@ -329,7 +329,7 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr Trytes, balance
 		KeyIndex: fromIndex,
 		Balance:  balance,
 	}}
-	ts := utils.UnixSec(time.Now()) // currected, must be seconds, not milis
+	ts := utils.UnixSec(time.Now()) // corrected, must be seconds, not miliseconds
 	prepTransferOptions := PrepareTransfersOptions{
 		Inputs:    inputs,
 		Timestamp: &ts,
@@ -340,7 +340,7 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr Trytes, balance
 	bundlePrep, err := gen.iotaMultiAPI.GetAPI().PrepareTransfers(seed, transfers, prepTransferOptions)
 
 	if AEC.CheckError("local", err) {
-		return nil, err
+		return nil, fmt.Errorf("from PrepareTransfers: '%v'", err)
 	}
 	//----- end prepare transfer
 
@@ -350,7 +350,7 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr Trytes, balance
 	gttaResp, err := gen.iotaMultiAPIgTTA.GetTransactionsToApprove(3, &apiret)
 
 	if AEC.CheckError(apiret.Endpoint, err) {
-		return nil, err
+		return nil, fmt.Errorf("from GetTransactionsToApprove: '%v'", err)
 	}
 	ret.TotalDurationTipselMs = uint64(apiret.Duration / time.Millisecond)
 
@@ -363,7 +363,7 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr Trytes, balance
 		&apiret,
 	)
 	if AEC.CheckError(apiret.Endpoint, err) {
-		return nil, err
+		return nil, fmt.Errorf("from AttachToTangle: '%v'", err)
 	}
 	ret.TotalDurationPoWMs = uint64(apiret.Duration / time.Millisecond)
 
@@ -371,7 +371,7 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr Trytes, balance
 	// no multi args!!!
 	_, err = gen.iotaMultiAPI.StoreAndBroadcast(bundleRet, &apiret)
 	if AEC.CheckError(apiret.Endpoint, err) {
-		return nil, err
+		return nil, fmt.Errorf("from StoreAndBroadcast: '%v'", err)
 	}
 	ret.BundleTrytes = bundleRet
 	return ret, nil
@@ -386,7 +386,7 @@ func (gen *transferBundleGenerator) sendToNext(addr Hash) (*bundle_source.FirstB
 
 	gbResp, err := gen.getBalanceAddr(Hashes{addr})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("from gen.getBalanceAddr: '%v'", err)
 	}
 	balance := gbResp.Balances[0]
 	if balance == 0 {
