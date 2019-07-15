@@ -2,6 +2,7 @@ package confirmer
 
 import (
 	"errors"
+	"fmt"
 	. "github.com/iotaledger/iota.go/api"
 	. "github.com/iotaledger/iota.go/bundle"
 	. "github.com/iotaledger/iota.go/transaction"
@@ -45,13 +46,13 @@ func (conf *Confirmer) promote() (error, Hash) {
 	// TODO multi api
 	bundleTrytesPrep, err := conf.IotaMultiAPI.GetAPI().PrepareTransfers(all9, transfers, prepTransferOptions)
 	if conf.AEC.CheckError(conf.IotaMultiAPI.GetAPIEndpoint(), err) {
-		return err, ""
+		return fmt.Errorf("from PrepareTransfers: '%v'", err), ""
 	}
 	var apiret multiapi.MultiCallRet
 	st := utils.UnixMs(time.Now())
 	gttaResp, err := conf.IotaMultiAPIgTTA.GetTransactionsToApprove(3, &apiret)
 	if conf.AEC.CheckError(apiret.Endpoint, err) {
-		return err, ""
+		return fmt.Errorf("from GetTransactionsToApprove: '%v'", err), ""
 	}
 	conf.totalDurationGTTAMsec += utils.UnixMs(time.Now()) - st
 
@@ -60,7 +61,7 @@ func (conf *Confirmer) promote() (error, Hash) {
 
 	btrytes, duration, err := conf.attachToTangle(trunkTxh, branchTxh, bundleTrytesPrep)
 	if err != nil {
-		return err, ""
+		return fmt.Errorf("from conf.attachToTangle: '%v'", err), ""
 	}
 	conf.totalDurationATTMsec += duration
 
