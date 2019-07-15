@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	. "github.com/iotaledger/iota.go/api"
 	. "github.com/iotaledger/iota.go/consts"
 	. "github.com/iotaledger/iota.go/guards/validators"
 	. "github.com/iotaledger/iota.go/trinary"
@@ -13,7 +12,6 @@ import (
 	"github.com/unioproject/tanglebeat/tanglebeat/pubupdate"
 	"github.com/unioproject/tanglebeat/tbsender/bundle_source"
 	"github.com/unioproject/tanglebeat/tbsender/sender_update"
-	powsrvio "gitlab.com/powsrv.io/go/client"
 	"os"
 	"time"
 )
@@ -92,17 +90,9 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 	}
 
 	var iotaMultiAPIaTT multiapi.MultiAPI
-	if !params.UsePOWService {
-		iotaMultiAPIaTT, err = multiapi.New([]string{params.IOTANodePoW}, params.TimeoutPoW)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		// create api endpoint as in https://powsrv.io/
-		iotaMultiAPIaTT, err = createPoWServiceAPI(params.EndpointPOW, params.ApiKeyPOWService)
-		if err != nil {
-			return nil, err
-		}
+	iotaMultiAPIaTT, err = createPoWAPI(params)
+	if err != nil {
+		return nil, err
 	}
 
 	txTagPromote := Pad(Trytes(params.TxTagPromote), TagTrinarySize/3)
@@ -127,33 +117,6 @@ func createConfirmer(params *senderParamsYAML, logger *logging.Logger) (*confirm
 		ConfmonPollingOnly:    Config.ConfirmationMonitor.UsePollingOnly,
 		ConfmonNanozmq:        Config.ConfirmationMonitor.NanoZmq,
 	}, nil), nil
-}
-
-// see https://powsrv.io/
-
-func createPoWServiceAPI(endpointPOW, apiKeyPOWService string) (multiapi.MultiAPI, error) {
-	powClient := &powsrvio.PowClient{
-		APIKey:        apiKeyPOWService,
-		ReadTimeOutMs: 5000,
-		Verbose:       false,
-	}
-
-	// init powsrv.io
-	err := powClient.Init()
-	if err != nil {
-		return nil, err
-	}
-
-	// create a new API instance
-	var api *API
-	api, err = ComposeAPI(HTTPClientSettings{
-		URI:                  endpointPOW,
-		LocalProofOfWorkFunc: powClient.PowFunc,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return multiapi.NewFromAPI(api, endpointPOW)
 }
 
 // checks if balance in the address is enough to confirm a transfer
