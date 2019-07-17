@@ -355,6 +355,7 @@ func (gen *transferBundleGenerator) sendBalance(fromAddr, toAddr Trytes, balance
 	ret.TotalDurationTipselMs = uint64(apiret.Duration / time.Millisecond)
 
 	// do POW by calling attachToTangle
+	//fmt.Printf("gen ----------------------------------- %v\n", gen.iotaMultiAPIaTT)
 	bundleRet, err := gen.iotaMultiAPIaTT.AttachToTangle(
 		gttaResp.TrunkTransaction,
 		gttaResp.BranchTransaction,
@@ -397,7 +398,7 @@ func (gen *transferBundleGenerator) sendToNext(addr Hash) (*bundle_source.FirstB
 	}
 	ret, err := gen.sendBalance(addr, nextAddr, balance, gen.seed, gen.index)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("from gen.sendBalance: '%v'", err)
 	}
 	// wait until address will acquire isSpent status
 	spent, err := gen.isSpentAddr(addr)

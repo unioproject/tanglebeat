@@ -15,7 +15,13 @@ import (
 
 func (conf *Confirmer) attachToTangle(trunkHash, branchHash Hash, trytes []Trytes) ([]Trytes, uint64, error) {
 	var apiret multiapi.MultiCallRet
+
+	//fmt.Printf("conf call ATT ----------------------- %v\n", conf.IotaMultiAPIaTT)
+
 	ret, err := conf.IotaMultiAPIaTT.AttachToTangle(trunkHash, branchHash, 14, trytes, &apiret)
+
+	//fmt.Printf("conf end ATT ----------------------- %v\n", conf.IotaMultiAPIaTT)
+
 	conf.AEC.CheckError(apiret.Endpoint, err)
 	return ret, uint64(apiret.Duration / time.Millisecond), err
 }

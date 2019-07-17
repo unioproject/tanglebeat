@@ -21,8 +21,7 @@ func createPoWAPI(params *senderParamsYAML) (multiapi.MultiAPI, error) {
 			return nil, err
 		}
 	} else {
-		// create api endpoint as in https://powsrv.io/
-		ret, err = createPoWServiceAPI(params.EndpointPOW, params.ApiKeyPOWService)
+		ret, err = getGlbPoWServiceAPI(params.EndpointPOW, params.ApiKeyPOWService)
 		if err != nil {
 			return nil, err
 		}
@@ -32,23 +31,20 @@ func createPoWAPI(params *senderParamsYAML) (multiapi.MultiAPI, error) {
 
 // only one powsrw.io client
 
-var powClient *powsrvio.PowClient
+const powTimeoutMs = 15000
 
-func createPoWServiceAPI(endpointPOW, apiKeyPOWService string) (multiapi.MultiAPI, error) {
+func createLocalPoWServiceAPI(endpointPOW, apiKeyPOWService string) (multiapi.MultiAPI, error) {
 	var err error
-	if powClient == nil {
-		powClientTmp := &powsrvio.PowClient{
-			APIKey:        apiKeyPOWService,
-			ReadTimeOutMs: 5000,
-			Verbose:       false,
-		}
+	powClient := &powsrvio.PowClient{
+		APIKey:        apiKeyPOWService,
+		ReadTimeOutMs: powTimeoutMs,
+		Verbose:       false,
+	}
 
-		// init powsrv.io
-		err = powClientTmp.Init()
-		if err != nil {
-			return nil, err
-		}
-		powClient = powClientTmp
+	// init powsrv.io
+	err = powClient.Init()
+	if err != nil {
+		return nil, err
 	}
 
 	// create a new API instance
@@ -61,4 +57,24 @@ func createPoWServiceAPI(endpointPOW, apiKeyPOWService string) (multiapi.MultiAP
 		return nil, err
 	}
 	return multiapi.NewFromAPI(api, endpointPOW)
+}
+
+var glbPoWAPI multiapi.MultiAPI
+
+func getGlbPoWServiceAPI(args ...string) (multiapi.MultiAPI, error) {
+	if glbPoWAPI != nil {
+		return glbPoWAPI, nil
+	}
+	if len(args) != 2 {
+		panic("wrong args in the call to 'getGlbPoWServiceAPI'")
+	}
+	endpointPOW := args[0]
+	apiKeyPOWService := args[1]
+
+	ret, err := createLocalPoWServiceAPI(endpointPOW, apiKeyPOWService)
+	if err != nil {
+		return nil, err
+	}
+	glbPoWAPI = ret
+	return glbPoWAPI, nil
 }
