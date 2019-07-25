@@ -12,72 +12,72 @@ confirmationMonitor:
 
 # sender configuration section
 sender:
-    # is sender enabled.
-    enabled: true
-    # only calls first node in the list of IOTA nodes. If disableMultiCalls: false,
-    # calls all nodes specified in the iotaNode and iotaNodeTipsel sections in parallel
-    # and uses first response without error
-    disableMultiCalls: false
+  # is sender enabled.
+  enabled: true
+  # only calls first node in the list of IOTA nodes. If disableMultiCalls: false,
+  # calls all nodes specified in the iotaNode and iotaNodeTipsel sections in parallel
+  # and uses first response without error
+  disableMultiCalls: false
 
-    # Global parameters, inherited (used as defaults) by individual sequences
-    globals:
-        # default IOTA node. Used for all calls, except can be overridden by specifying nodes for
-        # POW (attachToTangle) and tip selection (getTransactionsToApprove)
-        # must be at least 1. If it is a list of several it is used by multiCall to call in parallel
-        iotaNode:
-            - https://mynode.com:443
-            - https://nodes.iota.cafe:443
-        # IOTA nodes for getTransactionsToApprove
-        iotaNodeTipsel: 
-            - https://nodes.thetangle.org:443
-            - https://mynode.com14265
-        # IOTA node for attachToTangle (if usePOWService: false)
-        iotaNodePOW: https://api.powsrv.io:443
-        # alternatively using PoW service with endpoint and API key
-        usePOWService: true
-        endpointPOW: https://api.powsrv.io:443
-        apiKeyPOWService: KKKKKKKKKKKK
+  # Global parameters, inherited (used as defaults) by individual sequences
+  globals:
+    # default IOTA node. Used for all calls, except can be overridden by specifying nodes for
+    # POW (attachToTangle) and tip selection (getTransactionsToApprove)
+    # must be at least 1. If it is a list of several it is used by multiCall to call in parallel
+    iotaNode:
+      - http://node05.iotatoken.nl:14265
+      - https://nodes.iota.cafe:443
+    # IOTA nodes for getTransactionsToApprove
+    iotaNodeTipsel: 
+      - https://nodes.thetangle.org:443
+      - http://node05.iotatoken.nl:14265
+    # IOTA node for attachToTangle (if usePOWService: false)
+    iotaNodePOW: https://api.powsrv.io:443
+    # alternatively using PoW service with endpoint and API key
+    usePOWService: true
+    endpointPOW: https://api.powsrv.io:443
+    apiKeyPOWService: KKKKKKKKKKKK
 
-        # respective api timeouts in seconds
-        apiTimeout: 15
-        tipselTimeout: 20
-        powTimeout: 20
-        # tx tags. Must be tryte string no longer than 27 trytes
-        txTag: TANGLE9BEAT
-        txTagPromote: TANGLE9BEAT
-        # seconds to sleep after every promotion. If 0 next promotion is started immediately after the previous
-        promoteEverySec: 60
-        # promote can be disabled
-        promoteDisable: false
-        # normally bundles are reattached when become inconsistent as per 'checkConsistency'.
-        # With this parameter one can specify minutes after which reattachment is forced even if is still consistent
-        forceReattachAfterMin: 15
+    # respective api timeouts in seconds
+    apiTimeout: 15
+    tipselTimeout: 20
+    powTimeout: 20
+    # tx tags. Must be tryte string no longer than 27 trytes
+    txTag: TANGLE9BEAT9CYCLUX
+    txTagPromote: TANGLE9BEAT9CYCLUX
+    # seconds to sleep after every promotion. If 0 next promotion is started immediately after the previous
+    promoteEverySec: 60
+    # promote can be disabled
+    promoteDisable: false
+    # normally bundles are reattached when become inconsistent as per 'checkConsistency'.
+    # With this parameter one can specify minutes after which reattachment is forced even if is still consistent
+    forceReattachAfterMin: 15
 
-    # Sequences
-    # each sequence is configured with YAML mapping 'sequences name' -> (mappings parameters -> values)
-    # Each sequence inherits global parameters
-    # If a parameter is provided in a sequences section it overrides global parameter. 
-    
-    sequences:
-        Seq A:
-            enabled: false
-            # seed must be 81 trytes
-            seed: MY9SECRETSEED9DO9NOT9PUT9MUCHFUNDS99999999999999999999999999999999999999999999999
-            # address index with which to start
-            index0: 0
-            # if true -> promote the previuos promote ('chain' strategy)
-            # if false -> always promote the original bundle ('blowball' strategy)
-            promoteChain: true
-        Seq B:
-            enabled: true
-            seed: MY9SECRETSEED9DO9NOT9PUT9MUCHFUNDS99999999999999999999999999999999999999999999999
-            index0: 0
-            promoteChain: false
-        Seq C:
-            enabled: true
-            seed: MY9SECRETSEED9DO9NOT9PUT9MUCHFUNDS99999999999999999999999999999999999999999999999
-            index0: 0
-            promoteChain: false
+  # Sequences
+  # each sequence is configured with YAML mapping 'sequences name' -> (mappings parameters -> values)
+  # Each sequence inherits global parameters
+  # If a parameter is provided in a sequences section it overrides global parameter.
+
+  sequences:
+    Seq A:
+      enabled: true
+      # seed must be 81 trytes
+      seed: TXIFNZHVCEVGCKZAVTXMRTZJ9TRROKIIZBBCTI9DQQSJMCOA9STQUWLX9VNTKKWNJGEFPLKUHFUH9APYH
+      # address index with which to start
+      index0: 0
+      # if true -> promote the previuos promote ('chain' strategy)
+      # if false -> always promote the original bundle ('blowball' strategy)
+      promoteChain: true
+    Seq B:
+      enabled: true
+      seed: JCJWCQENRQEJBRHXIPIWUQLUHIXMVUIA9IIPSHHQZIKYTMFVFTJVACHACPBLXGTVZWBHTDHPSTHJCADUI
+      index0: 0
+      promoteChain: true
+    Seq C:
+      enabled: true
+      seed: EXBNMAODDVSAHSZOUTL9VFDFMPSDAMQVCBSJQRHUVPUQTQFWFKWVHJPGOLVCRVXW9RCYLLR9OFBV9TIEB
+      index0: 0
+      promoteChain: true
 
 # Update publisher section
 # TBSender publishes it's updates on transfer status as Nanomsg stream. This stream contains updates
@@ -89,28 +89,27 @@ sender:
 #             - "tcp://localhost:3100"
 
 senderUpdatePublisher:
-    enabled: true
-    outputPort: 3100
+  enabled: true
+  outputPort: 3100
 
 logging:
-    # debug false
-    debug: true
-    # subdirectory where to put logs and other working files. Must exist
-    workingSubdir: "/log"
-    # if true doesn't write to file logs, only to console
-    logConsoleOnly: true
-    # duplicate logging to separate file for each sequence
-    # effective if logConsoleOnly = false
-    logSequencesSeparately: true
-    # if true file logs will be rotated every 12 hours with retain period of 36 hours
-    rotateLogs: true
-    # log formatting as defined in go-logging package. https://github.com/op/go-logging
-    # master log format
-    logFormat: "%{time:06-01-02 15:04:05.000} %{level:.4s} [%{module:.6s}] %{message}"
-    # used for debugging if specified, otherwise master format used
-    logFormatDebug: "%{time:2006-01-02 15:04:05.000} %{level:.4s} [%{module:.6s}|%{shortfunc:.12s}] %{message}"
-    # mem stats logged
-    # mems stats interval seconds
-    logRuntimeStats: true
-    logRuntimeStatsInterval: 10
-
+  # debug false
+  debug: true
+  # subdirectory where to put logs and other working files. Must exist
+  workingSubdir: "/log"
+  # if true doesn't write to file logs, only to console
+  logConsoleOnly: true
+  # duplicate logging to separate file for each sequence
+  # effective if logConsoleOnly = false
+  logSequencesSeparately: true
+  # if true file logs will be rotated every 12 hours with retain period of 36 hours
+  rotateLogs: true
+  # log formatting as defined in go-logging package. https://github.com/op/go-logging
+  # master log format
+  logFormat: "%{time:06-01-02 15:04:05.000} %{level:.4s} [%{module:.6s}] %{message}"
+  # used for debugging if specified, otherwise master format used
+  logFormatDebug: "%{time:2006-01-02 15:04:05.000} %{level:.4s} [%{module:.6s}|%{shortfunc:.12s}] %{message}"
+  # mem stats logged
+  # mems stats interval seconds
+  logRuntimeStats: true
+  logRuntimeStatsInterval: 10

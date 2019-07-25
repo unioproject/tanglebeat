@@ -1,0 +1,56 @@
+FROM golang:latest as tanglebeat_compile
+WORKDIR /
+
+RUN go get -d github.com/unioproject/tanglebeat/tanglebeat
+COPY ./tanglebeat/ ${GOPATH}/src/github.com/unioproject/tanglebeat/tanglebeat/
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o tanglebeat ${GOPATH}/src/github.com/unioproject/tanglebeat/tanglebeat
+
+RUN go get -d github.com/unioproject/tanglebeat/tbsender
+COPY ./tbsender/ ${GOPATH}/src/github.com/unioproject/tanglebeat/tbsender/
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o tbsender ${GOPATH}/src/github.com/unioproject/tanglebeat/tbsender
+
+FROM golang:alpine as nano2zmq_compile
+WORKDIR /
+
+COPY ./examples/nano2zmq/ ${GOPATH}/src/github.com/unioproject/tanglebeat/examples/nano2zmq/
+
+RUN apk update && apk add --no-cache --virtual .build-deps \
+  build-base \
+  gcc \
+  libunwind-dev \
+  pkgconf-dev \
+  libtool \
+  autoconf \
+  automake \
+  git \
+  && git clone https://github.com/zeromq/libzmq.git && cd libzmq && ./autogen.sh && ./configure && make && make install \
+  && go get -d github.com/unioproject/tanglebeat/examples/nano2zmq
+
+RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o nano2zmq ${GOPATH}/src/github.com/unioproject/tanglebeat/examples/nano2zmq
+
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates
+WORKDIR /root/
+
+COPY --from=tanglebeat_compile tanglebeat .
+COPY --from=tanglebeat_compile tbsender .
+
+COPY --from=nano2zmq_compile nano2zmq .
+COPY --from=nano2zmq_compile /usr/local/lib/libzmq.so.5 /usr/local/lib/libzmq.so.5
+COPY --from=nano2zmq_compile /usr/lib/libstdc++.so.6 /usr/lib/libstdc++.so.6
+COPY --from=nano2zmq_compile /usr/lib/libgcc_s.so.1 /usr/lib/libgcc_s.so.1
+COPY --from=nano2zmq_compile /usr/lib/libunwind.so.8 /usr/lib/libunwind.so.8
+COPY --from=nano2zmq_compile /usr/lib/libstdc++.so.6 /usr/lib/libstdc++.so.6
+
+ENV SITE_DATA_DIR="/root/config"
+ENV PATH="/root"
+
+EXPOSE 8082 5550 5556 3100
+
+ENTRYPOINT ["./tanglebeat"]
+
+# sudo docker build -t tanglebeat -f Dockerfile.tanglebeat .
+# sudo docker run -v `pwd`/examples/config:/root/config tanglebeat:latest
+
+# docker tag tanglebeat:v1.0.0 new-repo:tagname
+# docker push new-repo:tagname
