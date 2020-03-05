@@ -74,6 +74,9 @@ func msgFilterLoop() {
 func filterMsg(routine *inputRoutine, msgData []byte, msgSplit []string) {
 	switch msgSplit[0] {
 	case "tx":
+		filterTXMsg(routine, msgData, msgSplit)
+
+		// disabled checking during Coo shutdown
 		if sncache.firstMilestoneArrived() {
 			filterTXMsg(routine, msgData, msgSplit)
 		}

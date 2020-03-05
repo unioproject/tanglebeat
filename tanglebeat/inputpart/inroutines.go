@@ -307,7 +307,7 @@ func (r *inputRoutine) getStats() *ZmqRoutineStats {
 			if sncache.firstMilestoneArrived() {
 				ret.State = "running"
 			} else {
-				ret.State = "wait_milestone"
+				ret.State = "running (wait_milestone)"
 			}
 		case lastHBSec < 300:
 			ret.State = "slow"
