@@ -136,13 +136,14 @@ func initZmqMetrics() {
 	//})
 	//MustRegister(lmConfRate30minMetrics)
 	//
-	//if cfg.Config.MultiQuorumMetricsEnabled {
-	//	multiQuorumTps = NewCounterVec(CounterOpts{
-	//		Name: "tanglebeat_multiquorum_tps",
-	//		Help: "TPS labeled by quorums",
-	//	}, []string{"quorum"})
-	//	MustRegister(multiQuorumTps)
-	//}
+
+	if cfg.Config.MultiQuorumMetricsEnabled {
+		multiQuorumTps = NewCounterVec(CounterOpts{
+			Name: "tanglebeat_multiquorum_tps",
+			Help: "TPS labeled by quorums",
+		}, []string{"quorum"})
+		MustRegister(multiQuorumTps)
+	}
 }
 
 func updateTransferVolumeMetrics(value uint64) {
