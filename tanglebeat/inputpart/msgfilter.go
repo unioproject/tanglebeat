@@ -56,7 +56,9 @@ func initMsgFilter() {
 	lmhsCache = hashcache.NewHashCacheBase("lmhscache", 0, segmentDurationTXSec, retentionPeriodSec)
 
 	startCollectingLatencyMetrics()
-	startCollectingLMConfRate()
+
+	// LM metrics is not needed anymore
+	//startCollectingLMConfRate()
 
 	go msgFilterLoop()
 }
