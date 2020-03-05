@@ -71,6 +71,8 @@ func callMultiEnpoints(args ...string) ([]byte, error) {
 	return nil, err // last error
 }
 
+// deprecated, 2020.03.05 not deleted yet
+
 func GetLMConfRate() (map[string]float64, error) {
 	var unm interface{}
 

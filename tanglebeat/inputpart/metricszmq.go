@@ -28,10 +28,11 @@ var (
 	echoMetricsAvgLastSeen Gauge
 	echoMetricsAvgNthSeen  *GaugeVec
 
-	lmConfRate5minMetrics  Gauge
-	lmConfRate10minMetrics Gauge
-	lmConfRate15minMetrics Gauge
-	lmConfRate30minMetrics Gauge
+	// deprecated
+	//lmConfRate5minMetrics  Gauge
+	//lmConfRate10minMetrics Gauge
+	//lmConfRate15minMetrics Gauge
+	//lmConfRate30minMetrics Gauge
 
 	multiQuorumTps *CounterVec
 )
@@ -110,37 +111,38 @@ func initZmqMetrics() {
 
 	//--------------------------------------------------
 	// metrics by Luca Moser
-	lmConfRate5minMetrics = NewGauge(GaugeOpts{
-		Name: "tanglebeat_lm_conf_rate_5min",
-		Help: "Average conf rate by Luca Moser",
-	})
-	MustRegister(lmConfRate5minMetrics)
-
-	lmConfRate10minMetrics = NewGauge(GaugeOpts{
-		Name: "tanglebeat_lm_conf_rate_10min",
-		Help: "Average conf rate by Luca Moser",
-	})
-	MustRegister(lmConfRate10minMetrics)
-
-	lmConfRate15minMetrics = NewGauge(GaugeOpts{
-		Name: "tanglebeat_lm_conf_rate_15min",
-		Help: "Average conf rate by Luca Moser",
-	})
-	MustRegister(lmConfRate15minMetrics)
-
-	lmConfRate30minMetrics = NewGauge(GaugeOpts{
-		Name: "tanglebeat_lm_conf_rate_30min",
-		Help: "Average conf rate by Luca Moser",
-	})
-	MustRegister(lmConfRate30minMetrics)
-
-	if cfg.Config.MultiQuorumMetricsEnabled {
-		multiQuorumTps = NewCounterVec(CounterOpts{
-			Name: "tanglebeat_multiquorum_tps",
-			Help: "TPS labeled by quorums",
-		}, []string{"quorum"})
-		MustRegister(multiQuorumTps)
-	}
+	// deprecated
+	//lmConfRate5minMetrics = NewGauge(GaugeOpts{
+	//	Name: "tanglebeat_lm_conf_rate_5min",
+	//	Help: "Average conf rate by Luca Moser",
+	//})
+	//MustRegister(lmConfRate5minMetrics)
+	//
+	//lmConfRate10minMetrics = NewGauge(GaugeOpts{
+	//	Name: "tanglebeat_lm_conf_rate_10min",
+	//	Help: "Average conf rate by Luca Moser",
+	//})
+	//MustRegister(lmConfRate10minMetrics)
+	//
+	//lmConfRate15minMetrics = NewGauge(GaugeOpts{
+	//	Name: "tanglebeat_lm_conf_rate_15min",
+	//	Help: "Average conf rate by Luca Moser",
+	//})
+	//MustRegister(lmConfRate15minMetrics)
+	//
+	//lmConfRate30minMetrics = NewGauge(GaugeOpts{
+	//	Name: "tanglebeat_lm_conf_rate_30min",
+	//	Help: "Average conf rate by Luca Moser",
+	//})
+	//MustRegister(lmConfRate30minMetrics)
+	//
+	//if cfg.Config.MultiQuorumMetricsEnabled {
+	//	multiQuorumTps = NewCounterVec(CounterOpts{
+	//		Name: "tanglebeat_multiquorum_tps",
+	//		Help: "TPS labeled by quorums",
+	//	}, []string{"quorum"})
+	//	MustRegister(multiQuorumTps)
+	//}
 }
 
 func updateTransferVolumeMetrics(value uint64) {
@@ -214,28 +216,30 @@ func startCollectingLatencyMetrics() {
 	}()
 }
 
+// deprecated 2020.03.05 , not deleted yet
+
 func startCollectingLMConfRate() {
-	go func() {
-		for {
-			time.Sleep(10 * time.Second)
-
-			valmap, err := GetLMConfRate()
-			if err != nil {
-				lmConfRate5minMetrics.Set(0)
-				lmConfRate10minMetrics.Set(0)
-				lmConfRate15minMetrics.Set(0)
-				lmConfRate30minMetrics.Set(0)
-
-				errorf("Error while collecting LM conf rate metrics: %v", err)
-			} else {
-				lmConfRate5minMetrics.Set(valmap["avg_5"])
-				lmConfRate10minMetrics.Set(valmap["avg_10"])
-				lmConfRate15minMetrics.Set(valmap["avg_15"])
-				lmConfRate30minMetrics.Set(valmap["avg_30"])
-
-				debugf("LM conf rate: avg_5 = %v%%, avg_10 = %v%% avg_15 = %v%% avg_30 = %v%%",
-					valmap["avg_5"], valmap["avg_10"], valmap["avg_15"], valmap["avg_30"])
-			}
-		}
-	}()
+	//go func() {
+	//	for {
+	//		time.Sleep(10 * time.Second)
+	//
+	//		valmap, err := GetLMConfRate()
+	//		if err != nil {
+	//			lmConfRate5minMetrics.Set(0)
+	//			lmConfRate10minMetrics.Set(0)
+	//			lmConfRate15minMetrics.Set(0)
+	//			lmConfRate30minMetrics.Set(0)
+	//
+	//			errorf("Error while collecting LM conf rate metrics: %v", err)
+	//		} else {
+	//			lmConfRate5minMetrics.Set(valmap["avg_5"])
+	//			lmConfRate10minMetrics.Set(valmap["avg_10"])
+	//			lmConfRate15minMetrics.Set(valmap["avg_15"])
+	//			lmConfRate30minMetrics.Set(valmap["avg_30"])
+	//
+	//			debugf("LM conf rate: avg_5 = %v%%, avg_10 = %v%% avg_15 = %v%% avg_30 = %v%%",
+	//				valmap["avg_5"], valmap["avg_10"], valmap["avg_15"], valmap["avg_30"])
+	//		}
+	//	}
+	//}()
 }
